@@ -1,20 +1,48 @@
 # Thematic Codebook Graph
 
-A simple web app that turns a thematic analysis codebook (JSON) into an interactive force-directed graph.
+A React app that turns a thematic analysis codebook (JSON) into an interactive force-directed graph with overview/focus views, export, and keyboard shortcuts.
 
-## How to use
+## Run locally
 
-1. Open `index.html` in a browser (or run a local server from this folder).
-2. Paste your codebook JSON into the text area. The JSON should include:
-   - **canonical_nodes** (optional): list of main theme labels.
-   - **merge_groups** (optional): arrays of labels that are treated as the same theme (one node per group).
-   - **edges**: array of `{ "parent": "...", "child": "..." }` for direct relationships.
-   - **inferred_edges** (optional): same structure for inferred relationships (shown with dashed lines).
-3. Click **Build graph** (or Ctrl/Cmd + Enter).
-4. Use the checkbox to show or hide inferred edges.
-5. Drag nodes, zoom, and pan to explore the graph; hover for labels.
+```bash
+npm install
+npm run dev
+```
 
-## Example JSON shape
+Then open the URL shown (e.g. http://localhost:5173). To build for production:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Features
+
+- **Overview / Focus tabs** – Full-graph map vs. 1- or 2-hop neighborhood around a selected node.
+- **Node search** – Type a theme name and click **Focus** (or press Enter) to jump to focus view.
+- **Details panel** – Selected node’s degree, parents, children, aliases, and cluster size.
+- **Graph stats** – Nodes, edges, components, density, max degree, direct vs inferred edges (in the sidebar).
+- **Export PNG** – Download the current graph view as an image.
+- **Keyboard shortcuts**
+  - `/` – Focus node search
+  - `Esc` – Clear selection
+  - `?` – Open help
+  - `Ctrl+Enter` / `Cmd+Enter` – Build graph from JSON
+- **URL state** – View mode and selected node are in the hash so you can bookmark or share a state.
+- **Theme** – Light/dark toggle (persisted in `localStorage`).
+- **Collapsible sidebar** – Arrow button to collapse the JSON panel for more graph space.
+- **Help modal** – Shortcuts and tips (triggered by `?` or the **?** button).
+
+## JSON format
+
+Paste codebook JSON with:
+
+- **canonical_nodes** (optional): list of main theme labels.
+- **merge_groups** (optional): arrays of labels treated as the same theme (one node per group).
+- **edges**: array of `{ "parent": "...", "child": "..." }`.
+- **inferred_edges** (optional): same shape; drawn with dashed lines.
+
+Example:
 
 ```json
 {
@@ -25,4 +53,7 @@ A simple web app that turns a thematic analysis codebook (JSON) into an interact
 }
 ```
 
-Nodes that appear in the same `merge_groups` entry are collapsed into a single node (using the canonical label when present).
+## Tech
+
+- React 18, TypeScript, Vite
+- [vis-network](https://visjs.github.io/vis-network/) for the force-directed graph
