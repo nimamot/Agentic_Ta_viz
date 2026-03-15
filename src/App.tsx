@@ -52,11 +52,15 @@ function AppContent() {
         const top = data.nodes.slice().sort((a, b) => b.degree - a.degree)[0];
         setSelectedNodeId(top?.id ?? null);
       }
-      setNodeSearch(selectedNodeId != null && data.nodeMap.has(selectedNodeId) ? data.nodeMap.get(selectedNodeId)!.label : (data.nodes.slice().sort((a, b) => b.degree - a.degree)[0]?.label ?? ""));
-      showStatusMessage(`Built ${data.nodeCount} nodes, ${data.edgeCount} edges. Rendering ${viewMode} view…`, "info");
-      setTimeout(clearStatus, 2000);
+      setNodeSearch(
+        selectedNodeId != null && data.nodeMap.has(selectedNodeId)
+          ? data.nodeMap.get(selectedNodeId)!.label
+          : (data.nodes.slice().sort((a, b) => b.degree - a.degree)[0]?.label ?? "")
+      );
+      showStatusMessage(`${data.nodeCount} nodes · ${data.edgeCount} edges`, "info");
+      setTimeout(clearStatus, 2500);
     } catch (e) {
-      showStatusMessage("Error building graph: " + (e as Error).message, "error");
+      showStatusMessage("Build error: " + (e as Error).message, "error");
     }
   }, [jsonInput, viewMode, selectedNodeId]);
 
@@ -122,7 +126,7 @@ function AppContent() {
   const handleFocusNode = useCallback(() => {
     const id = findNodeByLabel(nodeSearch);
     if (id == null) {
-      showStatusMessage("Node not found. Try the dropdown or click a node.", "error");
+      showStatusMessage("Node not found.", "error");
       return;
     }
     setSelectedNodeId(id);
@@ -132,7 +136,7 @@ function AppContent() {
   return (
     <div className="app" data-theme={isDark ? "dark" : "light"}>
       <header className="header">
-        <h1>Thematic Codebook Graph</h1>
+        <h1>Codebook Observatory</h1>
         <div className="controls">
           <div className="tabs">
             <button type="button" className={`tab ${viewMode === "overview" ? "active" : ""}`} onClick={() => setViewMode("overview")}>
@@ -177,17 +181,15 @@ function AppContent() {
                 <option key={n.id} value={n.label} />
               ))}
             </datalist>
-            <button type="button" onClick={handleFocusNode}>
-              Focus
-            </button>
+            <button type="button" onClick={handleFocusNode}>Focus</button>
             {viewMode === "focus" && (
               <button type="button" className="secondary" onClick={() => setViewMode("overview")}>
-                Back
+                ← Back
               </button>
             )}
           </div>
           <button type="button" className="icon-btn" onClick={handleExportPng} title="Export PNG">
-            Export PNG
+            Export
           </button>
           <button type="button" className="icon-btn" onClick={() => setShowHelp(true)} title="Help (?)">
             ?
@@ -202,16 +204,29 @@ function AppContent() {
         <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
           <div className="sidebar-header">
             <span>Codebook JSON</span>
-            <button type="button" className="collapse-btn" onClick={() => setSidebarCollapsed((c) => !c)} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-              {sidebarCollapsed ? "→" : "←"}
+            <button
+              type="button"
+              className="collapse-btn"
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              aria-label={sidebarCollapsed ? "Expand" : "Collapse"}
+            >
+              {sidebarCollapsed ? "›" : "‹"}
             </button>
           </div>
           {!sidebarCollapsed && (
             <>
-              <p className="helper">Paste JSON with canonical_nodes, merge_groups, edges, inferred_edges. Use Overview for the full map, Focus for a theme’s neighborhood.</p>
-              <textarea value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && build()} placeholder='{"canonical_nodes": [...], "edges": [...]}' />
+              <p className="helper">
+                Paste JSON with canonical_nodes, merge_groups, edges, inferred_edges.
+                Overview = full map. Focus = selected node neighborhood.
+              </p>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && build()}
+                placeholder='{"canonical_nodes": [...], "edges": [...]}'
+              />
               <button type="button" className="btn" onClick={build}>
-                Build graph
+                ▶ Build graph
               </button>
               {stats && (
                 <StatsPanel
@@ -233,9 +248,7 @@ function AppContent() {
 
         <div className="graph-area">
           {status.type && (
-            <div className={`status ${status.type}`}>
-              {status.message}
-            </div>
+            <div className={`status ${status.type}`}>{status.message}</div>
           )}
           <GraphView
             nodes={visNodes}
@@ -253,11 +266,13 @@ function AppContent() {
           />
           <div className="legend">
             <span className="legend-stats">
-              {viewMode === "focus" ? `Focus · ${renderedNodeCount} nodes` : `Overview · ${graphData?.nodeCount ?? 0} nodes`} · {visibleEdges.filter((e) => !e.inferred).length} direct · {visibleEdges.filter((e) => e.inferred).length} inferred
+              {viewMode === "focus"
+                ? `Focus · ${renderedNodeCount} nodes`
+                : `Overview · ${graphData?.nodeCount ?? 0} nodes`}
             </span>
             <span><i className="dot" /> Direct</span>
             <span><i className="dot inferred" /> Inferred</span>
-            <span className="legend-hint">Scroll to zoom · drag to pan</span>
+            <span className="legend-hint">scroll to zoom · drag to pan</span>
           </div>
         </div>
       </div>

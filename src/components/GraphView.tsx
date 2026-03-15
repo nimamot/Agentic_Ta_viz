@@ -1,10 +1,8 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { DataSet, Network } from "vis-network/standalone";
 import type { VisNode, VisEdge } from "../types";
 import { getOverviewPhysicsOptions, getFocusPhysicsOptions } from "../lib/graphBuilder";
 
-const ORBIT_RADIUS = 100;
-const ORBIT_SPEED = 0.0012;
 const ZOOM_FACTOR = 1.4;
 
 interface GraphViewProps {
@@ -27,12 +25,7 @@ export function GraphView({
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
   const onNodeSelectRef = useRef(onNodeSelect);
-  const orbitAngleRef = useRef(0);
-  const orbitCenterRef = useRef<{ x: number; y: number } | null>(null);
-  const orbitFrameRef = useRef<number | null>(null);
   onNodeSelectRef.current = onNodeSelect;
-
-  const [orbitOn, setOrbitOn] = useState(true);
 
   const physics = mode === "overview" ? getOverviewPhysicsOptions() : getFocusPhysicsOptions();
 
@@ -61,15 +54,10 @@ export function GraphView({
     net.once("stabilizationIterationsDone", () => {
       net.setOptions({ physics: false });
       if (fitOnStabilized) net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
-      const pos = net.getViewPosition();
-      if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
-        orbitCenterRef.current = { x: pos.x, y: pos.y };
-      }
       onStabilized?.();
     });
     networkRef.current = net;
     return () => {
-      if (orbitFrameRef.current != null) cancelAnimationFrame(orbitFrameRef.current);
       net.destroy();
       networkRef.current = null;
     };
@@ -83,43 +71,9 @@ export function GraphView({
     networkRef.current.once("stabilizationIterationsDone", () => {
       networkRef.current?.setOptions({ physics: false });
       if (fitOnStabilized) networkRef.current?.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
-      const net = networkRef.current;
-      if (net) {
-        const pos = net.getViewPosition();
-        if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
-          orbitCenterRef.current = { x: pos.x, y: pos.y };
-        }
-      }
       onStabilized?.();
     });
   }, [nodes, edges, physics, fitOnStabilized, onStabilized]);
-
-  useEffect(() => {
-    if (!orbitOn || !networkRef.current) return;
-    const net = networkRef.current;
-    function tick() {
-      const center = orbitCenterRef.current;
-      if (!center) {
-        orbitFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      const scale = net.getScale();
-      if (typeof scale !== "number" || scale <= 0) {
-        orbitFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      orbitAngleRef.current += ORBIT_SPEED;
-      const x = center.x + ORBIT_RADIUS * Math.cos(orbitAngleRef.current);
-      const y = center.y + ORBIT_RADIUS * Math.sin(orbitAngleRef.current);
-      net.moveTo({ position: { x, y }, scale, animation: false });
-      orbitFrameRef.current = requestAnimationFrame(tick);
-    }
-    orbitFrameRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (orbitFrameRef.current != null) cancelAnimationFrame(orbitFrameRef.current);
-      orbitFrameRef.current = null;
-    };
-  }, [orbitOn]);
 
   const zoomIn = useCallback(() => {
     const net = networkRef.current;
@@ -149,13 +103,6 @@ export function GraphView({
 
   const fit = useCallback(() => {
     networkRef.current?.fit({ animation: { duration: 400, easingFunction: "easeInOutQuad" } });
-    const net = networkRef.current;
-    if (net) {
-      const pos = net.getViewPosition();
-      if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
-        orbitCenterRef.current = { x: pos.x, y: pos.y };
-      }
-    }
   }, []);
 
   const exportCanvas = useCallback(() => {
@@ -184,14 +131,6 @@ export function GraphView({
         </button>
         <button type="button" className="graph-ctrl" onClick={fit} title="Fit graph">
           ⊡
-        </button>
-        <button
-          type="button"
-          className={`graph-ctrl graph-ctrl-orbit ${orbitOn ? "active" : ""}`}
-          onClick={() => setOrbitOn((o) => !o)}
-          title={orbitOn ? "Pause orbit" : "Orbit"}
-        >
-          ◐
         </button>
       </div>
     </div>

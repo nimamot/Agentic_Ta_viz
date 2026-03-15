@@ -1,8 +1,30 @@
 import type { CodebookJson, GraphData, GraphEdge, GraphNode, VisNode, VisEdge, FocusSubgraph } from "../types";
 
+// Evocative palette: deep cosmic hues that glow well on dark backgrounds
 const CLUSTER_COLORS = [
-  "#c9a227", "#7dcfb6", "#89a6fb", "#f28c8c",
-  "#c792ea", "#70d6ff", "#f4b860", "#90be6d",
+  "#7cf0d0", // teal
+  "#89a6fb", // periwinkle
+  "#ff7eb3", // rose
+  "#ffd166", // amber
+  "#a78bfa", // violet
+  "#4de9b0", // mint
+  "#f97316", // orange
+  "#38bdf8", // sky
+  "#e879f9", // fuchsia
+  "#a3e635", // lime
+];
+
+const CLUSTER_COLORS_DIM = [
+  "rgba(124,240,208,0.55)",
+  "rgba(137,166,251,0.55)",
+  "rgba(255,126,179,0.55)",
+  "rgba(255,209,102,0.55)",
+  "rgba(167,139,250,0.55)",
+  "rgba(77,233,176,0.55)",
+  "rgba(249,115,22,0.55)",
+  "rgba(56,189,248,0.55)",
+  "rgba(232,121,249,0.55)",
+  "rgba(163,230,53,0.55)",
 ];
 
 function buildRepresentativeMap(mergeGroups: string[][], canonicalNodes: string[]): Map<string, string> {
@@ -170,8 +192,12 @@ export function getClusterColor(componentId: number): string {
   return CLUSTER_COLORS[componentId % CLUSTER_COLORS.length];
 }
 
+export function getClusterColorDim(componentId: number): string {
+  return CLUSTER_COLORS_DIM[componentId % CLUSTER_COLORS_DIM.length];
+}
+
 export function scaleNodeSize(degree: number): number {
-  return 11 + Math.min(20, Math.sqrt(degree || 0) * 4.3);
+  return 9 + Math.min(22, Math.sqrt(degree || 0) * 5);
 }
 
 export function buildOverviewNodes(
@@ -181,35 +207,43 @@ export function buildOverviewNodes(
   colorClusters: boolean
 ): VisNode[] {
   const maxDegree = data.nodes.reduce((max, n) => Math.max(max, n.degree), 0);
+
   const shouldShowLabel = (node: GraphNode) => {
     if (showLabels) return true;
     if (selectedNodeId === node.id) return true;
     if (maxDegree <= 0) return false;
-    return node.degree >= Math.max(3, Math.ceil(maxDegree * 0.35));
+    return node.degree >= Math.max(4, Math.ceil(maxDegree * 0.38));
   };
 
   return data.nodes.map((node) => {
     const highlighted = node.id === selectedNodeId;
-    const baseColor = colorClusters ? getClusterColor(node.componentId) : "#4a4a58";
+    const clusterColor = getClusterColor(node.componentId);
+    const clusterColorDim = getClusterColorDim(node.componentId);
+    const baseColor = colorClusters ? clusterColorDim : "rgba(74, 90, 255, 0.5)";
+    const baseBorder = colorClusters ? clusterColor : "rgba(74, 90, 255, 0.7)";
+
     return {
       id: node.id,
       label: shouldShowLabel(node) ? node.label : "",
       title: node.label,
-      size: highlighted ? scaleNodeSize(node.degree) + 5 : scaleNodeSize(node.degree),
+      size: highlighted ? scaleNodeSize(node.degree) + 6 : scaleNodeSize(node.degree),
       color: {
-        background: highlighted ? "#c9a227" : baseColor,
-        border: highlighted ? "#f2d263" : "#68687a",
-        highlight: { background: "#c9a227", border: "#f2d263" },
-        hover: { background: highlighted ? "#d4af2e" : baseColor, border: "#d4af2e" },
+        background: highlighted ? "#7cf0d0" : baseColor,
+        border: highlighted ? "#b8fff0" : baseBorder,
+        highlight: { background: "#7cf0d0", border: "#b8fff0" },
+        hover: { background: highlighted ? "#9df5da" : clusterColor, border: clusterColor },
       },
       font: {
-        face: "DM Sans, system-ui, sans-serif",
-        size: highlighted ? 15 : 12,
-        color: "#efece8",
-        strokeWidth: 0,
+        face: "Space Mono, monospace",
+        size: highlighted ? 13 : 11,
+        color: highlighted ? "#b8fff0" : "rgba(220, 228, 255, 0.85)",
+        strokeWidth: 3,
+        strokeColor: "rgba(5, 6, 15, 0.9)",
       },
-      borderWidth: highlighted ? 2.5 : 1,
-      shadow: highlighted,
+      borderWidth: highlighted ? 2.5 : 1.2,
+      shadow: highlighted
+        ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
+        : false,
     };
   });
 }
@@ -219,21 +253,29 @@ export function buildEdgeStyle(
   emphasized: boolean,
   isDark: boolean
 ): VisEdge {
-  const dim = isDark ? "rgba(148, 148, 168, 0.16)" : "rgba(80, 80, 100, 0.35)";
-  const dimInferred = isDark ? "rgba(120, 120, 138, 0.12)" : "rgba(100, 100, 120, 0.2)";
+  const directDim = isDark
+    ? "rgba(99, 115, 255, 0.2)"
+    : "rgba(74, 90, 200, 0.3)";
+  const inferredDim = isDark
+    ? "rgba(99, 115, 255, 0.1)"
+    : "rgba(74, 90, 200, 0.15)";
+  const emphColor = "rgba(124, 240, 208, 0.75)";
+
   return {
     id: edge.id,
     from: edge.from,
     to: edge.to,
     arrows: "to",
-    smooth: { type: "continuous", roundness: 0.42 },
-    width: emphasized ? 1.8 : 1,
+    smooth: { type: "continuous", roundness: 0.38 },
+    width: emphasized ? 2 : (edge.inferred ? 0.8 : 1),
     color: {
-      color: edge.inferred ? (emphasized ? "rgba(201, 162, 39, 0.7)" : dimInferred) : (emphasized ? "rgba(201, 162, 39, 0.7)" : dim),
-      highlight: "#c9a227",
-      hover: "#c9a227",
+      color: edge.inferred
+        ? (emphasized ? emphColor : inferredDim)
+        : (emphasized ? emphColor : directDim),
+      highlight: "#7cf0d0",
+      hover: "#7cf0d0",
     },
-    ...(edge.inferred ? { dashes: [4, 5] as number[] } : {}),
+    ...(edge.inferred ? { dashes: [4, 6] as number[] } : {}),
   };
 }
 
@@ -250,7 +292,8 @@ export function buildOverviewEdges(
 ): VisEdge[] {
   return getVisibleEdges(data, showInferred).map((edge) => {
     const emphasized =
-      selectedNodeId != null && (edge.from === selectedNodeId || edge.to === selectedNodeId);
+      selectedNodeId != null &&
+      (edge.from === selectedNodeId || edge.to === selectedNodeId);
     return buildEdgeStyle(edge, emphasized, isDark);
   });
 }
@@ -296,31 +339,46 @@ export function buildFocusSubgraph(
     const node = data.nodeMap.get(nodeId)!;
     const level = neighborhood.levels.get(nodeId) ?? 0;
     const isCenter = nodeId === selectedNodeId;
-    let background = isDark ? "#404050" : "#5a5a6e";
-    if (isCenter) background = "#c9a227";
-    else if (level === 1) background = colorClusters ? getClusterColor(node.componentId) : (isDark ? "#5a5a6b" : "#6a6a7e");
-    else background = isDark ? "rgba(110, 110, 124, 0.78)" : "rgba(120, 120, 140, 0.85)";
+    const clusterColor = getClusterColor(node.componentId);
+    const clusterColorDim = getClusterColorDim(node.componentId);
+
+    let bg: string, border: string;
+    if (isCenter) {
+      bg = "#7cf0d0";
+      border = "#b8fff0";
+    } else if (level === 1) {
+      bg = colorClusters ? clusterColorDim : (isDark ? "rgba(74,90,255,0.55)" : "rgba(74,90,200,0.65)");
+      border = colorClusters ? clusterColor : (isDark ? "rgba(99,115,255,0.8)" : "rgba(74,90,200,0.9)");
+    } else {
+      bg = isDark ? "rgba(74,90,255,0.28)" : "rgba(74,90,200,0.35)";
+      border = isDark ? "rgba(99,115,255,0.45)" : "rgba(74,90,200,0.5)";
+    }
 
     return {
       id: nodeId,
       label: node.label,
       title: node.label,
-      size: isCenter ? Math.max(26, scaleNodeSize(node.degree) + 7) : Math.max(16, scaleNodeSize(node.degree) - (level === 2 ? 3 : 0)),
+      size: isCenter
+        ? Math.max(28, scaleNodeSize(node.degree) + 8)
+        : Math.max(14, scaleNodeSize(node.degree) - (level === 2 ? 4 : 0)),
       color: {
-        background,
-        border: isCenter ? "#f2d263" : "#74748a",
-        highlight: { background: "#c9a227", border: "#f2d263" },
-        hover: { background: "#d4af2e", border: "#f2d263" },
+        background: bg,
+        border,
+        highlight: { background: "#7cf0d0", border: "#b8fff0" },
+        hover: { background: "#9df5da", border: "#7cf0d0" },
       },
       font: {
-        face: "DM Sans, system-ui, sans-serif",
-        size: isCenter ? 16 : 13,
-        color: isDark ? "#f2efeb" : "#1a1a1e",
-        strokeWidth: 0,
+        face: "Space Mono, monospace",
+        size: isCenter ? 14 : 12,
+        color: isDark ? "#e4e8ff" : "#0c0e2a",
+        strokeWidth: 3,
+        strokeColor: isDark ? "rgba(5,6,15,0.95)" : "rgba(240,242,255,0.95)",
       },
       borderWidth: isCenter ? 3 : 1.5,
-      shadow: isCenter,
-      mass: isCenter ? 2.4 : 1,
+      shadow: isCenter
+        ? { enabled: true, color: "rgba(124,240,208,0.6)", size: 18, x: 0, y: 0 }
+        : false,
+      mass: isCenter ? 2.5 : 1,
     };
   });
 
@@ -336,17 +394,17 @@ export function getOverviewPhysicsOptions() {
   return {
     enabled: true,
     solver: "forceAtlas2Based" as const,
-    stabilization: { enabled: true, iterations: 350, updateInterval: 25, fit: true },
+    stabilization: { enabled: true, iterations: 400, updateInterval: 25, fit: true },
     forceAtlas2Based: {
-      gravitationalConstant: -85,
-      centralGravity: 0.005,
-      springLength: 190,
-      springConstant: 0.035,
-      damping: 0.55,
-      avoidOverlap: 1.35,
+      gravitationalConstant: -90,
+      centralGravity: 0.004,
+      springLength: 200,
+      springConstant: 0.03,
+      damping: 0.52,
+      avoidOverlap: 1.4,
     },
-    maxVelocity: 18,
-    minVelocity: 0.2,
+    maxVelocity: 20,
+    minVelocity: 0.18,
   };
 }
 
@@ -354,17 +412,17 @@ export function getFocusPhysicsOptions() {
   return {
     enabled: true,
     solver: "forceAtlas2Based" as const,
-    stabilization: { enabled: true, iterations: 220, fit: true },
+    stabilization: { enabled: true, iterations: 240, fit: true },
     forceAtlas2Based: {
-      gravitationalConstant: -120,
-      centralGravity: 0.015,
-      springLength: 175,
-      springConstant: 0.04,
-      damping: 0.5,
+      gravitationalConstant: -130,
+      centralGravity: 0.018,
+      springLength: 185,
+      springConstant: 0.042,
+      damping: 0.48,
       avoidOverlap: 1.5,
     },
-    maxVelocity: 22,
-    minVelocity: 0.2,
+    maxVelocity: 24,
+    minVelocity: 0.18,
   };
 }
 
