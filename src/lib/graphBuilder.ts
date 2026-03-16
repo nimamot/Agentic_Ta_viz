@@ -222,6 +222,9 @@ export function buildOverviewNodes(
     const baseColor = colorClusters ? clusterColorDim : "rgba(74, 90, 255, 0.5)";
     const baseBorder = colorClusters ? clusterColor : "rgba(74, 90, 255, 0.7)";
 
+    const shadow: VisNode["shadow"] = highlighted
+      ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
+      : false;
     return {
       id: node.id,
       label: shouldShowLabel(node) ? node.label : "",
@@ -241,10 +244,8 @@ export function buildOverviewNodes(
         strokeColor: "rgba(5, 6, 15, 0.9)",
       },
       borderWidth: highlighted ? 2.5 : 1.2,
-      shadow: highlighted
-        ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
-        : false,
-    };
+      shadow,
+    } satisfies VisNode;
   });
 }
 
@@ -354,6 +355,9 @@ export function buildFocusSubgraph(
       border = isDark ? "rgba(99,115,255,0.45)" : "rgba(74,90,200,0.5)";
     }
 
+    const shadow: VisNode["shadow"] = isCenter
+      ? { enabled: true, color: "rgba(124,240,208,0.6)", size: 18, x: 0, y: 0 }
+      : false;
     return {
       id: nodeId,
       label: node.label,
@@ -375,11 +379,9 @@ export function buildFocusSubgraph(
         strokeColor: isDark ? "rgba(5,6,15,0.95)" : "rgba(240,242,255,0.95)",
       },
       borderWidth: isCenter ? 3 : 1.5,
-      shadow: isCenter
-        ? { enabled: true, color: "rgba(124,240,208,0.6)", size: 18, x: 0, y: 0 }
-        : false,
+      shadow,
       mass: isCenter ? 2.5 : 1,
-    };
+    } satisfies VisNode;
   });
 
   const edges: VisEdge[] = visibleEdges.map((edge) => {

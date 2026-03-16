@@ -57,7 +57,7 @@ export interface VisNode {
   color?: Record<string, unknown>;
   font?: Record<string, unknown>;
   borderWidth?: number;
-  shadow?: boolean;
+  shadow?: boolean | { enabled: boolean; color: string; size: number; x: number; y: number };
   mass?: number;
 }
 
