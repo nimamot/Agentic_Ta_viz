@@ -5,6 +5,16 @@ import { getOverviewPhysicsOptions, getFocusPhysicsOptions } from "../lib/graphB
 
 const ZOOM_FACTOR = 1.4;
 
+const interactionOptions = {
+  hover: true,
+  tooltipDelay: 100,
+  zoomView: true,
+  zoomSpeed: 1.2,
+  dragView: true,
+  dragNodes: true,
+  selectConnectedEdges: false,
+} as const;
+
 interface GraphViewProps {
   nodes: VisNode[];
   edges: VisEdge[];
@@ -37,15 +47,7 @@ export function GraphView({
       nodes: { shape: "dot" as const },
       edges: { selectionWidth: 0, hoverWidth: 0 },
       physics,
-      interaction: {
-        hover: true,
-        tooltipDelay: 100,
-        zoomView: true,
-        zoomSpeed: 1.2,
-        dragView: true,
-        dragNodes: true,
-        selectConnectedEdges: false,
-      },
+      interaction: { ...interactionOptions },
     };
     const net = new Network(containerRef.current, data, options);
     net.on("click", (params) => {
@@ -65,9 +67,9 @@ export function GraphView({
 
   useEffect(() => {
     if (!networkRef.current) return;
-    networkRef.current.setOptions({ physics: true });
+    networkRef.current.setOptions({ physics: true, interaction: { ...interactionOptions } });
     networkRef.current.setData({ nodes: new DataSet(nodes), edges: new DataSet(edges) } as Parameters<Network["setData"]>[0]);
-    networkRef.current.setOptions({ physics });
+    networkRef.current.setOptions({ physics, interaction: { ...interactionOptions } });
     networkRef.current.once("stabilizationIterationsDone", () => {
       networkRef.current?.setOptions({ physics: false });
       if (fitOnStabilized) networkRef.current?.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });

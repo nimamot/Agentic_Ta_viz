@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUrlState } from "./hooks/useUrlState";
@@ -80,13 +80,25 @@ function AppContent() {
     setStatus({ message: "", type: null });
   }
 
-  const visibleEdges = graphData ? getVisibleEdges(graphData, showInferred) : [];
-  const overviewNodes = graphData ? buildOverviewNodes(graphData, selectedNodeId, showLabels, colorClusters) : [];
-  const overviewEdges = graphData ? buildOverviewEdges(graphData, selectedNodeId, showInferred, isDark) : [];
-  const focusSubgraph =
-    graphData && selectedNodeId != null && graphData.nodeMap.has(selectedNodeId)
-      ? buildFocusSubgraph(graphData, selectedNodeId, twoHop ? 2 : 1, showInferred, colorClusters, isDark)
-      : null;
+  const visibleEdges = useMemo(
+    () => (graphData ? getVisibleEdges(graphData, showInferred) : []),
+    [graphData, showInferred]
+  );
+
+  const overviewNodes = useMemo(
+    () => (graphData ? buildOverviewNodes(graphData, selectedNodeId, showLabels, colorClusters) : []),
+    [graphData, selectedNodeId, showLabels, colorClusters]
+  );
+
+  const overviewEdges = useMemo(
+    () => (graphData ? buildOverviewEdges(graphData, selectedNodeId, showInferred, isDark) : []),
+    [graphData, selectedNodeId, showInferred, isDark]
+  );
+
+  const focusSubgraph = useMemo(() => {
+    if (!graphData || selectedNodeId == null || !graphData.nodeMap.has(selectedNodeId)) return null;
+    return buildFocusSubgraph(graphData, selectedNodeId, twoHop ? 2 : 1, showInferred, colorClusters, isDark);
+  }, [graphData, selectedNodeId, twoHop, showInferred, colorClusters, isDark]);
 
   const visNodes = viewMode === "focus" && focusSubgraph ? focusSubgraph.nodes : overviewNodes;
   const visEdges = viewMode === "focus" && focusSubgraph ? focusSubgraph.edges : overviewEdges;
