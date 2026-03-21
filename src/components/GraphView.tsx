@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { DataSet, Network } from "vis-network/standalone";
 import type { VisNode, VisEdge } from "../types";
 import { getOverviewPhysicsOptions, getFocusPhysicsOptions } from "../lib/graphBuilder";
@@ -14,6 +14,18 @@ const interactionOptions = {
   dragNodes: true,
   selectConnectedEdges: false,
 } as const;
+
+function topologyFingerprint(nodes: VisNode[], edges: VisEdge[]): string {
+  const n = nodes
+    .map((x) => x.id)
+    .sort((a, b) => a - b)
+    .join(",");
+  const e = edges
+    .map((x) => `${x.from}->${x.to}:${x.id}`)
+    .sort()
+    .join("|");
+  return `${n}#${e}`;
+}
 
 interface GraphViewProps {
   nodes: VisNode[];
@@ -34,47 +46,89 @@ export function GraphView({
 }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
+  const nodesDsRef = useRef<DataSet<VisNode> | null>(null);
+  const edgesDsRef = useRef<DataSet<VisEdge> | null>(null);
+  const topologyRef = useRef<string | null>(null);
+  const stabilizeGenRef = useRef(0);
   const onNodeSelectRef = useRef(onNodeSelect);
   onNodeSelectRef.current = onNodeSelect;
 
-  const physics = mode === "overview" ? getOverviewPhysicsOptions() : getFocusPhysicsOptions();
+  const physics = useMemo(
+    () => (mode === "overview" ? getOverviewPhysicsOptions() : getFocusPhysicsOptions()),
+    [mode]
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const data = { nodes: new DataSet(nodes), edges: new DataSet(edges) } as Parameters<Network["setData"]>[0];
-    const options = {
-      autoResize: true,
-      nodes: { shape: "dot" as const },
-      edges: { selectionWidth: 0, hoverWidth: 0 },
-      physics,
-      interaction: { ...interactionOptions },
-    };
-    const net = new Network(containerRef.current, data, options);
+    const nodesDs = new DataSet<VisNode>([]);
+    const edgesDs = new DataSet<VisEdge>([]);
+    nodesDsRef.current = nodesDs;
+    edgesDsRef.current = edgesDs;
+
+    const net = new Network(
+      containerRef.current,
+      { nodes: nodesDs, edges: edgesDs } as Parameters<Network["setData"]>[0],
+      {
+        autoResize: true,
+        nodes: { shape: "dot" as const },
+        edges: { selectionWidth: 0, hoverWidth: 0 },
+        physics: { enabled: false },
+        interaction: { ...interactionOptions },
+      }
+    );
+
     net.on("click", (params) => {
       if (params.nodes.length) onNodeSelectRef.current(params.nodes[0]);
     });
-    net.once("stabilizationIterationsDone", () => {
-      net.setOptions({ physics: false });
-      if (fitOnStabilized) net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
-      onStabilized?.();
-    });
+
     networkRef.current = net;
     return () => {
       net.destroy();
       networkRef.current = null;
+      nodesDsRef.current = null;
+      edgesDsRef.current = null;
+      topologyRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!networkRef.current) return;
-    networkRef.current.setOptions({ physics: true, interaction: { ...interactionOptions } });
-    networkRef.current.setData({ nodes: new DataSet(nodes), edges: new DataSet(edges) } as Parameters<Network["setData"]>[0]);
-    networkRef.current.setOptions({ physics, interaction: { ...interactionOptions } });
-    networkRef.current.once("stabilizationIterationsDone", () => {
-      networkRef.current?.setOptions({ physics: false });
-      if (fitOnStabilized) networkRef.current?.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
-      onStabilized?.();
-    });
+    const net = networkRef.current;
+    const nodesDs = nodesDsRef.current;
+    const edgesDs = edgesDsRef.current;
+    if (!net || !nodesDs || !edgesDs) return;
+
+    const fp = topologyFingerprint(nodes, edges);
+    const topologyChanged = fp !== topologyRef.current;
+    topologyRef.current = fp;
+
+    net.setOptions({ interaction: { ...interactionOptions } });
+
+    if (topologyChanged) {
+      stabilizeGenRef.current += 1;
+      const gen = stabilizeGenRef.current;
+      nodesDs.clear();
+      edgesDs.clear();
+      if (nodes.length) nodesDs.add(nodes);
+      if (edges.length) edgesDs.add(edges);
+
+      if (nodes.length === 0 && edges.length === 0) {
+        net.setOptions({ physics: { enabled: false } });
+        return;
+      }
+
+      net.setOptions({ physics: { ...physics, enabled: true } });
+      net.once("stabilizationIterationsDone", () => {
+        if (stabilizeGenRef.current !== gen) return;
+        net.setOptions({ physics: { enabled: false } });
+        if (fitOnStabilized) {
+          net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
+        }
+        onStabilized?.();
+      });
+    } else {
+      nodesDs.update(nodes);
+      edgesDs.update(edges);
+    }
   }, [nodes, edges, physics, fitOnStabilized, onStabilized]);
 
   const zoomIn = useCallback(() => {
