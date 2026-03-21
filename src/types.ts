@@ -5,6 +5,8 @@ export interface CodebookJson {
   merge_groups?: string[][];
   edges: { parent: string; child: string }[];
   inferred_edges?: { parent: string; child: string }[];
+  node_frequencies?: Record<string, number>;
+  code_provenance?: Record<string, string[]>;
 }
 
 export interface GraphNode {
@@ -17,6 +19,8 @@ export interface GraphNode {
   outDegree: number;
   componentId: number;
   componentSize: number;
+  frequency: number;
+  provenance: string[];
 }
 
 export interface GraphEdge {

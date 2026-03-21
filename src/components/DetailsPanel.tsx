@@ -64,7 +64,7 @@ export function DetailsPanel({
     <div className="details-panel">
       <h2>{escapeHtml(node.label)}</h2>
       <div className="meta">
-        Degree {node.degree} · {node.outDegree} outgoing · {node.inDegree} incoming · cluster size {node.componentSize}
+        Degree {node.degree} · {node.outDegree} out · {node.inDegree} in · freq {node.frequency}
       </div>
       <div className="meta">{modeText}</div>
       <div className="section">
@@ -79,6 +79,12 @@ export function DetailsPanel({
         <div className="section-title">Children</div>
         <Chips values={outgoing} />
       </div>
+      {node.provenance.length > 0 && (
+        <div className="section">
+          <div className="section-title">Raw codes ({node.provenance.length})</div>
+          <Chips values={node.provenance} />
+        </div>
+      )}
     </div>
   );
 }

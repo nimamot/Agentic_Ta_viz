@@ -159,6 +159,9 @@ export function buildGraphData(json: CodebookJson): GraphData {
     componentId += 1;
   });
 
+  const provenance = json.code_provenance ?? {};
+  const frequencies = json.node_frequencies ?? {};
+
   const nodes: GraphNode[] = labels.map((label, index) => ({
     id: index,
     label,
@@ -169,6 +172,8 @@ export function buildGraphData(json: CodebookJson): GraphData {
     outDegree: outDegree.get(index) ?? 0,
     componentId: componentByNode.get(index) ?? 0,
     componentSize: componentSizes.get(componentByNode.get(index) ?? 0) ?? 1,
+    frequency: frequencies[label] ?? 0,
+    provenance: provenance[label] ?? [],
   }));
 
   const nodeMap = new Map<number, GraphNode>();
