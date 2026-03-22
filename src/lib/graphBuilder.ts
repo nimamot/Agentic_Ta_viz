@@ -201,8 +201,15 @@ export function getClusterColorDim(componentId: number): string {
   return CLUSTER_COLORS_DIM[componentId % CLUSTER_COLORS_DIM.length];
 }
 
-export function scaleNodeSize(degree: number): number {
-  return 9 + Math.min(22, Math.sqrt(degree || 0) * 5);
+/**
+ * Vis-network node size: grows with graph degree and with how many codes were merged
+ * into this node (alias count). Extra size only for aliases beyond the single canonical label.
+ */
+export function scaleNodeSize(degree: number, aliasCount: number = 1): number {
+  const fromDegree = Math.min(22, Math.sqrt(degree || 0) * 5);
+  const mergedBeyondOne = Math.max(0, Math.max(1, aliasCount) - 1);
+  const fromAliases = Math.min(26, Math.sqrt(mergedBeyondOne) * 4.5);
+  return 9 + fromDegree + fromAliases;
 }
 
 export function buildOverviewNodes(
@@ -226,6 +233,10 @@ export function buildOverviewNodes(
     const clusterColorDim = getClusterColorDim(node.componentId);
     const baseColor = colorClusters ? clusterColorDim : "rgba(74, 90, 255, 0.5)";
     const baseBorder = colorClusters ? clusterColor : "rgba(74, 90, 255, 0.7)";
+    const ac = node.aliases.length;
+    const baseSize = scaleNodeSize(node.degree, ac);
+    const titleHint =
+      ac > 1 ? `${node.label} (${ac} merged codes)` : node.label;
 
     const shadow: VisNode["shadow"] = highlighted
       ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
@@ -233,8 +244,8 @@ export function buildOverviewNodes(
     return {
       id: node.id,
       label: shouldShowLabel(node) ? node.label : "",
-      title: node.label,
-      size: highlighted ? scaleNodeSize(node.degree) + 6 : scaleNodeSize(node.degree),
+      title: titleHint,
+      size: highlighted ? baseSize + 6 : baseSize,
       color: {
         background: highlighted ? "#7cf0d0" : baseColor,
         border: highlighted ? "#b8fff0" : baseBorder,
@@ -363,13 +374,17 @@ export function buildFocusSubgraph(
     const shadow: VisNode["shadow"] = isCenter
       ? { enabled: true, color: "rgba(124,240,208,0.6)", size: 18, x: 0, y: 0 }
       : false;
+    const ac = node.aliases.length;
+    const baseSize = scaleNodeSize(node.degree, ac);
+    const titleHint =
+      ac > 1 ? `${node.label} (${ac} merged codes)` : node.label;
     return {
       id: nodeId,
       label: node.label,
-      title: node.label,
+      title: titleHint,
       size: isCenter
-        ? Math.max(28, scaleNodeSize(node.degree) + 8)
-        : Math.max(14, scaleNodeSize(node.degree) - (level === 2 ? 4 : 0)),
+        ? Math.max(28, baseSize + 8)
+        : Math.max(14, baseSize - (level === 2 ? 4 : 0)),
       color: {
         background: bg,
         border,
