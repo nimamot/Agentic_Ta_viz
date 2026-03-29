@@ -264,6 +264,9 @@ export function buildHierarchyVisEdges(
   return data.edges.map((edge) => {
     const emphasized =
       selectedNodeId != null && (edge.from === selectedNodeId || edge.to === selectedNodeId);
-    return buildEdgeStyle(edge, emphasized, isDark);
+    return {
+      ...buildEdgeStyle(edge, emphasized, isDark),
+      smooth: false,
+    } satisfies VisEdge;
   });
 }

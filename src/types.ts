@@ -88,7 +88,8 @@ export interface VisEdge {
   from: number;
   to: number;
   arrows: string;
-  smooth?: Record<string, unknown>;
+  /** `false` or `true` uses vis straight / default; object = curved options. */
+  smooth?: Record<string, unknown> | boolean;
   width?: number;
   color?: Record<string, unknown>;
   dashes?: number[];

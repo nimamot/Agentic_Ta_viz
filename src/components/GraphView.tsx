@@ -15,7 +15,7 @@ const interactionOptions = {
   selectConnectedEdges: false,
 } as const;
 
-function topologyFingerprint(nodes: VisNode[], edges: VisEdge[]): string {
+function topologyFingerprint(mode: string, nodes: VisNode[], edges: VisEdge[]): string {
   const n = nodes
     .map((x) => x.id)
     .sort((a, b) => a - b)
@@ -24,7 +24,28 @@ function topologyFingerprint(nodes: VisNode[], edges: VisEdge[]): string {
     .map((x) => `${x.from}->${x.to}:${x.id}`)
     .sort()
     .join("|");
-  return `${n}#${e}`;
+  return `${mode}|${n}#${e}`;
+}
+
+/** Top-down tree layout (parent above children); physics off — vis positions by level. */
+function getHierarchyLayoutOptions() {
+  return {
+    physics: { enabled: false as const },
+    layout: {
+      hierarchical: {
+        enabled: true,
+        direction: "UD" as const,
+        sortMethod: "directed" as const,
+        shakeTowards: "roots" as const,
+        levelSeparation: 150,
+        nodeSpacing: 72,
+        treeSpacing: 320,
+        blockShifting: true,
+        edgeMinimization: true,
+        parentCentralization: true,
+      },
+    },
+  };
 }
 
 interface GraphViewProps {
@@ -98,11 +119,11 @@ export function GraphView({
     const edgesDs = edgesDsRef.current;
     if (!net || !nodesDs || !edgesDs) return;
 
-    const fp = topologyFingerprint(nodes, edges);
+    const fp = topologyFingerprint(mode, nodes, edges);
     const topologyChanged = fp !== topologyRef.current;
     topologyRef.current = fp;
 
-    net.setOptions({ interaction: { ...interactionOptions } });
+    const isHierarchy = mode === "hierarchy";
 
     if (topologyChanged) {
       stabilizeGenRef.current += 1;
@@ -113,24 +134,74 @@ export function GraphView({
       if (edges.length) edgesDs.add(edges);
 
       if (nodes.length === 0 && edges.length === 0) {
-        net.setOptions({ physics: { enabled: false } });
+        net.setOptions({
+          interaction: { ...interactionOptions, dragNodes: true },
+          nodes: { shape: "dot" as const },
+          edges: { selectionWidth: 0, hoverWidth: 0 },
+          layout: { hierarchical: { enabled: false } },
+          physics: { enabled: false },
+        });
         return;
       }
 
-      net.setOptions({ physics: { ...physics, enabled: true } });
-      net.once("stabilizationIterationsDone", () => {
-        if (stabilizeGenRef.current !== gen) return;
-        net.setOptions({ physics: { enabled: false } });
-        if (fitOnStabilized) {
-          net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
-        }
-        onStabilized?.();
-      });
+      if (isHierarchy) {
+        net.setOptions({
+          interaction: { ...interactionOptions, dragNodes: false },
+          nodes: { shape: "dot" as const },
+          edges: { selectionWidth: 0, hoverWidth: 0, smooth: false },
+          ...getHierarchyLayoutOptions(),
+        });
+
+        let finished = false;
+        const finish = () => {
+          if (finished || stabilizeGenRef.current !== gen) return;
+          finished = true;
+          if (fitOnStabilized) {
+            net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
+          }
+          onStabilized?.();
+        };
+
+        net.once("stabilizationIterationsDone", finish);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(finish);
+        });
+        window.setTimeout(finish, 200);
+      } else {
+        net.setOptions({
+          interaction: { ...interactionOptions, dragNodes: true },
+          nodes: { shape: "dot" as const },
+          edges: { selectionWidth: 0, hoverWidth: 0 },
+          layout: { hierarchical: { enabled: false } },
+          physics: { ...physics, enabled: true },
+        });
+        net.once("stabilizationIterationsDone", () => {
+          if (stabilizeGenRef.current !== gen) return;
+          net.setOptions({ physics: { enabled: false } });
+          if (fitOnStabilized) {
+            net.fit({ animation: { duration: 350, easingFunction: "easeInOutQuad" } });
+          }
+          onStabilized?.();
+        });
+      }
     } else {
+      net.setOptions({
+        interaction: { ...interactionOptions, dragNodes: !isHierarchy },
+        ...(isHierarchy
+          ? {
+              edges: { selectionWidth: 0, hoverWidth: 0, smooth: false },
+              ...getHierarchyLayoutOptions(),
+              physics: { enabled: false },
+            }
+          : {
+              layout: { hierarchical: { enabled: false } },
+              edges: { selectionWidth: 0, hoverWidth: 0 },
+            }),
+      });
       nodesDs.update(nodes);
       edgesDs.update(edges);
     }
-  }, [nodes, edges, physics, fitOnStabilized, onStabilized]);
+  }, [nodes, edges, mode, physics, fitOnStabilized, onStabilized]);
 
   const zoomIn = useCallback(() => {
     const net = networkRef.current;
