@@ -45,7 +45,9 @@ export function DetailsPanel({
   const modeText =
     viewMode === "focus"
       ? `Showing ${renderedNodeCount} nodes across a ${renderedDepth}-hop neighborhood.`
-      : "Overview selection highlighted inside the full graph.";
+      : viewMode === "hierarchy"
+        ? "Hierarchical view: theme → sub-theme → code (ungrouped codes attach directly to the theme)."
+        : "Overview selection highlighted inside the full graph.";
 
   const Chips = ({ values }: { values: string[] }) =>
     values.length === 0 ? (

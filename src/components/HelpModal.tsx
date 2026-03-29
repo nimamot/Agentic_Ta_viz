@@ -24,7 +24,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
           <section>
             <h3>Views</h3>
-            <p><strong>Overview</strong> shows the full graph with optional cluster colors and reduced labels. <strong>Focus</strong> shows only the selected node and its 1- or 2-hop neighborhood for a clearer read.</p>
+            <p><strong>Overview</strong> shows the full graph with optional cluster colors and reduced labels. <strong>Focus</strong> shows only the selected node and its 1- or 2-hop neighborhood for a clearer read. <strong>Hierarchy</strong> expects JSON where each numeric key maps to <code>label</code>, <code>sub_themes</code> (with <code>name</code> and <code>codes</code>), and <code>ungrouped_codes</code>, and draws theme → sub-theme → code trees.</p>
           </section>
           <section>
             <h3>Export</h3>

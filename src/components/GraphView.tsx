@@ -30,7 +30,7 @@ function topologyFingerprint(nodes: VisNode[], edges: VisEdge[]): string {
 interface GraphViewProps {
   nodes: VisNode[];
   edges: VisEdge[];
-  mode: "overview" | "focus";
+  mode: "overview" | "focus" | "hierarchy";
   onNodeSelect: (nodeId: number) => void;
   onStabilized?: () => void;
   fitOnStabilized?: boolean;
@@ -54,7 +54,8 @@ export function GraphView({
   onNodeSelectRef.current = onNodeSelect;
 
   const physics = useMemo(
-    () => (mode === "overview" ? getOverviewPhysicsOptions() : getFocusPhysicsOptions()),
+    () =>
+      mode === "focus" ? getFocusPhysicsOptions() : getOverviewPhysicsOptions(),
     [mode]
   );
 

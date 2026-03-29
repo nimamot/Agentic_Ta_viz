@@ -13,7 +13,7 @@ export function useUrlState(
     if (!hash) return;
     const params = new URLSearchParams(hash);
     const v = params.get("view");
-    if (v === "overview" || v === "focus") setView(v);
+    if (v === "overview" || v === "focus" || v === "hierarchy") setView(v);
     const nodeParam = params.get("node");
     if (nodeParam != null && nodeParam !== "") {
       const id = parseInt(nodeParam, 10);

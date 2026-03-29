@@ -1,4 +1,4 @@
-export type ViewMode = "overview" | "focus";
+export type ViewMode = "overview" | "focus" | "hierarchy";
 
 export interface CodebookJson {
   canonical_nodes?: string[];
@@ -8,6 +8,22 @@ export interface CodebookJson {
   node_frequencies?: Record<string, number>;
   code_provenance?: Record<string, string[]>;
 }
+
+export type HierarchyRole = "theme" | "sub_theme" | "code";
+
+export interface HierarchicalSubTheme {
+  name: string;
+  codes: string[];
+}
+
+export interface HierarchicalClusterEntry {
+  label: string;
+  sub_themes: HierarchicalSubTheme[];
+  ungrouped_codes: string[];
+}
+
+/** Top-level keys are cluster indices (e.g. "0", "1"). */
+export type HierarchicalCodebookJson = Record<string, HierarchicalClusterEntry>;
 
 export interface GraphNode {
   id: number;
@@ -21,6 +37,8 @@ export interface GraphNode {
   componentSize: number;
   frequency: number;
   provenance: string[];
+  /** Set when the graph was built from hierarchical theme JSON. */
+  hierarchyRole?: HierarchyRole;
 }
 
 export interface GraphEdge {
