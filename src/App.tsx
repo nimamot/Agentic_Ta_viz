@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useUrlState } from "./hooks/useUrlState";
+import { useAppHash } from "./hooks/useAppHash";
 import { buildGraphData, buildOverviewNodes, buildOverviewEdges, buildFocusSubgraph, getVisibleEdges, computeGraphStats } from "./lib/graphBuilder";
 import {
   buildHierarchicalGraphData,
@@ -14,6 +14,7 @@ import { GraphView } from "./components/GraphView";
 import { DetailsPanel } from "./components/DetailsPanel";
 import { StatsPanel } from "./components/StatsPanel";
 import { HelpModal } from "./components/HelpModal";
+import { LibraryView } from "./components/LibraryView";
 
 function AppContent() {
   const { isDark, toggleTheme } = useTheme();
@@ -33,6 +34,8 @@ function AppContent() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [nodeSearch, setNodeSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [appSection, setAppSection] = useState<"graph" | "library">("graph");
+  const [libraryRowId, setLibraryRowId] = useState<string | null>(null);
 
   const setView = useCallback((v: ViewMode) => setViewMode(v), []);
   const graphData = useMemo(
@@ -40,11 +43,16 @@ function AppContent() {
     [viewMode, hierarchyGraphData, codebookGraphData]
   );
 
-  const nodeLabelById = useCallback(
-    (id: number) => graphData?.nodeMap.get(id)?.label,
-    [graphData]
-  );
-  useUrlState(viewMode, selectedNodeId, setView, setSelectedNodeId, nodeLabelById);
+  useAppHash({
+    appSection,
+    setAppSection,
+    view: viewMode,
+    selectedNodeId,
+    setView,
+    setSelectedNodeId,
+    libraryRowId,
+    setLibraryRowId,
+  });
 
   useEffect(() => {
     if (!graphData) return;
@@ -129,9 +137,9 @@ function AppContent() {
 
   useKeyboardShortcuts({
     onEscape: () => setSelectedNodeId(null),
-    onFocusSearch: () => searchInputRef.current?.focus(),
+    onFocusSearch: () => appSection === "graph" && searchInputRef.current?.focus(),
     onHelp: () => setShowHelp((h) => !h),
-    onBuild: build,
+    onBuild: appSection === "graph" ? build : () => {},
     searchFocused,
   });
 
@@ -247,70 +255,90 @@ function AppContent() {
       <header className="header">
         <h1>Codebook Observatory</h1>
         <div className="controls">
-          <div className="tabs">
-            <button type="button" className={`tab ${viewMode === "overview" ? "active" : ""}`} onClick={() => setViewMode("overview")}>
-              Overview
-            </button>
-            <button type="button" className={`tab ${viewMode === "focus" ? "active" : ""}`} onClick={() => setViewMode("focus")}>
-              Focus
+          <div className="tabs app-section-tabs">
+            <button
+              type="button"
+              className={`tab ${appSection === "graph" ? "active" : ""}`}
+              onClick={() => setAppSection("graph")}
+            >
+              Graph
             </button>
             <button
               type="button"
-              className={`tab ${viewMode === "hierarchy" ? "active" : ""}`}
-              onClick={() => setViewMode("hierarchy")}
+              className={`tab ${appSection === "library" ? "active" : ""}`}
+              onClick={() => setAppSection("library")}
             >
-              Hierarchy
+              Library
             </button>
           </div>
-          {viewMode !== "hierarchy" && (
-            <label className="checkbox-wrap">
-              <input type="checkbox" checked={showInferred} onChange={(e) => setShowInferred(e.target.checked)} />
-              <span>Inferred</span>
-            </label>
-          )}
-          <label className="checkbox-wrap">
-            <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-            <span>Labels</span>
-          </label>
-          <label className="checkbox-wrap">
-            <input type="checkbox" checked={colorClusters} onChange={(e) => setColorClusters(e.target.checked)} />
-            <span>Clusters</span>
-          </label>
-          {viewMode === "focus" && (
-            <label className="checkbox-wrap">
-              <input type="checkbox" checked={twoHop} onChange={(e) => setTwoHop(e.target.checked)} />
-              <span>2-hop</span>
-            </label>
-          )}
-          <div className="search-wrap">
-            <input
-              ref={searchInputRef}
-              list="node-list"
-              value={nodeSearch}
-              onChange={(e) => setNodeSearch(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              onKeyDown={(e) => e.key === "Enter" && handleFocusNode()}
-              placeholder="Find node…"
-              aria-label="Search node"
-            />
-            <datalist id="node-list">
-              {graphData?.nodes.map((n) => (
-                <option key={n.id} value={n.label} />
-              ))}
-            </datalist>
-            <button type="button" onClick={handleFocusNode}>
-              {viewMode === "hierarchy" ? "Find" : "Focus"}
-            </button>
-            {viewMode === "focus" && (
-              <button type="button" className="secondary" onClick={() => setViewMode("overview")}>
-                ← Back
+          {appSection === "graph" && (
+            <>
+              <div className="tabs">
+                <button type="button" className={`tab ${viewMode === "overview" ? "active" : ""}`} onClick={() => setViewMode("overview")}>
+                  Overview
+                </button>
+                <button type="button" className={`tab ${viewMode === "focus" ? "active" : ""}`} onClick={() => setViewMode("focus")}>
+                  Focus
+                </button>
+                <button
+                  type="button"
+                  className={`tab ${viewMode === "hierarchy" ? "active" : ""}`}
+                  onClick={() => setViewMode("hierarchy")}
+                >
+                  Hierarchy
+                </button>
+              </div>
+              {viewMode !== "hierarchy" && (
+                <label className="checkbox-wrap">
+                  <input type="checkbox" checked={showInferred} onChange={(e) => setShowInferred(e.target.checked)} />
+                  <span>Inferred</span>
+                </label>
+              )}
+              <label className="checkbox-wrap">
+                <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
+                <span>Labels</span>
+              </label>
+              <label className="checkbox-wrap">
+                <input type="checkbox" checked={colorClusters} onChange={(e) => setColorClusters(e.target.checked)} />
+                <span>Clusters</span>
+              </label>
+              {viewMode === "focus" && (
+                <label className="checkbox-wrap">
+                  <input type="checkbox" checked={twoHop} onChange={(e) => setTwoHop(e.target.checked)} />
+                  <span>2-hop</span>
+                </label>
+              )}
+              <div className="search-wrap">
+                <input
+                  ref={searchInputRef}
+                  list="node-list"
+                  value={nodeSearch}
+                  onChange={(e) => setNodeSearch(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  onKeyDown={(e) => e.key === "Enter" && handleFocusNode()}
+                  placeholder="Find node…"
+                  aria-label="Search node"
+                />
+                <datalist id="node-list">
+                  {graphData?.nodes.map((n) => (
+                    <option key={n.id} value={n.label} />
+                  ))}
+                </datalist>
+                <button type="button" onClick={handleFocusNode}>
+                  {viewMode === "hierarchy" ? "Find" : "Focus"}
+                </button>
+                {viewMode === "focus" && (
+                  <button type="button" className="secondary" onClick={() => setViewMode("overview")}>
+                    ← Back
+                  </button>
+                )}
+              </div>
+              <button type="button" className="icon-btn" onClick={handleExportPng} title="Export PNG">
+                Export
               </button>
-            )}
-          </div>
-          <button type="button" className="icon-btn" onClick={handleExportPng} title="Export PNG">
-            Export
-          </button>
+            </>
+          )}
           <button type="button" className="icon-btn" onClick={() => setShowHelp(true)} title="Help (?)">
             ?
           </button>
@@ -320,6 +348,9 @@ function AppContent() {
         </div>
       </header>
 
+      {appSection === "library" ? (
+        <LibraryView selectedRowId={libraryRowId} onSelectRow={setLibraryRowId} isDark={isDark} />
+      ) : (
       <div className="main">
         <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`}>
           <div className="sidebar-header">
@@ -422,6 +453,7 @@ function AppContent() {
           </div>
         </div>
       </div>
+      )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>

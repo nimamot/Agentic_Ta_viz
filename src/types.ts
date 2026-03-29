@@ -1,5 +1,17 @@
 export type ViewMode = "overview" | "focus" | "hierarchy";
 
+/** Row shape for the Supabase research / codebook table. */
+export interface ResearchProjectRow {
+  id: string;
+  slug: string;
+  research_question: string | null;
+  codebook: unknown;
+  global_graph: unknown;
+  report_markdown: string;
+  meta: unknown | null;
+  created_at: string;
+}
+
 export interface CodebookJson {
   canonical_nodes?: string[];
   merge_groups?: string[][];

@@ -32,7 +32,18 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
           <section>
             <h3>URL</h3>
-            <p>View and selected node are stored in the URL hash so you can bookmark or share a specific state.</p>
+            <p>
+              The hash stores <code>page=graph</code> or <code>page=library</code>, plus graph view and node id, or the
+              selected library row id.
+            </p>
+          </section>
+          <section>
+            <h3>Library</h3>
+            <p>
+              The Library tab reads rows from Supabase (env: <code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>, optional{" "}
+              <code>VITE_SUPABASE_TABLE</code>). Each row supplies hierarchical <code>codebook</code> JSON, edge-based{" "}
+              <code>global_graph</code> JSON, and <code>report_markdown</code>.
+            </p>
           </section>
         </div>
       </div>
