@@ -55,6 +55,8 @@ interface GraphViewProps {
   onNodeSelect: (nodeId: number) => void;
   onStabilized?: () => void;
   fitOnStabilized?: boolean;
+  /** Window key for PNG export, e.g. `__graphExport_libraryGlobal` when multiple graphs mount. */
+  exportWindowKey?: string;
 }
 
 export function GraphView({
@@ -64,6 +66,7 @@ export function GraphView({
   onNodeSelect,
   onStabilized,
   fitOnStabilized = true,
+  exportWindowKey = "__graphExport",
 }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
@@ -241,11 +244,12 @@ export function GraphView({
   }, []);
 
   useEffect(() => {
-    (window as unknown as { __graphExport?: () => string | null }).__graphExport = exportCanvas;
+    const w = window as unknown as Record<string, (() => string | null) | undefined>;
+    w[exportWindowKey] = exportCanvas;
     return () => {
-      delete (window as unknown as { __graphExport?: () => string | null }).__graphExport;
+      delete w[exportWindowKey];
     };
-  }, [exportCanvas]);
+  }, [exportCanvas, exportWindowKey]);
 
   return (
     <div className="graph-view-wrap">
