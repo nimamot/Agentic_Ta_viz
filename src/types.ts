@@ -93,6 +93,8 @@ export interface VisNode {
   borderWidth?: number;
   shadow?: boolean | { enabled: boolean; color: string; size: number; x: number; y: number };
   mass?: number;
+  /** vis-network: wrap long labels instead of hiding or overflowing. */
+  widthConstraint?: number | boolean | { minimum?: number; maximum?: number };
 }
 
 export interface VisEdge {

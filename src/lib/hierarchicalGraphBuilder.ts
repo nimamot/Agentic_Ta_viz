@@ -258,6 +258,18 @@ export type BuildHierarchyVisOptions = {
   treeTheme?: "dark" | "light";
 };
 
+function treeExplorationFontSize(depth: number, highlighted: boolean, role: HierarchyRole | undefined): number {
+  const base = Math.round(Math.max(10, 14 - depth * 0.75 + (role === "theme" ? 1.5 : 0)));
+  return highlighted ? Math.min(15, base + 1) : base;
+}
+
+function treeLabelMaxWidth(depth: number): number {
+  if (depth <= 0) return 320;
+  if (depth === 1) return 260;
+  if (depth === 2) return 220;
+  return 190;
+}
+
 export function buildHierarchyVisNodes(
   data: GraphData,
   selectedNodeId: number | null,
@@ -266,8 +278,18 @@ export function buildHierarchyVisNodes(
   options?: BuildHierarchyVisOptions
 ): VisNode[] {
   const maxDegree = data.nodes.reduce((m, n) => Math.max(m, n.degree), 0);
+  const depthMap = options?.treeDepthByNodeId;
+  const treeExploration = depthMap != null;
+
   const shouldShowLabel = (node: GraphNode) => {
     if (showLabels) return true;
+    if (treeExploration) {
+      if (selectedNodeId === node.id) return true;
+      const d = depthMap?.get(node.id) ?? 0;
+      if (d === 0) return true;
+      const hasChildren = data.edges.some((e) => e.from === node.id);
+      return hasChildren;
+    }
     if (selectedNodeId === node.id) return true;
     if (maxDegree <= 0) return false;
     const role = node.hierarchyRole;
@@ -275,7 +297,6 @@ export function buildHierarchyVisNodes(
     return node.degree >= Math.max(3, Math.ceil(maxDegree * 0.25));
   };
 
-  const depthMap = options?.treeDepthByNodeId;
   const theme = options?.treeTheme ?? "dark";
   const levelPalette = theme === "light" ? TREE_LEVEL_COLORS_LIGHT : TREE_LEVEL_COLORS_DARK;
 
@@ -298,20 +319,35 @@ export function buildHierarchyVisNodes(
     const labelColor = highlighted ? "#b8fff0" : levelStyle ? levelStyle.label : "rgba(220, 228, 255, 0.85)";
 
     const ac = node.aliases.length;
-    const baseSize = roleBaseSize(role, node.degree, ac);
+    let baseSize = roleBaseSize(role, node.degree, ac);
+    if (treeExploration) {
+      baseSize = Math.round(baseSize + Math.max(0, 3 - depth) * 1.8 + (role === "theme" ? 6 : role === "sub_theme" ? 3 : 0));
+    }
     const titleHint =
       role === "code" && node.provenance.length
         ? `${node.title}\n(raw: ${node.provenance[0]})`
         : node.title;
+    const fullTitle =
+      treeExploration && node.label && node.label !== titleHint ? `${node.label}\n${titleHint}` : titleHint;
 
     const shadow: VisNode["shadow"] = highlighted
       ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
       : false;
 
-    return {
+    const fontSize = treeExploration
+      ? treeExplorationFontSize(depth, highlighted, role)
+      : highlighted
+        ? 13
+        : role === "code"
+          ? 10
+          : role === "sub_theme"
+            ? 11
+            : 12;
+
+    const visNode: VisNode = {
       id: node.id,
       label: shouldShowLabel(node) ? node.label : "",
-      title: titleHint,
+      title: fullTitle,
       size: highlighted ? baseSize + 6 : baseSize,
       color: {
         background: highlighted ? "#7cf0d0" : baseColor,
@@ -324,14 +360,21 @@ export function buildHierarchyVisNodes(
       },
       font: {
         face: "Space Mono, monospace",
-        size: highlighted ? 13 : role === "code" ? 10 : role === "sub_theme" ? 11 : 12,
+        size: fontSize,
+        multi: treeExploration ? true : undefined,
         color: labelColor,
-        strokeWidth: 3,
+        strokeWidth: treeExploration ? 2.5 : 3,
         strokeColor: theme === "light" ? "rgba(255, 255, 255, 0.92)" : "rgba(5, 6, 15, 0.9)",
       },
       borderWidth: highlighted ? 2.5 : role === "theme" ? 2 : 1.2,
       shadow,
-    } satisfies VisNode;
+    };
+
+    if (treeExploration && shouldShowLabel(node)) {
+      visNode.widthConstraint = { maximum: treeLabelMaxWidth(depth) };
+    }
+
+    return visNode satisfies VisNode;
   });
 }
 

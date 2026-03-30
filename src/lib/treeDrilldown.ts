@@ -67,6 +67,19 @@ export function sliceExpandedTree(data: GraphData, rootId: number, expanded: Rea
   return finalizeUndirectedGraph(nodes, edges);
 }
 
+/** Count nodes at each depth; return the size of the widest level (siblings sharing a row). */
+export function maxNodesOnAnyLevel(data: GraphData, rootId: number): number {
+  const depths = computeDirectedDepthFromRoot(data, rootId);
+  const counts = new Map<number, number>();
+  for (const n of data.nodes) {
+    const d = depths.get(n.id) ?? 0;
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  let m = 1;
+  for (const c of counts.values()) m = Math.max(m, c);
+  return m;
+}
+
 /** Largest out-degree in the directed tree (width of the busiest sibling row). */
 export function maxDirectedChildFanOut(data: GraphData): number {
   const byParent = new Map<number, number>();

@@ -9,6 +9,7 @@ import {
   buildHierarchyVisNodes,
   isHierarchicalCodebookJson,
 } from "./lib/hierarchicalGraphBuilder";
+import { computeDirectedDepthFromRoot, findDirectedTreeRootId } from "./lib/treeDrilldown";
 import type { GraphData, ViewMode, CodebookJson } from "./types";
 import { GraphView } from "./components/GraphView";
 import { DetailsPanel } from "./components/DetailsPanel";
@@ -173,12 +174,26 @@ function AppContent() {
     [graphData, viewMode, selectedNodeId, showInferred, isDark]
   );
 
+  const hierarchyDepthByNode = useMemo(() => {
+    if (!hierarchyGraphData) return undefined;
+    const root = findDirectedTreeRootId(hierarchyGraphData);
+    return computeDirectedDepthFromRoot(hierarchyGraphData, root);
+  }, [hierarchyGraphData]);
+
+  const hierarchyVisOptions = useMemo(() => {
+    if (!hierarchyDepthByNode) return undefined;
+    return {
+      treeDepthByNodeId: hierarchyDepthByNode,
+      treeTheme: isDark ? ("dark" as const) : ("light" as const),
+    };
+  }, [hierarchyDepthByNode, isDark]);
+
   const hierarchyVisNodes = useMemo(
     () =>
       graphData && viewMode === "hierarchy"
-        ? buildHierarchyVisNodes(graphData, selectedNodeId, showLabels, colorClusters)
+        ? buildHierarchyVisNodes(graphData, selectedNodeId, showLabels, colorClusters, hierarchyVisOptions)
         : [],
-    [graphData, viewMode, selectedNodeId, showLabels, colorClusters]
+    [graphData, viewMode, selectedNodeId, showLabels, colorClusters, hierarchyVisOptions]
   );
 
   const hierarchyVisEdges = useMemo(

@@ -15,6 +15,7 @@ import {
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
   maxDirectedChildFanOut,
+  maxNodesOnAnyLevel,
   removeExpandedSubtreeFromSet,
   sliceExpandedTree,
 } from "../lib/treeDrilldown";
@@ -98,7 +99,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [rows, setRows] = useState<ResearchProjectRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [showLabels, setShowLabels] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
@@ -196,21 +197,27 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     if (treeRootId != null) setGlobalExpandedIds(new Set([treeRootId]));
   }, [treeRootId]);
 
-  const globalHierarchicalSpacing = useMemo(() => {
-    if (globalVizKind !== "tree" || !gDataVisible) return undefined;
-    const fanOut = maxDirectedChildFanOut(gDataVisible);
-    const nodeSpacing = Math.min(560, Math.max(240, 140 + fanOut * 44));
-    return {
-      levelSeparation: 340,
-      nodeSpacing,
-      treeSpacing: 720,
-    };
-  }, [globalVizKind, gDataVisible]);
-
   const globalTreeDepthByNode = useMemo(() => {
     if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
     return computeDirectedDepthFromRoot(gDataVisible, treeRootId);
   }, [globalVizKind, gDataVisible, treeRootId]);
+
+  const globalTreeMaxDepth = useMemo(() => {
+    if (!globalTreeDepthByNode) return 0;
+    let m = 0;
+    for (const d of globalTreeDepthByNode.values()) m = Math.max(m, d);
+    return m;
+  }, [globalTreeDepthByNode]);
+
+  const globalHierarchicalSpacing = useMemo(() => {
+    if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
+    const fanOut = maxDirectedChildFanOut(gDataVisible);
+    const breadth = maxNodesOnAnyLevel(gDataVisible, treeRootId);
+    const nodeSpacing = Math.min(840, Math.max(260, 88 + fanOut * 32 + breadth * 20));
+    const levelSeparation = Math.min(520, 310 + globalTreeMaxDepth * 12 + Math.min(breadth, 24) * 6);
+    const treeSpacing = Math.min(960, 680 + breadth * 14);
+    return { levelSeparation, nodeSpacing, treeSpacing };
+  }, [globalVizKind, gDataVisible, treeRootId, globalTreeMaxDepth]);
 
   const globalTreeHierarchyOptions = useMemo(() => {
     if (!globalTreeDepthByNode) return undefined;
@@ -332,7 +339,14 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                         Inferred
                       </label>
                     )}
-                    <label className="library-mini-check">
+                    <label
+                      className="library-mini-check"
+                      title={
+                        globalVizKind === "tree"
+                          ? "On: name on every node. Off: root, branch nodes, and selection only — hover for full text on leaves."
+                          : "Show node names on the canvas"
+                      }
+                    >
                       <input
                         type="checkbox"
                         checked={showLabels}
