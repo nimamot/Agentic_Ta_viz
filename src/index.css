@@ -994,9 +994,9 @@ body::after {
 
 .library-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, min(36vw, 420px)) minmax(0, 1fr);
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 @media (max-width: 1100px) {
@@ -1066,11 +1066,13 @@ body::after {
 }
 
 .library-report {
-  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .library-markdown {
   padding: 0.85rem 1rem 1.25rem;
-  max-height: min(62vh, 720px);
+  max-height: min(52vh, 560px);
   overflow-y: auto;
   font-size: 0.82rem;
   line-height: 1.65;
@@ -1122,13 +1124,21 @@ body::after {
   color: var(--text-muted);
 }
 
-.library-graphs {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
 .library-graph-panel {
   min-height: 0;
+}
+
+/* Single primary graph: tall column so vis-network has room to pan/zoom */
+.library-graph-panel--primary {
+  display: flex;
+  flex-direction: column;
+  min-height: min(78vh, 960px);
+}
+
+.library-graph-panel--primary .library-graph-mount {
+  flex: 1 1 auto;
+  min-height: min(62vh, 820px);
+  height: auto;
 }
 
 .library-drill-bar {
