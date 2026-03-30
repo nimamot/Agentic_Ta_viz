@@ -9,13 +9,7 @@ import {
   buildOverviewNodes,
   computeGraphStats,
 } from "../lib/graphBuilder";
-import {
-  buildHierarchicalGraphData,
-  buildHierarchyVisEdges,
-  buildHierarchyVisNodes,
-  extractFlatHierarchicalClusters,
-  isHierarchicalCodebookJson,
-} from "../lib/hierarchicalGraphBuilder";
+import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchicalGraphBuilder";
 import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
 import {
   computeDirectedDepthFromRoot,
@@ -89,50 +83,6 @@ function tryParseGlobalGraph(raw: unknown): {
   };
 }
 
-function tryParseCodebookTree(raw: unknown): { data: GraphData | null; error: string | null } {
-  const u = unwrapJsonField(raw);
-  if (u == null || typeof u !== "object" || Array.isArray(u)) {
-    return { data: null, error: "codebook is missing or not an object." };
-  }
-
-  if (isThemeTreeDocument(u)) {
-    try {
-      const data = buildHierarchyGraphFromThemeTree(u.tree);
-      if (data.nodeCount === 0) return { data: null, error: "codebook tree is empty." };
-      return { data, error: null };
-    } catch (e) {
-      return { data: null, error: (e as Error).message };
-    }
-  }
-
-  const flat = extractFlatHierarchicalClusters(u);
-  if (flat) {
-    try {
-      const data = buildHierarchicalGraphData(flat);
-      if (data.nodeCount === 0) return { data: null, error: "codebook has no clusters." };
-      return { data, error: null };
-    } catch (e) {
-      return { data: null, error: (e as Error).message };
-    }
-  }
-
-  if (isHierarchicalCodebookJson(u)) {
-    try {
-      const data = buildHierarchicalGraphData(u);
-      if (data.nodeCount === 0) return { data: null, error: "codebook has no clusters." };
-      return { data, error: null };
-    } catch (e) {
-      return { data: null, error: (e as Error).message };
-    }
-  }
-
-  return {
-    data: null,
-    error:
-      'codebook must be a theme map like { "0": { label, sub_themes, ungrouped_codes } } or { tree: { name, type, children } }.',
-  };
-}
-
 function formatWhen(iso: string): string {
   try {
     return new Date(iso).toLocaleString(undefined, {
@@ -151,7 +101,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [showLabels, setShowLabels] = useState(false);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
-  const [selHierarchy, setSelHierarchy] = useState<number | null>(null);
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
   /** For global tree: which node ids have their children revealed (ancestors stay visible). */
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
@@ -186,11 +135,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   const selected = rows.find((r) => r.id === selectedRowId) ?? null;
 
-  const hierarchyParsed = useMemo(
-    () => (selected ? tryParseCodebookTree(selected.codebook) : { data: null, error: null }),
-    [selected]
-  );
-
   const globalParsed = useMemo(
     () =>
       selected
@@ -199,7 +143,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     [selected]
   );
 
-  const hData = hierarchyParsed.data;
   const gData = globalParsed.data;
   const globalVizKind = globalParsed.vizKind;
 
@@ -218,13 +161,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     if (globalVizKind !== "tree" || treeRootId == null) return gData;
     return sliceExpandedTree(gData, treeRootId, globalExpandedIds);
   }, [gData, globalVizKind, treeRootId, globalExpandedIds]);
-
-  useEffect(() => {
-    if (hData) {
-      const t = hData.nodes.find((n) => n.hierarchyRole === "theme");
-      setSelHierarchy(t?.id ?? hData.nodes[0]?.id ?? null);
-    } else setSelHierarchy(null);
-  }, [hData, selectedRowId]);
 
   useEffect(() => {
     if (!gData) {
@@ -284,16 +220,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     };
   }, [globalTreeDepthByNode, isDark]);
 
-  const hNodes = useMemo(
-    () =>
-      hData ? buildHierarchyVisNodes(hData, selHierarchy, showLabels, colorClusters) : [],
-    [hData, selHierarchy, showLabels, colorClusters]
-  );
-  const hEdges = useMemo(
-    () => (hData ? buildHierarchyVisEdges(hData, selHierarchy, isDark) : []),
-    [hData, selHierarchy, isDark]
-  );
-
   const gNodes = useMemo(() => {
     if (!gDataVisible) return [];
     if (globalVizKind === "tree") {
@@ -322,7 +248,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     a.click();
   };
 
-  const hierarchyTitle = hData?.nodeMap.get(selHierarchy ?? -1)?.label;
   const globalTitle = gDataVisible?.nodeMap.get(selGlobal ?? -1)?.label;
 
   return (
@@ -333,7 +258,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
             <p className="library-kicker">Supabase</p>
             <h2 className="library-title">Research library</h2>
             <p className="library-sub">
-              Load saved codebooks, global graphs, and reports from your database. Table:{" "}
+              Load saved global graphs and reports from your database. Table:{" "}
               <code className="library-code">{tableName}</code>
             </p>
           </div>
@@ -392,62 +317,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
               </div>
             </article>
 
-            <div className="library-graphs">
-              <article className="library-graph-panel glass-panel">
-                <div className="library-panel-head">
-                  <span className="library-panel-icon">◇</span>
-                  <h4>Codebook hierarchy</h4>
-                  <div className="library-panel-tools">
-                    <label className="library-mini-check">
-                      <input
-                        type="checkbox"
-                        checked={showLabels}
-                        onChange={(e) => setShowLabels(e.target.checked)}
-                      />
-                      Labels
-                    </label>
-                    <label className="library-mini-check">
-                      <input
-                        type="checkbox"
-                        checked={colorClusters}
-                        onChange={(e) => setColorClusters(e.target.checked)}
-                      />
-                      Clusters
-                    </label>
-                    <button
-                      type="button"
-                      className="library-mini-btn"
-                      onClick={() => exportPng("__graphExport_libraryHierarchy", `codebook-${selected.slug}.png`)}
-                    >
-                      Export
-                    </button>
-                  </div>
-                </div>
-                {hierarchyParsed.error && (
-                  <div className="library-parse-error">{hierarchyParsed.error}</div>
-                )}
-                {hData && (
-                  <>
-                    <div className="library-graph-mount">
-                      <GraphView
-                        key={`lib-h-${selected.id}`}
-                        layoutEngine="hierarchical"
-                        nodes={hNodes}
-                        edges={hEdges}
-                        mode="hierarchy"
-                        onNodeSelect={setSelHierarchy}
-                        fitOnStabilized={true}
-                        exportWindowKey="__graphExport_libraryHierarchy"
-                      />
-                    </div>
-                    <p className="library-node-hint">
-                      {hierarchyTitle ? <>Selected: {hierarchyTitle}</> : <>Click a node for details.</>}
-                    </p>
-                  </>
-                )}
-              </article>
-
-              <article className="library-graph-panel glass-panel">
+            <article className="library-graph-panel library-graph-panel--primary glass-panel">
                 <div className="library-panel-head">
                   <span className="library-panel-icon">◎</span>
                   <h4>Global graph</h4>
@@ -509,11 +379,11 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     <div className="library-graph-mount">
                       <GraphView
                         key={`lib-g-${selected.id}-${globalVizKind ?? "x"}`}
-                        layoutEngine="hierarchical"
+                        layoutEngine={globalVizKind === "tree" ? "hierarchical" : "force"}
                         hierarchicalSpacing={globalVizKind === "tree" ? globalHierarchicalSpacing : undefined}
                         nodes={gNodes}
                         edges={gEdges}
-                        mode="hierarchy"
+                        mode={globalVizKind === "tree" ? "hierarchy" : "overview"}
                         onNodeSelect={globalVizKind === "tree" ? handleGlobalNodeSelect : setSelGlobal}
                         fitOnStabilized={true}
                         exportWindowKey="__graphExport_libraryGlobal"
@@ -546,8 +416,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     </p>
                   </>
                 )}
-              </article>
-            </div>
+            </article>
           </div>
         </div>
       )}
