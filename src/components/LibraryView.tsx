@@ -13,8 +13,14 @@ import {
   buildHierarchicalGraphData,
   buildHierarchyVisEdges,
   buildHierarchyVisNodes,
+  extractFlatHierarchicalClusters,
   isHierarchicalCodebookJson,
 } from "../lib/hierarchicalGraphBuilder";
+import {
+  buildForceGraphFromThemeTree,
+  buildHierarchyGraphFromThemeTree,
+  isThemeTreeDocument,
+} from "../lib/themeTree";
 import type { CodebookJson, GraphData, ResearchProjectRow } from "../types";
 import { GraphView } from "./GraphView";
 import { StatsPanel } from "./StatsPanel";
@@ -25,40 +31,90 @@ interface LibraryViewProps {
   isDark: boolean;
 }
 
+function unwrapJsonField(raw: unknown): unknown {
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as unknown;
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
 function tryParseGlobalGraph(raw: unknown): { data: GraphData | null; error: string | null } {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+  const u = unwrapJsonField(raw);
+  if (u == null || typeof u !== "object" || Array.isArray(u)) {
     return { data: null, error: "global_graph is missing or not an object." };
   }
-  const o = raw as CodebookJson;
+  const o = u as CodebookJson;
   const hasEdges = Array.isArray(o.edges) && o.edges.length > 0;
   const hasInferred = Array.isArray(o.inferred_edges) && o.inferred_edges.length > 0;
-  if (!hasEdges && !hasInferred) {
-    return { data: null, error: "global_graph needs non-empty edges or inferred_edges." };
+  if (hasEdges || hasInferred) {
+    try {
+      return { data: buildGraphData(o), error: null };
+    } catch (e) {
+      return { data: null, error: (e as Error).message };
+    }
   }
-  try {
-    return { data: buildGraphData(o), error: null };
-  } catch (e) {
-    return { data: null, error: (e as Error).message };
+  if (isThemeTreeDocument(u)) {
+    try {
+      const data = buildForceGraphFromThemeTree(u.tree);
+      if (data.nodeCount === 0) return { data: null, error: "global_graph tree is empty." };
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: (e as Error).message };
+    }
   }
+  return {
+    data: null,
+    error:
+      "global_graph needs edges (or inferred_edges), or a root object { tree: { name, type, children } }.",
+  };
 }
 
 function tryParseCodebookTree(raw: unknown): { data: GraphData | null; error: string | null } {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+  const u = unwrapJsonField(raw);
+  if (u == null || typeof u !== "object" || Array.isArray(u)) {
     return { data: null, error: "codebook is missing or not an object." };
   }
-  if (!isHierarchicalCodebookJson(raw)) {
-    return {
-      data: null,
-      error: "codebook is not in hierarchical format (theme → sub_themes → codes).",
-    };
+
+  if (isThemeTreeDocument(u)) {
+    try {
+      const data = buildHierarchyGraphFromThemeTree(u.tree);
+      if (data.nodeCount === 0) return { data: null, error: "codebook tree is empty." };
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: (e as Error).message };
+    }
   }
-  try {
-    const data = buildHierarchicalGraphData(raw);
-    if (data.nodeCount === 0) return { data: null, error: "codebook has no clusters." };
-    return { data, error: null };
-  } catch (e) {
-    return { data: null, error: (e as Error).message };
+
+  const flat = extractFlatHierarchicalClusters(u);
+  if (flat) {
+    try {
+      const data = buildHierarchicalGraphData(flat);
+      if (data.nodeCount === 0) return { data: null, error: "codebook has no clusters." };
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: (e as Error).message };
+    }
   }
+
+  if (isHierarchicalCodebookJson(u)) {
+    try {
+      const data = buildHierarchicalGraphData(u);
+      if (data.nodeCount === 0) return { data: null, error: "codebook has no clusters." };
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: (e as Error).message };
+    }
+  }
+
+  return {
+    data: null,
+    error:
+      'codebook must be a theme map like { "0": { label, sub_themes, ungrouped_codes } } or { tree: { name, type, children } }.',
+  };
 }
 
 function formatWhen(iso: string): string {
@@ -278,6 +334,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                   <>
                     <div className="library-graph-mount">
                       <GraphView
+                        key={`lib-h-${selected.id}`}
+                        layoutEngine="hierarchical"
                         nodes={hNodes}
                         edges={hEdges}
                         mode="hierarchy"
@@ -336,6 +394,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                   <>
                     <div className="library-graph-mount">
                       <GraphView
+                        key={`lib-g-${selected.id}`}
+                        layoutEngine="force"
                         nodes={gNodes}
                         edges={gEdges}
                         mode="overview"

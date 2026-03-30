@@ -15,7 +15,12 @@ const interactionOptions = {
   selectConnectedEdges: false,
 } as const;
 
-function topologyFingerprint(mode: string, nodes: VisNode[], edges: VisEdge[]): string {
+function topologyFingerprint(
+  layoutEngine: string,
+  mode: string,
+  nodes: VisNode[],
+  edges: VisEdge[]
+): string {
   const n = nodes
     .map((x) => x.id)
     .sort((a, b) => a - b)
@@ -24,7 +29,7 @@ function topologyFingerprint(mode: string, nodes: VisNode[], edges: VisEdge[]): 
     .map((x) => `${x.from}->${x.to}:${x.id}`)
     .sort()
     .join("|");
-  return `${mode}|${n}#${e}`;
+  return `${layoutEngine}|${mode}|${n}#${e}`;
 }
 
 /** Top-down tree layout (parent above children); physics off — vis positions by level. */
@@ -52,6 +57,8 @@ interface GraphViewProps {
   nodes: VisNode[];
   edges: VisEdge[];
   mode: "overview" | "focus" | "hierarchy";
+  /** When set, overrides layout implied by `mode` (fixes multi-graph pages where vis kept hierarchical layout). */
+  layoutEngine?: "hierarchical" | "force";
   onNodeSelect: (nodeId: number) => void;
   onStabilized?: () => void;
   fitOnStabilized?: boolean;
@@ -63,6 +70,7 @@ export function GraphView({
   nodes,
   edges,
   mode,
+  layoutEngine,
   onNodeSelect,
   onStabilized,
   fitOnStabilized = true,
@@ -82,6 +90,10 @@ export function GraphView({
       mode === "focus" ? getFocusPhysicsOptions() : getOverviewPhysicsOptions(),
     [mode]
   );
+
+  const resolvedLayout =
+    layoutEngine ?? (mode === "hierarchy" ? "hierarchical" : "force");
+  const isHierarchy = resolvedLayout === "hierarchical";
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -122,11 +134,9 @@ export function GraphView({
     const edgesDs = edgesDsRef.current;
     if (!net || !nodesDs || !edgesDs) return;
 
-    const fp = topologyFingerprint(mode, nodes, edges);
+    const fp = topologyFingerprint(resolvedLayout, mode, nodes, edges);
     const topologyChanged = fp !== topologyRef.current;
     topologyRef.current = fp;
-
-    const isHierarchy = mode === "hierarchy";
 
     if (topologyChanged) {
       stabilizeGenRef.current += 1;
@@ -204,7 +214,7 @@ export function GraphView({
       nodesDs.update(nodes);
       edgesDs.update(edges);
     }
-  }, [nodes, edges, mode, physics, fitOnStabilized, onStabilized]);
+  }, [nodes, edges, mode, resolvedLayout, isHierarchy, physics, fitOnStabilized, onStabilized]);
 
   const zoomIn = useCallback(() => {
     const net = networkRef.current;
