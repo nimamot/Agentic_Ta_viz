@@ -1130,6 +1130,48 @@ body::after {
 .library-graph-panel {
   min-height: 0;
 }
+
+.library-drill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin: 0 0.65rem 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(99, 115, 255, 0.06);
+}
+.library-drill-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-bright);
+  background: var(--surface-2);
+  color: var(--accent);
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.library-drill-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.library-drill-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+.library-drill-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  flex: 1;
+  min-width: 12rem;
+}
 .library-parse-error {
   margin: 0.65rem 0.85rem;
   padding: 0.5rem 0.65rem;

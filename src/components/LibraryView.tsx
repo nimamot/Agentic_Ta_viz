@@ -16,11 +16,14 @@ import {
   extractFlatHierarchicalClusters,
   isHierarchicalCodebookJson,
 } from "../lib/hierarchicalGraphBuilder";
+import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
 import {
-  buildForceGraphFromThemeTree,
-  buildHierarchyGraphFromThemeTree,
-  isThemeTreeDocument,
-} from "../lib/themeTree";
+  computeDirectedDepthFromRoot,
+  findDirectedTreeRootId,
+  maxDirectedChildFanOut,
+  removeExpandedSubtreeFromSet,
+  sliceExpandedTree,
+} from "../lib/treeDrilldown";
 import type { CodebookJson, GraphData, ResearchProjectRow } from "../types";
 import { GraphView } from "./GraphView";
 import { StatsPanel } from "./StatsPanel";
@@ -42,34 +45,47 @@ function unwrapJsonField(raw: unknown): unknown {
   return raw;
 }
 
-function tryParseGlobalGraph(raw: unknown): { data: GraphData | null; error: string | null } {
+type GlobalVizKind = "tree" | "edges";
+
+function tryParseGlobalGraph(raw: unknown): {
+  data: GraphData | null;
+  error: string | null;
+  vizKind: GlobalVizKind | null;
+} {
   const u = unwrapJsonField(raw);
   if (u == null || typeof u !== "object" || Array.isArray(u)) {
-    return { data: null, error: "global_graph is missing or not an object." };
+    return { data: null, error: "global_graph is missing or not an object.", vizKind: null };
   }
   const o = u as CodebookJson;
+
+  // Prefer embedded tree for nested top-down layout (same shape as codebook pipeline export).
+  if (isThemeTreeDocument(u)) {
+    try {
+      const data = buildHierarchyGraphFromThemeTree(u.tree);
+      if (data.nodeCount === 0) {
+        return { data: null, error: "global_graph tree is empty.", vizKind: null };
+      }
+      return { data, error: null, vizKind: "tree" };
+    } catch (e) {
+      return { data: null, error: (e as Error).message, vizKind: null };
+    }
+  }
+
   const hasEdges = Array.isArray(o.edges) && o.edges.length > 0;
   const hasInferred = Array.isArray(o.inferred_edges) && o.inferred_edges.length > 0;
   if (hasEdges || hasInferred) {
     try {
-      return { data: buildGraphData(o), error: null };
+      return { data: buildGraphData(o), error: null, vizKind: "edges" };
     } catch (e) {
-      return { data: null, error: (e as Error).message };
+      return { data: null, error: (e as Error).message, vizKind: null };
     }
   }
-  if (isThemeTreeDocument(u)) {
-    try {
-      const data = buildForceGraphFromThemeTree(u.tree);
-      if (data.nodeCount === 0) return { data: null, error: "global_graph tree is empty." };
-      return { data, error: null };
-    } catch (e) {
-      return { data: null, error: (e as Error).message };
-    }
-  }
+
   return {
     data: null,
     error:
       "global_graph needs edges (or inferred_edges), or a root object { tree: { name, type, children } }.",
+    vizKind: null,
   };
 }
 
@@ -137,6 +153,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [showInferred, setShowInferred] = useState(true);
   const [selHierarchy, setSelHierarchy] = useState<number | null>(null);
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
+  /** For global tree: which node ids have their children revealed (ancestors stay visible). */
+  const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
 
   const configured = isSupabaseConfigured();
   const tableName = getSupabaseTableName();
@@ -174,12 +192,32 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   );
 
   const globalParsed = useMemo(
-    () => (selected ? tryParseGlobalGraph(selected.global_graph) : { data: null, error: null }),
+    () =>
+      selected
+        ? tryParseGlobalGraph(selected.global_graph)
+        : { data: null, error: null, vizKind: null as GlobalVizKind | null },
     [selected]
   );
 
   const hData = hierarchyParsed.data;
   const gData = globalParsed.data;
+  const globalVizKind = globalParsed.vizKind;
+
+  const treeRootId = useMemo(() => {
+    if (!gData || globalVizKind !== "tree") return null;
+    return findDirectedTreeRootId(gData);
+  }, [gData, globalVizKind]);
+
+  useEffect(() => {
+    if (treeRootId != null) setGlobalExpandedIds(new Set([treeRootId]));
+    else setGlobalExpandedIds(new Set());
+  }, [treeRootId, selectedRowId]);
+
+  const gDataVisible = useMemo(() => {
+    if (!gData) return null;
+    if (globalVizKind !== "tree" || treeRootId == null) return gData;
+    return sliceExpandedTree(gData, treeRootId, globalExpandedIds);
+  }, [gData, globalVizKind, treeRootId, globalExpandedIds]);
 
   useEffect(() => {
     if (hData) {
@@ -189,11 +227,62 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   }, [hData, selectedRowId]);
 
   useEffect(() => {
-    if (gData) {
+    if (!gData) {
+      setSelGlobal(null);
+      return;
+    }
+    if (globalVizKind === "edges") {
       const top = gData.nodes.slice().sort((a, b) => b.degree - a.degree)[0];
       setSelGlobal(top?.id ?? null);
-    } else setSelGlobal(null);
-  }, [gData, selectedRowId]);
+    }
+  }, [gData, globalVizKind, selectedRowId]);
+
+  const handleGlobalNodeSelect = useCallback(
+    (id: number) => {
+      setSelGlobal(id);
+      if (globalVizKind !== "tree" || !gData) return;
+      const hasChildren = gData.edges.some((e) => e.from === id);
+      if (!hasChildren) return;
+      setGlobalExpandedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          removeExpandedSubtreeFromSet(next, gData, id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+    },
+    [globalVizKind, gData]
+  );
+
+  const handleGlobalTreeReset = useCallback(() => {
+    if (treeRootId != null) setGlobalExpandedIds(new Set([treeRootId]));
+  }, [treeRootId]);
+
+  const globalHierarchicalSpacing = useMemo(() => {
+    if (globalVizKind !== "tree" || !gDataVisible) return undefined;
+    const fanOut = maxDirectedChildFanOut(gDataVisible);
+    const nodeSpacing = Math.min(560, Math.max(240, 140 + fanOut * 44));
+    return {
+      levelSeparation: 340,
+      nodeSpacing,
+      treeSpacing: 720,
+    };
+  }, [globalVizKind, gDataVisible]);
+
+  const globalTreeDepthByNode = useMemo(() => {
+    if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
+    return computeDirectedDepthFromRoot(gDataVisible, treeRootId);
+  }, [globalVizKind, gDataVisible, treeRootId]);
+
+  const globalTreeHierarchyOptions = useMemo(() => {
+    if (!globalTreeDepthByNode) return undefined;
+    return {
+      treeDepthByNodeId: globalTreeDepthByNode,
+      treeTheme: isDark ? ("dark" as const) : ("light" as const),
+    };
+  }, [globalTreeDepthByNode, isDark]);
 
   const hNodes = useMemo(
     () =>
@@ -205,16 +294,23 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     [hData, selHierarchy, isDark]
   );
 
-  const gNodes = useMemo(
-    () => (gData ? buildOverviewNodes(gData, selGlobal, showLabels, colorClusters) : []),
-    [gData, selGlobal, showLabels, colorClusters]
-  );
-  const gEdges = useMemo(
-    () => (gData ? buildOverviewEdges(gData, selGlobal, showInferred, isDark) : []),
-    [gData, selGlobal, showInferred, isDark]
-  );
+  const gNodes = useMemo(() => {
+    if (!gDataVisible) return [];
+    if (globalVizKind === "tree") {
+      return buildHierarchyVisNodes(gDataVisible, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions);
+    }
+    return buildOverviewNodes(gDataVisible, selGlobal, showLabels, colorClusters);
+  }, [gDataVisible, globalVizKind, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions]);
 
-  const gStats = gData ? computeGraphStats(gData) : null;
+  const gEdges = useMemo(() => {
+    if (!gDataVisible) return [];
+    if (globalVizKind === "tree") {
+      return buildHierarchyVisEdges(gDataVisible, selGlobal, isDark);
+    }
+    return buildOverviewEdges(gDataVisible, selGlobal, showInferred, isDark);
+  }, [gDataVisible, globalVizKind, selGlobal, showInferred, isDark]);
+
+  const gStats = gDataVisible ? computeGraphStats(gDataVisible) : null;
 
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
@@ -227,7 +323,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   };
 
   const hierarchyTitle = hData?.nodeMap.get(selHierarchy ?? -1)?.label;
-  const globalTitle = gData?.nodeMap.get(selGlobal ?? -1)?.label;
+  const globalTitle = gDataVisible?.nodeMap.get(selGlobal ?? -1)?.label;
 
   return (
     <div className="library-page" data-theme={isDark ? "dark" : "light"}>
@@ -356,14 +452,16 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                   <span className="library-panel-icon">◎</span>
                   <h4>Global graph</h4>
                   <div className="library-panel-tools">
-                    <label className="library-mini-check">
-                      <input
-                        type="checkbox"
-                        checked={showInferred}
-                        onChange={(e) => setShowInferred(e.target.checked)}
-                      />
-                      Inferred
-                    </label>
+                    {globalVizKind === "edges" && (
+                      <label className="library-mini-check">
+                        <input
+                          type="checkbox"
+                          checked={showInferred}
+                          onChange={(e) => setShowInferred(e.target.checked)}
+                        />
+                        Inferred
+                      </label>
+                    )}
                     <label className="library-mini-check">
                       <input
                         type="checkbox"
@@ -390,16 +488,33 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                   </div>
                 </div>
                 {globalParsed.error && <div className="library-parse-error">{globalParsed.error}</div>}
-                {gData && gStats && (
+                {globalVizKind === "tree" && gData && !globalParsed.error && treeRootId != null && (
+                  <div className="library-drill-bar">
+                    <button
+                      type="button"
+                      className="library-drill-btn"
+                      onClick={handleGlobalTreeReset}
+                      title="Collapse to root and its first level only"
+                    >
+                      Reset view
+                    </button>
+                    <span className="library-drill-meta">
+                      {gDataVisible?.nodeCount ?? 0} nodes visible · {globalExpandedIds.size} expanded branch
+                      {globalExpandedIds.size === 1 ? "" : "es"} · click a node to expand/collapse
+                    </span>
+                  </div>
+                )}
+                {gDataVisible && gStats && (
                   <>
                     <div className="library-graph-mount">
                       <GraphView
-                        key={`lib-g-${selected.id}`}
-                        layoutEngine="force"
+                        key={`lib-g-${selected.id}-${globalVizKind ?? "x"}`}
+                        layoutEngine="hierarchical"
+                        hierarchicalSpacing={globalVizKind === "tree" ? globalHierarchicalSpacing : undefined}
                         nodes={gNodes}
                         edges={gEdges}
-                        mode="overview"
-                        onNodeSelect={setSelGlobal}
+                        mode="hierarchy"
+                        onNodeSelect={globalVizKind === "tree" ? handleGlobalNodeSelect : setSelGlobal}
                         fitOnStabilized={true}
                         exportWindowKey="__graphExport_libraryGlobal"
                       />
@@ -417,7 +532,17 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                       />
                     </div>
                     <p className="library-node-hint">
-                      {globalTitle ? <>Selected: {globalTitle}</> : <>Click a node.</>}
+                      {globalVizKind === "tree" ? (
+                        <>
+                          {globalTitle ? <>Highlighted: {globalTitle}</> : null}
+                          {globalTitle ? " · " : null}
+                          Click a node with children to <strong>expand</strong> or <strong>collapse</strong> its branch; ancestors stay visible.
+                        </>
+                      ) : globalTitle ? (
+                        <>Selected: {globalTitle}</>
+                      ) : (
+                        <>Click a node.</>
+                      )}
                     </p>
                   </>
                 )}
