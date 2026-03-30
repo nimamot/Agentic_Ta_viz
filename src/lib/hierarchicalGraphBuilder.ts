@@ -256,14 +256,23 @@ export type BuildHierarchyVisOptions = {
   /** When set (e.g. Library global tree), nodes are tinted by depth from root instead of cluster color. */
   treeDepthByNodeId?: Map<number, number>;
   treeTheme?: "dark" | "light";
+  /** Canvas label per node id (e.g. Library short root when JSON root `name` duplicates the research question). */
+  canvasLabelByNodeId?: Map<number, string>;
 };
 
-function treeExplorationFontSize(depth: number, highlighted: boolean, role: HierarchyRole | undefined): number {
-  const base = Math.round(Math.max(10, 14 - depth * 0.75 + (role === "theme" ? 1.5 : 0)));
-  return highlighted ? Math.min(15, base + 1) : base;
+function treeExplorationFontSize(
+  depth: number,
+  highlighted: boolean,
+  role: HierarchyRole | undefined,
+  themeRowOnly: boolean
+): number {
+  let base = Math.round(Math.max(10, 14 - depth * 0.75 + (role === "theme" ? 1.5 : 0)));
+  if (themeRowOnly && depth === 0) base = Math.min(18, base + 4);
+  return highlighted ? Math.min(16, base + 1) : base;
 }
 
-function treeLabelMaxWidth(depth: number): number {
+function treeLabelMaxWidth(depth: number, themeRowOnly: boolean): number {
+  if (themeRowOnly && depth <= 0) return 400;
   if (depth <= 0) return 320;
   if (depth === 1) return 260;
   if (depth === 2) return 220;
@@ -300,6 +309,13 @@ export function buildHierarchyVisNodes(
   const theme = options?.treeTheme ?? "dark";
   const levelPalette = theme === "light" ? TREE_LEVEL_COLORS_LIGHT : TREE_LEVEL_COLORS_DARK;
 
+  const depthMax =
+    depthMap != null && depthMap.size > 0 ? Math.max(...Array.from(depthMap.values())) : 0;
+  /** Stripped top + no expansion: siblings share no edges — main themes in a row. */
+  const themeRowOnly = treeExploration && data.edgeCount === 0 && data.nodes.length > 0;
+  /** At least one edge but still shallow (e.g. one theme expanded). */
+  const shallowExpanded = treeExploration && data.edgeCount > 0 && depthMax <= 1;
+
   return data.nodes.map((node) => {
     const highlighted = node.id === selectedNodeId;
     const clusterColor = getClusterColor(node.componentId);
@@ -323,19 +339,35 @@ export function buildHierarchyVisNodes(
     if (treeExploration) {
       baseSize = Math.round(baseSize + Math.max(0, 3 - depth) * 1.8 + (role === "theme" ? 6 : role === "sub_theme" ? 3 : 0));
     }
+    if (themeRowOnly && depth === 0) {
+      baseSize = Math.max(baseSize + 28, 54);
+    } else if (shallowExpanded) {
+      if (depth === 0) baseSize = Math.round(baseSize + 14);
+      else if (depth === 1) baseSize = Math.round(baseSize + 6);
+    }
     const titleHint =
       role === "code" && node.provenance.length
         ? `${node.title}\n(raw: ${node.provenance[0]})`
         : node.title;
+
+    const canvasOverride = options?.canvasLabelByNodeId?.get(node.id);
+    const displayLabel = canvasOverride ?? node.label;
+
     const fullTitle =
-      treeExploration && node.label && node.label !== titleHint ? `${node.label}\n${titleHint}` : titleHint;
+      canvasOverride != null
+        ? `${node.label}${titleHint !== node.label ? `\n${titleHint}` : ""}`
+        : treeExploration && node.label && node.label !== titleHint
+          ? `${node.label}\n${titleHint}`
+          : titleHint;
 
     const shadow: VisNode["shadow"] = highlighted
       ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
-      : false;
+      : themeRowOnly && depth === 0
+        ? { enabled: true, color: "rgba(124, 240, 208, 0.35)", size: 20, x: 0, y: 0 }
+        : false;
 
     const fontSize = treeExploration
-      ? treeExplorationFontSize(depth, highlighted, role)
+      ? treeExplorationFontSize(depth, highlighted, role, themeRowOnly)
       : highlighted
         ? 13
         : role === "code"
@@ -346,7 +378,7 @@ export function buildHierarchyVisNodes(
 
     const visNode: VisNode = {
       id: node.id,
-      label: shouldShowLabel(node) ? node.label : "",
+      label: shouldShowLabel(node) ? displayLabel : "",
       title: fullTitle,
       size: highlighted ? baseSize + 6 : baseSize,
       color: {
@@ -366,12 +398,12 @@ export function buildHierarchyVisNodes(
         strokeWidth: treeExploration ? 2.5 : 3,
         strokeColor: theme === "light" ? "rgba(255, 255, 255, 0.92)" : "rgba(5, 6, 15, 0.9)",
       },
-      borderWidth: highlighted ? 2.5 : role === "theme" ? 2 : 1.2,
+      borderWidth: highlighted ? 2.5 : themeRowOnly && depth === 0 ? 2.8 : role === "theme" ? 2 : 1.2,
       shadow,
     };
 
     if (treeExploration && shouldShowLabel(node)) {
-      visNode.widthConstraint = { maximum: treeLabelMaxWidth(depth) };
+      visNode.widthConstraint = { maximum: treeLabelMaxWidth(depth, themeRowOnly) };
     }
 
     return visNode satisfies VisNode;

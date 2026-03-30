@@ -91,6 +91,40 @@ export function maxDirectedChildFanOut(data: GraphData): number {
   return m;
 }
 
+/** Remove the tree root node and its incident edges; former children become separate roots for layout. */
+export function stripTreeRootFromGraph(data: GraphData, rootId: number): GraphData {
+  const nodes = data.nodes.filter((n) => n.id !== rootId).map((n) => ({ ...n }));
+  const edges = data.edges
+    .filter((e) => e.from !== rootId && e.to !== rootId)
+    .map((e) => ({ ...e }));
+  return finalizeUndirectedGraph(nodes, edges);
+}
+
+/** Widest level using a precomputed depth map (supports multi-root forests). */
+export function maxNodesOnAnyLevelFromDepthMap(data: GraphData, depthByNode: ReadonlyMap<number, number>): number {
+  const counts = new Map<number, number>();
+  for (const n of data.nodes) {
+    const d = depthByNode.get(n.id) ?? 0;
+    counts.set(d, (counts.get(d) ?? 0) + 1);
+  }
+  let m = 1;
+  for (const c of counts.values()) m = Math.max(m, c);
+  return m;
+}
+
+/** Shift depths down by one after removing the old root (depth 0 removed). */
+export function remapDepthsAfterStrippingRoot(
+  depthByNode: ReadonlyMap<number, number>,
+  rootId: number
+): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const [id, d] of depthByNode) {
+    if (id === rootId) continue;
+    out.set(id, Math.max(0, d - 1));
+  }
+  return out;
+}
+
 /** BFS depth from `rootId` (0 = root) along directed edges (from → to). */
 export function computeDirectedDepthFromRoot(data: GraphData, rootId: number): Map<number, number> {
   const depths = new Map<number, number>();

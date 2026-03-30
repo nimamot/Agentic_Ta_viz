@@ -15,9 +15,11 @@ import {
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
   maxDirectedChildFanOut,
-  maxNodesOnAnyLevel,
+  maxNodesOnAnyLevelFromDepthMap,
+  remapDepthsAfterStrippingRoot,
   removeExpandedSubtreeFromSet,
   sliceExpandedTree,
+  stripTreeRootFromGraph,
 } from "../lib/treeDrilldown";
 import type { CodebookJson, GraphData, ResearchProjectRow } from "../types";
 import { GraphView } from "./GraphView";
@@ -102,6 +104,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [showLabels, setShowLabels] = useState(true);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
+  /** Hide the JSON root so its children become multiple top-level roots in the layout. */
+  const [omitTopParent, setOmitTopParent] = useState(true);
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
   /** For global tree: which node ids have their children revealed (ancestors stay visible). */
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
@@ -163,6 +167,20 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return sliceExpandedTree(gData, treeRootId, globalExpandedIds);
   }, [gData, globalVizKind, treeRootId, globalExpandedIds]);
 
+  const strippedTreePreview = useMemo(() => {
+    if (!gDataVisible || treeRootId == null) return null;
+    return stripTreeRootFromGraph(gDataVisible, treeRootId);
+  }, [gDataVisible, treeRootId]);
+
+  const treeStripApplied =
+    globalVizKind === "tree" && omitTopParent && strippedTreePreview != null && strippedTreePreview.nodeCount > 0;
+
+  /** Graph passed to vis (children as roots when strip is on and non-empty). */
+  const gDataForVis = useMemo(() => {
+    if (!gDataVisible) return null;
+    return treeStripApplied && strippedTreePreview ? strippedTreePreview : gDataVisible;
+  }, [gDataVisible, treeStripApplied, strippedTreePreview]);
+
   useEffect(() => {
     if (!gData) {
       setSelGlobal(null);
@@ -199,8 +217,10 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   const globalTreeDepthByNode = useMemo(() => {
     if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
-    return computeDirectedDepthFromRoot(gDataVisible, treeRootId);
-  }, [globalVizKind, gDataVisible, treeRootId]);
+    const base = computeDirectedDepthFromRoot(gDataVisible, treeRootId);
+    if (!treeStripApplied) return base;
+    return remapDepthsAfterStrippingRoot(base, treeRootId);
+  }, [globalVizKind, gDataVisible, treeRootId, treeStripApplied]);
 
   const globalTreeMaxDepth = useMemo(() => {
     if (!globalTreeDepthByNode) return 0;
@@ -210,40 +230,76 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   }, [globalTreeDepthByNode]);
 
   const globalHierarchicalSpacing = useMemo(() => {
-    if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
-    const fanOut = maxDirectedChildFanOut(gDataVisible);
-    const breadth = maxNodesOnAnyLevel(gDataVisible, treeRootId);
-    const nodeSpacing = Math.min(840, Math.max(260, 88 + fanOut * 32 + breadth * 20));
-    const levelSeparation = Math.min(520, 310 + globalTreeMaxDepth * 12 + Math.min(breadth, 24) * 6);
-    const treeSpacing = Math.min(960, 680 + breadth * 14);
+    if (globalVizKind !== "tree" || !gDataForVis || !globalTreeDepthByNode || treeRootId == null) return undefined;
+    const fanOut = maxDirectedChildFanOut(gDataForVis);
+    const breadth = maxNodesOnAnyLevelFromDepthMap(gDataForVis, globalTreeDepthByNode);
+    const themeRowOnlyLayout =
+      treeStripApplied && gDataForVis.edgeCount === 0 && gDataForVis.nodeCount > 0;
+    let nodeSpacing = Math.min(840, Math.max(260, 88 + fanOut * 32 + breadth * 20));
+    if (themeRowOnlyLayout) {
+      nodeSpacing = Math.min(920, Math.max(nodeSpacing, 110 + breadth * 44));
+    }
+    let levelSeparation = Math.min(520, 310 + globalTreeMaxDepth * 12 + Math.min(breadth, 24) * 6);
+    if (themeRowOnlyLayout) {
+      levelSeparation = Math.max(levelSeparation, 160);
+    }
+    let treeSpacing = Math.min(960, 680 + breadth * 14);
+    if (themeRowOnlyLayout) {
+      treeSpacing = Math.max(treeSpacing, 820);
+    }
     return { levelSeparation, nodeSpacing, treeSpacing };
-  }, [globalVizKind, gDataVisible, treeRootId, globalTreeMaxDepth]);
+  }, [
+    globalVizKind,
+    gDataForVis,
+    treeRootId,
+    globalTreeMaxDepth,
+    globalTreeDepthByNode,
+    treeStripApplied,
+  ]);
+
+  /** JSON often sets `tree.name` to the research question; RQ is already in the page header — shorten root on canvas. */
+  const globalCanvasLabelOverrides = useMemo(() => {
+    if (treeStripApplied) return undefined;
+    if (globalVizKind !== "tree" || !gData || treeRootId == null || !selected) return undefined;
+    const rq = selected.research_question?.trim();
+    if (!rq) return undefined;
+    const root = gData.nodeMap.get(treeRootId);
+    if (!root) return undefined;
+    const asLabel = root.label.trim();
+    const asTitle = String(root.title ?? "").trim();
+    if (asLabel !== rq && asTitle !== rq) return undefined;
+    const short = selected.slug?.trim() || "Overview";
+    return new Map<number, string>([[treeRootId, short]]);
+  }, [globalVizKind, gData, treeRootId, selected, treeStripApplied]);
 
   const globalTreeHierarchyOptions = useMemo(() => {
     if (!globalTreeDepthByNode) return undefined;
     return {
       treeDepthByNodeId: globalTreeDepthByNode,
       treeTheme: isDark ? ("dark" as const) : ("light" as const),
+      ...(globalCanvasLabelOverrides?.size
+        ? { canvasLabelByNodeId: globalCanvasLabelOverrides }
+        : {}),
     };
-  }, [globalTreeDepthByNode, isDark]);
+  }, [globalTreeDepthByNode, isDark, globalCanvasLabelOverrides]);
 
   const gNodes = useMemo(() => {
-    if (!gDataVisible) return [];
+    if (!gDataForVis) return [];
     if (globalVizKind === "tree") {
-      return buildHierarchyVisNodes(gDataVisible, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions);
+      return buildHierarchyVisNodes(gDataForVis, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions);
     }
-    return buildOverviewNodes(gDataVisible, selGlobal, showLabels, colorClusters);
-  }, [gDataVisible, globalVizKind, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions]);
+    return buildOverviewNodes(gDataForVis, selGlobal, showLabels, colorClusters);
+  }, [gDataForVis, globalVizKind, selGlobal, showLabels, colorClusters, globalTreeHierarchyOptions]);
 
   const gEdges = useMemo(() => {
-    if (!gDataVisible) return [];
+    if (!gDataForVis) return [];
     if (globalVizKind === "tree") {
-      return buildHierarchyVisEdges(gDataVisible, selGlobal, isDark);
+      return buildHierarchyVisEdges(gDataForVis, selGlobal, isDark);
     }
-    return buildOverviewEdges(gDataVisible, selGlobal, showInferred, isDark);
-  }, [gDataVisible, globalVizKind, selGlobal, showInferred, isDark]);
+    return buildOverviewEdges(gDataForVis, selGlobal, showInferred, isDark);
+  }, [gDataForVis, globalVizKind, selGlobal, showInferred, isDark]);
 
-  const gStats = gDataVisible ? computeGraphStats(gDataVisible) : null;
+  const gStats = gDataForVis ? computeGraphStats(gDataForVis) : null;
 
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
@@ -255,7 +311,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     a.click();
   };
 
-  const globalTitle = gDataVisible?.nodeMap.get(selGlobal ?? -1)?.label;
+  const globalTitle = gData?.nodeMap.get(selGlobal ?? -1)?.label;
 
   return (
     <div className="library-page" data-theme={isDark ? "dark" : "light"}>
@@ -382,13 +438,22 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     >
                       Reset view
                     </button>
+                    <label className="library-mini-check library-drill-check">
+                      <input
+                        type="checkbox"
+                        checked={omitTopParent}
+                        onChange={(e) => setOmitTopParent(e.target.checked)}
+                      />
+                      Themes as roots
+                    </label>
                     <span className="library-drill-meta">
-                      {gDataVisible?.nodeCount ?? 0} nodes visible · {globalExpandedIds.size} expanded branch
-                      {globalExpandedIds.size === 1 ? "" : "es"} · click a node to expand/collapse
+                      {gDataForVis?.nodeCount ?? 0} nodes visible · {globalExpandedIds.size} expanded branch
+                      {globalExpandedIds.size === 1 ? "" : "es"}
+                      {treeStripApplied ? " · top topic omitted in view" : ""} · click to expand/collapse
                     </span>
                   </div>
                 )}
-                {gDataVisible && gStats && (
+                {gDataForVis && gStats && (
                   <>
                     <div className="library-graph-mount">
                       <GraphView
@@ -420,7 +485,10 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                         <>
                           {globalTitle ? <>Highlighted: {globalTitle}</> : null}
                           {globalTitle ? " · " : null}
-                          Click a node with children to <strong>expand</strong> or <strong>collapse</strong> its branch; ancestors stay visible.
+                          Click a node with children to <strong>expand</strong> or <strong>collapse</strong>.{" "}
+                          {treeStripApplied
+                            ? "Uncheck 'Themes as roots' to show the original top topic again."
+                            : "Ancestors stay visible."}
                         </>
                       ) : globalTitle ? (
                         <>Selected: {globalTitle}</>
