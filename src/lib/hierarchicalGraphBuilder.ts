@@ -2,6 +2,7 @@ import type {
   GraphData,
   GraphEdge,
   GraphNode,
+  HierarchicalClusterEntry,
   HierarchicalCodebookJson,
   HierarchyRole,
   VisEdge,
@@ -49,6 +50,35 @@ export function isHierarchicalCodebookJson(value: unknown): value is Hierarchica
     if (!(entry.ungrouped_codes ?? []).every((c) => typeof c === "string")) return false;
   }
   return true;
+}
+
+/** Keys like `tree` / `meta` are ignored; remaining entries must be flat theme clusters. */
+export function extractFlatHierarchicalClusters(value: unknown): HierarchicalCodebookJson | null {
+  if (!isRecord(value)) return null;
+  const skip = new Set(["tree", "meta", "edges", "inferred_edges", "canonical_nodes", "merge_groups"]);
+  const out: HierarchicalCodebookJson = {};
+  for (const k of Object.keys(value)) {
+    if (skip.has(k)) continue;
+    const entry = value[k];
+    if (!isRecord(entry) || typeof entry.label !== "string") continue;
+    if (entry.sub_themes != null && !Array.isArray(entry.sub_themes)) continue;
+    if (entry.ungrouped_codes != null && !Array.isArray(entry.ungrouped_codes)) continue;
+    let stOk = true;
+    for (const st of entry.sub_themes ?? []) {
+      if (!isRecord(st) || typeof st.name !== "string" || !Array.isArray(st.codes)) {
+        stOk = false;
+        break;
+      }
+      if (!st.codes.every((c) => typeof c === "string")) {
+        stOk = false;
+        break;
+      }
+    }
+    if (!stOk) continue;
+    if (!(entry.ungrouped_codes ?? []).every((c) => typeof c === "string")) continue;
+    out[k] = entry as unknown as HierarchicalClusterEntry;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 function sortClusterKeys(keys: string[]): string[] {
@@ -125,6 +155,11 @@ export function buildHierarchicalGraphData(json: HierarchicalCodebookJson): Grap
     });
   });
 
+  return finalizeUndirectedGraph(nodes, visEdges);
+}
+
+/** Compute adjacency, degrees, components, and node map from node/edge lists. */
+export function finalizeUndirectedGraph(nodes: GraphNode[], visEdges: GraphEdge[]): GraphData {
   const nodeIds = nodes.map((n) => n.id);
   const inNeighbors = createEmptyNeighborSetMap(nodeIds);
   const outNeighbors = createEmptyNeighborSetMap(nodeIds);
