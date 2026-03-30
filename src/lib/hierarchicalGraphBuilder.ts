@@ -233,11 +233,37 @@ function roleBaseSize(role: HierarchyRole | undefined, degree: number, aliasCoun
   return Math.max(10, base - 2);
 }
 
+/** Cosmic/teal palette — distinct per depth, consistent with app dark UI. */
+const TREE_LEVEL_COLORS_DARK: { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }[] = [
+  { bg: "rgba(124, 240, 208, 0.42)", border: "rgba(180, 255, 235, 0.95)", hoverBg: "rgba(124, 240, 208, 0.62)", hoverBorder: "rgba(200, 255, 240, 1)", label: "rgba(230, 255, 248, 0.95)" },
+  { bg: "rgba(56, 189, 248, 0.36)", border: "rgba(147, 220, 255, 0.92)", hoverBg: "rgba(56, 189, 248, 0.55)", hoverBorder: "rgba(186, 230, 253, 1)", label: "rgba(224, 242, 254, 0.95)" },
+  { bg: "rgba(137, 166, 251, 0.36)", border: "rgba(180, 195, 255, 0.9)", hoverBg: "rgba(137, 166, 251, 0.54)", hoverBorder: "rgba(199, 210, 254, 1)", label: "rgba(238, 242, 255, 0.94)" },
+  { bg: "rgba(167, 139, 250, 0.34)", border: "rgba(210, 190, 255, 0.88)", hoverBg: "rgba(167, 139, 250, 0.52)", hoverBorder: "rgba(221, 214, 254, 1)", label: "rgba(245, 243, 255, 0.94)" },
+  { bg: "rgba(77, 233, 176, 0.34)", border: "rgba(150, 245, 210, 0.88)", hoverBg: "rgba(77, 233, 176, 0.52)", hoverBorder: "rgba(167, 250, 215, 1)", label: "rgba(236, 253, 245, 0.95)" },
+  { bg: "rgba(45, 212, 191, 0.32)", border: "rgba(120, 235, 220, 0.86)", hoverBg: "rgba(45, 212, 191, 0.5)", hoverBorder: "rgba(153, 246, 228, 1)", label: "rgba(230, 252, 248, 0.94)" },
+];
+
+const TREE_LEVEL_COLORS_LIGHT: { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }[] = [
+  { bg: "rgba(13, 148, 136, 0.38)", border: "rgba(15, 118, 110, 0.95)", hoverBg: "rgba(13, 148, 136, 0.52)", hoverBorder: "rgba(13, 99, 90, 1)", label: "rgba(15, 40, 38, 0.95)" },
+  { bg: "rgba(3, 105, 161, 0.34)", border: "rgba(7, 89, 133, 0.92)", hoverBg: "rgba(3, 105, 161, 0.48)", hoverBorder: "rgba(12, 74, 110, 1)", label: "rgba(15, 35, 55, 0.95)" },
+  { bg: "rgba(67, 56, 202, 0.28)", border: "rgba(55, 48, 163, 0.9)", hoverBg: "rgba(67, 56, 202, 0.42)", hoverBorder: "rgba(49, 46, 129, 1)", label: "rgba(30, 27, 75, 0.95)" },
+  { bg: "rgba(109, 40, 217, 0.26)", border: "rgba(91, 33, 182, 0.88)", hoverBg: "rgba(109, 40, 217, 0.4)", hoverBorder: "rgba(76, 29, 149, 1)", label: "rgba(40, 25, 65, 0.95)" },
+  { bg: "rgba(5, 150, 105, 0.32)", border: "rgba(4, 120, 87, 0.9)", hoverBg: "rgba(5, 150, 105, 0.46)", hoverBorder: "rgba(6, 95, 70, 1)", label: "rgba(15, 45, 35, 0.95)" },
+  { bg: "rgba(14, 116, 144, 0.3)", border: "rgba(14, 94, 120, 0.88)", hoverBg: "rgba(14, 116, 144, 0.44)", hoverBorder: "rgba(12, 74, 95, 1)", label: "rgba(15, 38, 48, 0.95)" },
+];
+
+export type BuildHierarchyVisOptions = {
+  /** When set (e.g. Library global tree), nodes are tinted by depth from root instead of cluster color. */
+  treeDepthByNodeId?: Map<number, number>;
+  treeTheme?: "dark" | "light";
+};
+
 export function buildHierarchyVisNodes(
   data: GraphData,
   selectedNodeId: number | null,
   showLabels: boolean,
-  colorClusters: boolean
+  colorClusters: boolean,
+  options?: BuildHierarchyVisOptions
 ): VisNode[] {
   const maxDegree = data.nodes.reduce((m, n) => Math.max(m, n.degree), 0);
   const shouldShowLabel = (node: GraphNode) => {
@@ -249,13 +275,28 @@ export function buildHierarchyVisNodes(
     return node.degree >= Math.max(3, Math.ceil(maxDegree * 0.25));
   };
 
+  const depthMap = options?.treeDepthByNodeId;
+  const theme = options?.treeTheme ?? "dark";
+  const levelPalette = theme === "light" ? TREE_LEVEL_COLORS_LIGHT : TREE_LEVEL_COLORS_DARK;
+
   return data.nodes.map((node) => {
     const highlighted = node.id === selectedNodeId;
     const clusterColor = getClusterColor(node.componentId);
     const clusterColorDim = getClusterColorDim(node.componentId);
     const role = node.hierarchyRole;
-    const baseColor = colorClusters ? clusterColorDim : "rgba(74, 90, 255, 0.5)";
-    const baseBorder = colorClusters ? clusterColor : "rgba(74, 90, 255, 0.7)";
+    const depth = depthMap?.get(node.id) ?? 0;
+    const levelStyle = depthMap != null ? levelPalette[depth % levelPalette.length] : null;
+
+    const baseColor = levelStyle
+      ? levelStyle.bg
+      : colorClusters
+        ? clusterColorDim
+        : "rgba(74, 90, 255, 0.5)";
+    const baseBorder = levelStyle ? levelStyle.border : colorClusters ? clusterColor : "rgba(74, 90, 255, 0.7)";
+    const hoverBg = levelStyle ? levelStyle.hoverBg : clusterColor;
+    const hoverBorder = levelStyle ? levelStyle.hoverBorder : clusterColor;
+    const labelColor = highlighted ? "#b8fff0" : levelStyle ? levelStyle.label : "rgba(220, 228, 255, 0.85)";
+
     const ac = node.aliases.length;
     const baseSize = roleBaseSize(role, node.degree, ac);
     const titleHint =
@@ -276,14 +317,17 @@ export function buildHierarchyVisNodes(
         background: highlighted ? "#7cf0d0" : baseColor,
         border: highlighted ? "#b8fff0" : baseBorder,
         highlight: { background: "#7cf0d0", border: "#b8fff0" },
-        hover: { background: highlighted ? "#9df5da" : clusterColor, border: clusterColor },
+        hover: {
+          background: highlighted ? "#9df5da" : hoverBg,
+          border: highlighted ? "#b8fff0" : hoverBorder,
+        },
       },
       font: {
         face: "Space Mono, monospace",
         size: highlighted ? 13 : role === "code" ? 10 : role === "sub_theme" ? 11 : 12,
-        color: highlighted ? "#b8fff0" : "rgba(220, 228, 255, 0.85)",
+        color: labelColor,
         strokeWidth: 3,
-        strokeColor: "rgba(5, 6, 15, 0.9)",
+        strokeColor: theme === "light" ? "rgba(255, 255, 255, 0.92)" : "rgba(5, 6, 15, 0.9)",
       },
       borderWidth: highlighted ? 2.5 : role === "theme" ? 2 : 1.2,
       shadow,

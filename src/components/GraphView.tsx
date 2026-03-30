@@ -5,6 +5,17 @@ import { getOverviewPhysicsOptions, getFocusPhysicsOptions } from "../lib/graphB
 
 const ZOOM_FACTOR = 1.4;
 
+/** vis-network may return string ids; our graph uses numeric ids — mismatch breaks expand/collapse. */
+function normalizeClickedNodeId(raw: unknown): number | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
 const interactionOptions = {
   hover: true,
   tooltipDelay: 100,
@@ -18,6 +29,7 @@ const interactionOptions = {
 function topologyFingerprint(
   layoutEngine: string,
   mode: string,
+  layoutTuningKey: string,
   nodes: VisNode[],
   edges: VisEdge[]
 ): string {
@@ -29,11 +41,17 @@ function topologyFingerprint(
     .map((x) => `${x.from}->${x.to}:${x.id}`)
     .sort()
     .join("|");
-  return `${layoutEngine}|${mode}|${n}#${e}`;
+  return `${layoutEngine}|${mode}|${layoutTuningKey}|${n}#${e}`;
 }
 
+export type HierarchicalSpacingOptions = {
+  levelSeparation?: number;
+  nodeSpacing?: number;
+  treeSpacing?: number;
+};
+
 /** Top-down tree layout (parent above children); physics off — vis positions by level. */
-function getHierarchyLayoutOptions() {
+function getHierarchyLayoutOptions(overrides?: HierarchicalSpacingOptions) {
   return {
     physics: { enabled: false as const },
     layout: {
@@ -42,9 +60,9 @@ function getHierarchyLayoutOptions() {
         direction: "UD" as const,
         sortMethod: "directed" as const,
         shakeTowards: "roots" as const,
-        levelSeparation: 150,
-        nodeSpacing: 72,
-        treeSpacing: 320,
+        levelSeparation: overrides?.levelSeparation ?? 150,
+        nodeSpacing: overrides?.nodeSpacing ?? 72,
+        treeSpacing: overrides?.treeSpacing ?? 320,
         blockShifting: true,
         edgeMinimization: true,
         parentCentralization: true,
@@ -64,6 +82,8 @@ interface GraphViewProps {
   fitOnStabilized?: boolean;
   /** Window key for PNG export, e.g. `__graphExport_libraryGlobal` when multiple graphs mount. */
   exportWindowKey?: string;
+  /** Wider spacing for readable one-level tree views (Library drill-down). */
+  hierarchicalSpacing?: HierarchicalSpacingOptions;
 }
 
 export function GraphView({
@@ -75,6 +95,7 @@ export function GraphView({
   onStabilized,
   fitOnStabilized = true,
   exportWindowKey = "__graphExport",
+  hierarchicalSpacing,
 }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
@@ -94,6 +115,10 @@ export function GraphView({
   const resolvedLayout =
     layoutEngine ?? (mode === "hierarchy" ? "hierarchical" : "force");
   const isHierarchy = resolvedLayout === "hierarchical";
+
+  const layoutTuningKey = hierarchicalSpacing
+    ? `${hierarchicalSpacing.levelSeparation ?? ""}:${hierarchicalSpacing.nodeSpacing ?? ""}:${hierarchicalSpacing.treeSpacing ?? ""}`
+    : "";
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -115,7 +140,17 @@ export function GraphView({
     );
 
     net.on("click", (params) => {
-      if (params.nodes.length) onNodeSelectRef.current(params.nodes[0]);
+      const netInst = networkRef.current;
+      let raw: unknown;
+      // DOM coords + getNodeAt = topmost drawn node at pixel (selection order can differ when labels overlap).
+      if (netInst && params.pointer?.DOM) {
+        raw = netInst.getNodeAt(params.pointer.DOM);
+      }
+      if (raw === undefined || raw === null) {
+        raw = params.nodes?.[0];
+      }
+      const id = normalizeClickedNodeId(raw);
+      if (id != null) onNodeSelectRef.current(id);
     });
 
     networkRef.current = net;
@@ -134,7 +169,7 @@ export function GraphView({
     const edgesDs = edgesDsRef.current;
     if (!net || !nodesDs || !edgesDs) return;
 
-    const fp = topologyFingerprint(resolvedLayout, mode, nodes, edges);
+    const fp = topologyFingerprint(resolvedLayout, mode, layoutTuningKey, nodes, edges);
     const topologyChanged = fp !== topologyRef.current;
     topologyRef.current = fp;
 
@@ -162,7 +197,7 @@ export function GraphView({
           interaction: { ...interactionOptions, dragNodes: false },
           nodes: { shape: "dot" as const },
           edges: { selectionWidth: 0, hoverWidth: 0, smooth: false },
-          ...getHierarchyLayoutOptions(),
+          ...getHierarchyLayoutOptions(hierarchicalSpacing),
         });
 
         let finished = false;
@@ -203,7 +238,7 @@ export function GraphView({
         ...(isHierarchy
           ? {
               edges: { selectionWidth: 0, hoverWidth: 0, smooth: false },
-              ...getHierarchyLayoutOptions(),
+              ...getHierarchyLayoutOptions(hierarchicalSpacing),
               physics: { enabled: false },
             }
           : {
@@ -214,7 +249,18 @@ export function GraphView({
       nodesDs.update(nodes);
       edgesDs.update(edges);
     }
-  }, [nodes, edges, mode, resolvedLayout, isHierarchy, physics, fitOnStabilized, onStabilized]);
+  }, [
+    nodes,
+    edges,
+    mode,
+    resolvedLayout,
+    isHierarchy,
+    physics,
+    fitOnStabilized,
+    onStabilized,
+    hierarchicalSpacing,
+    layoutTuningKey,
+  ]);
 
   const zoomIn = useCallback(() => {
     const net = networkRef.current;
