@@ -4,7 +4,7 @@ interface HelpModalProps {
 
 export function HelpModal({ onClose }: HelpModalProps) {
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Help">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Shortcuts &amp; tips</h2>
@@ -16,33 +16,31 @@ export function HelpModal({ onClose }: HelpModalProps) {
           <section>
             <h3>Keyboard</h3>
             <ul>
-              <li><kbd>/</kbd> Focus node search</li>
-              <li><kbd>Esc</kbd> Clear selection</li>
-              <li><kbd>?</kbd> This help</li>
-              <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> Build graph from JSON</li>
+              <li>
+                <kbd>Esc</kbd> Clear selected research row
+              </li>
+              <li>
+                <kbd>?</kbd> This help
+              </li>
             </ul>
-          </section>
-          <section>
-            <h3>Views</h3>
-            <p><strong>Overview</strong> shows the full graph with optional cluster colors and reduced labels. <strong>Focus</strong> shows only the selected node and its 1- or 2-hop neighborhood for a clearer read. <strong>Hierarchy</strong> expects JSON where each numeric key maps to <code>label</code>, <code>sub_themes</code> (with <code>name</code> and <code>codes</code>), and <code>ungrouped_codes</code>, and draws theme → sub-theme → code trees.</p>
-          </section>
-          <section>
-            <h3>Export</h3>
-            <p>Use &quot;Export PNG&quot; in the header to download the current graph view as an image.</p>
-          </section>
-          <section>
-            <h3>URL</h3>
-            <p>
-              The hash stores <code>page=graph</code> or <code>page=library</code>, plus graph view and node id, or the
-              selected library row id.
-            </p>
           </section>
           <section>
             <h3>Library</h3>
             <p>
-              The Library tab reads rows from Supabase (env: <code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>, optional{" "}
-              <code>VITE_SUPABASE_TABLE</code>). Each row supplies hierarchical <code>codebook</code> JSON, edge-based{" "}
+              Fetch rows from Supabase (env: <code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>, optional{" "}
+              <code>VITE_SUPABASE_TABLE</code>). Each row can include hierarchical <code>codebook</code> JSON, edge-based{" "}
               <code>global_graph</code> JSON, and <code>report_markdown</code>.
+            </p>
+            <p>
+              Open the <strong>Global graph</strong> panel to explore trees (radial flower layout) or edge graphs. Use{" "}
+              <strong>Export</strong> in that panel to save a PNG.
+            </p>
+          </section>
+          <section>
+            <h3>URL</h3>
+            <p>
+              The address hash keeps <code>page=library</code> and, when a card is selected, <code>row=&lt;id&gt;</code> so you can
+              bookmark a project.
             </p>
           </section>
         </div>

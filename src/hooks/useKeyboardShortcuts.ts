@@ -21,9 +21,9 @@ export function useKeyboardShortcuts({
         onEscape?.();
         return;
       }
-      if (e.key === "/" && !searchFocused && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key === "/" && onFocusSearch && !searchFocused && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        onFocusSearch?.();
+        onFocusSearch();
         return;
       }
       if (e.key === "?" && !e.ctrlKey && !e.metaKey) {
@@ -31,9 +31,9 @@ export function useKeyboardShortcuts({
         onHelp?.();
         return;
       }
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && onBuild) {
         e.preventDefault();
-        onBuild?.();
+        onBuild();
       }
     };
     window.addEventListener("keydown", handle);
