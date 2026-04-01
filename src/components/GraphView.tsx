@@ -24,6 +24,8 @@ const interactionOptions = {
   dragView: true,
   dragNodes: true,
   selectConnectedEdges: false,
+  multiselect: false,
+  selectable: true,
 } as const;
 
 function topologyFingerprint(
@@ -117,6 +119,9 @@ export function GraphView({
   const isHierarchy = resolvedLayout === "hierarchical";
   const isFlower = resolvedLayout === "flower";
 
+  const resolvedLayoutRef = useRef(resolvedLayout);
+  resolvedLayoutRef.current = resolvedLayout;
+
   const layoutTuningKey = hierarchicalSpacing
     ? `${hierarchicalSpacing.levelSeparation ?? ""}:${hierarchicalSpacing.nodeSpacing ?? ""}:${hierarchicalSpacing.treeSpacing ?? ""}`
     : "";
@@ -151,7 +156,12 @@ export function GraphView({
         raw = params.nodes?.[0];
       }
       const id = normalizeClickedNodeId(raw);
-      if (id != null) onNodeSelectRef.current(id);
+      if (id != null) {
+        if (resolvedLayoutRef.current === "flower") {
+          netInst?.selectNodes([id]);
+        }
+        onNodeSelectRef.current(id);
+      }
     });
 
     networkRef.current = net;
