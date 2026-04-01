@@ -95,6 +95,10 @@ export interface VisNode {
   mass?: number;
   /** vis-network: wrap long labels instead of hiding or overflowing. */
   widthConstraint?: number | boolean | { minimum?: number; maximum?: number };
+  /** Fixed / initial canvas coordinates (flower & manual layouts). */
+  x?: number;
+  y?: number;
+  fixed?: boolean | { x?: boolean; y?: boolean };
 }
 
 export interface VisEdge {

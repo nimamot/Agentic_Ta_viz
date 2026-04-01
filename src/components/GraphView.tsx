@@ -76,7 +76,7 @@ interface GraphViewProps {
   edges: VisEdge[];
   mode: "overview" | "focus" | "hierarchy";
   /** When set, overrides layout implied by `mode` (fixes multi-graph pages where vis kept hierarchical layout). */
-  layoutEngine?: "hierarchical" | "force";
+  layoutEngine?: "hierarchical" | "force" | "flower";
   onNodeSelect: (nodeId: number) => void;
   onStabilized?: () => void;
   fitOnStabilized?: boolean;
@@ -115,6 +115,7 @@ export function GraphView({
   const resolvedLayout =
     layoutEngine ?? (mode === "hierarchy" ? "hierarchical" : "force");
   const isHierarchy = resolvedLayout === "hierarchical";
+  const isFlower = resolvedLayout === "flower";
 
   const layoutTuningKey = hierarchicalSpacing
     ? `${hierarchicalSpacing.levelSeparation ?? ""}:${hierarchicalSpacing.nodeSpacing ?? ""}:${hierarchicalSpacing.treeSpacing ?? ""}`
@@ -215,6 +216,34 @@ export function GraphView({
           requestAnimationFrame(finish);
         });
         window.setTimeout(finish, 200);
+      } else if (isFlower) {
+        net.setOptions({
+          interaction: { ...interactionOptions, dragNodes: true },
+          layout: { hierarchical: { enabled: false } },
+          physics: { enabled: false },
+          nodes: { shape: "dot" as const },
+          edges: {
+            selectionWidth: 0,
+            hoverWidth: 0,
+            smooth: { enabled: true, type: "dynamic", roundness: 0.42 },
+          },
+        });
+
+        let finished = false;
+        const finish = () => {
+          if (finished || stabilizeGenRef.current !== gen) return;
+          finished = true;
+          if (fitOnStabilized) {
+            net.fit({ animation: { duration: 400, easingFunction: "easeInOutQuad" } });
+          }
+          onStabilized?.();
+        };
+
+        net.once("stabilizationIterationsDone", finish);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(finish);
+        });
+        window.setTimeout(finish, 220);
       } else {
         net.setOptions({
           interaction: { ...interactionOptions, dragNodes: true },
@@ -234,17 +263,27 @@ export function GraphView({
       }
     } else {
       net.setOptions({
-        interaction: { ...interactionOptions, dragNodes: !isHierarchy },
+        interaction: { ...interactionOptions, dragNodes: !isHierarchy || isFlower },
         ...(isHierarchy
           ? {
               edges: { selectionWidth: 0, hoverWidth: 0, smooth: false },
               ...getHierarchyLayoutOptions(hierarchicalSpacing),
               physics: { enabled: false },
             }
-          : {
-              layout: { hierarchical: { enabled: false } },
-              edges: { selectionWidth: 0, hoverWidth: 0 },
-            }),
+          : isFlower
+            ? {
+                layout: { hierarchical: { enabled: false } },
+                physics: { enabled: false },
+                edges: {
+                  selectionWidth: 0,
+                  hoverWidth: 0,
+                  smooth: { enabled: true, type: "dynamic", roundness: 0.42 },
+                },
+              }
+            : {
+                layout: { hierarchical: { enabled: false } },
+                edges: { selectionWidth: 0, hoverWidth: 0 },
+              }),
       });
       nodesDs.update(nodes);
       edgesDs.update(edges);
@@ -255,6 +294,7 @@ export function GraphView({
     mode,
     resolvedLayout,
     isHierarchy,
+    isFlower,
     physics,
     fitOnStabilized,
     onStabilized,

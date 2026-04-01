@@ -11,11 +11,10 @@ import {
 } from "../lib/graphBuilder";
 import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchicalGraphBuilder";
 import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
+import { computeFlowerPositions } from "../lib/flowerLayout";
 import {
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
-  maxDirectedChildFanOut,
-  maxNodesOnAnyLevelFromDepthMap,
   remapDepthsAfterStrippingRoot,
   removeExpandedSubtreeFromSet,
   sliceExpandedTree,
@@ -222,41 +221,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return remapDepthsAfterStrippingRoot(base, treeRootId);
   }, [globalVizKind, gDataVisible, treeRootId, treeStripApplied]);
 
-  const globalTreeMaxDepth = useMemo(() => {
-    if (!globalTreeDepthByNode) return 0;
-    let m = 0;
-    for (const d of globalTreeDepthByNode.values()) m = Math.max(m, d);
-    return m;
-  }, [globalTreeDepthByNode]);
-
-  const globalHierarchicalSpacing = useMemo(() => {
-    if (globalVizKind !== "tree" || !gDataForVis || !globalTreeDepthByNode || treeRootId == null) return undefined;
-    const fanOut = maxDirectedChildFanOut(gDataForVis);
-    const breadth = maxNodesOnAnyLevelFromDepthMap(gDataForVis, globalTreeDepthByNode);
-    const themeRowOnlyLayout =
-      treeStripApplied && gDataForVis.edgeCount === 0 && gDataForVis.nodeCount > 0;
-    let nodeSpacing = Math.min(840, Math.max(260, 88 + fanOut * 32 + breadth * 20));
-    if (themeRowOnlyLayout) {
-      nodeSpacing = Math.min(920, Math.max(nodeSpacing, 110 + breadth * 44));
-    }
-    let levelSeparation = Math.min(520, 310 + globalTreeMaxDepth * 12 + Math.min(breadth, 24) * 6);
-    if (themeRowOnlyLayout) {
-      levelSeparation = Math.max(levelSeparation, 160);
-    }
-    let treeSpacing = Math.min(960, 680 + breadth * 14);
-    if (themeRowOnlyLayout) {
-      treeSpacing = Math.max(treeSpacing, 820);
-    }
-    return { levelSeparation, nodeSpacing, treeSpacing };
-  }, [
-    globalVizKind,
-    gDataForVis,
-    treeRootId,
-    globalTreeMaxDepth,
-    globalTreeDepthByNode,
-    treeStripApplied,
-  ]);
-
   /** JSON often sets `tree.name` to the research question; RQ is already in the page header — shorten root on canvas. */
   const globalCanvasLabelOverrides = useMemo(() => {
     if (treeStripApplied) return undefined;
@@ -298,6 +262,30 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     }
     return buildOverviewEdges(gDataForVis, selGlobal, showInferred, isDark);
   }, [gDataForVis, globalVizKind, selGlobal, showInferred, isDark]);
+
+  const flowerPositions = useMemo(() => {
+    if (globalVizKind !== "tree" || !gDataForVis) return null;
+    const themeStripBoost =
+      treeStripApplied && gDataForVis.edgeCount === 0 && gDataForVis.nodeCount > 0;
+    return computeFlowerPositions(gDataForVis, { themeStripBoost });
+  }, [globalVizKind, gDataForVis, treeStripApplied]);
+
+  const gNodesForGraph = useMemo(() => {
+    if (!flowerPositions?.size || !gNodes.length) return gNodes;
+    return gNodes.map((node) => {
+      const p = flowerPositions.get(node.id);
+      if (!p) return node;
+      return { ...node, x: p.x, y: p.y };
+    });
+  }, [gNodes, flowerPositions]);
+
+  const gEdgesForGraph = useMemo(() => {
+    if (globalVizKind !== "tree") return gEdges;
+    return gEdges.map((e) => ({
+      ...e,
+      smooth: { enabled: true, type: "dynamic" as const, roundness: 0.45 },
+    }));
+  }, [gEdges, globalVizKind]);
 
   const gStats = gDataForVis ? computeGraphStats(gDataForVis) : null;
 
@@ -449,7 +437,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     <span className="library-drill-meta">
                       {gDataForVis?.nodeCount ?? 0} nodes visible · {globalExpandedIds.size} expanded branch
                       {globalExpandedIds.size === 1 ? "" : "es"}
-                      {treeStripApplied ? " · top topic omitted in view" : ""} · click to expand/collapse
+                      {treeStripApplied ? " · top topic omitted in view" : ""} · radial layout · click to expand/collapse
                     </span>
                   </div>
                 )}
@@ -458,10 +446,9 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     <div className="library-graph-mount">
                       <GraphView
                         key={`lib-g-${selected.id}-${globalVizKind ?? "x"}`}
-                        layoutEngine={globalVizKind === "tree" ? "hierarchical" : "force"}
-                        hierarchicalSpacing={globalVizKind === "tree" ? globalHierarchicalSpacing : undefined}
-                        nodes={gNodes}
-                        edges={gEdges}
+                        layoutEngine={globalVizKind === "tree" ? "flower" : "force"}
+                        nodes={gNodesForGraph}
+                        edges={gEdgesForGraph}
                         mode={globalVizKind === "tree" ? "hierarchy" : "overview"}
                         onNodeSelect={globalVizKind === "tree" ? handleGlobalNodeSelect : setSelGlobal}
                         fitOnStabilized={true}
