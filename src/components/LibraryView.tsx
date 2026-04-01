@@ -14,6 +14,7 @@ import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchi
 import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
 import { computeFlowerPositions } from "../lib/flowerLayout";
 import {
+  buildParentMapFromEdges,
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
   remapDepthsAfterStrippingRoot,
@@ -21,8 +22,11 @@ import {
   sliceExpandedTree,
   stripTreeRootFromGraph,
 } from "../lib/treeDrilldown";
-import type { CodebookJson, GraphData, ResearchProjectRow } from "../types";
+import type { CodebookJson, GraphData, GraphNode, ResearchProjectRow } from "../types";
+import type { OpenCodeEvidenceRow } from "../lib/openCodesEvidence";
+import { extractEvidenceForCode } from "../lib/openCodesEvidence";
 import { GraphView } from "./GraphView";
+import { OpenCodesTracePanel } from "./OpenCodesTracePanel";
 import { StatsPanel } from "./StatsPanel";
 
 interface LibraryViewProps {
@@ -301,6 +305,61 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   const gStats = gDataForVis ? computeGraphStats(gDataForVis) : null;
 
+  /** Theme-tree / hierarchical exports attach roles; plain edge graphs do not. */
+  const graphHasHierarchyRoles = useMemo(() => {
+    if (!gDataForVis) return false;
+    return gDataForVis.nodes.some((n) => n.hierarchyRole != null);
+  }, [gDataForVis]);
+
+  const traceNode = useMemo(() => {
+    if (selGlobal == null || !gDataForVis) return null;
+    return gDataForVis.nodeMap.get(selGlobal) ?? null;
+  }, [selGlobal, gDataForVis]);
+
+  /** Corpus panel only for open-code nodes when the graph carries hierarchy roles (tree or edge export with roles). */
+  const traceEligible = useMemo(() => {
+    if (selGlobal == null || !gDataForVis) return false;
+    const n = gDataForVis.nodeMap.get(selGlobal);
+    if (!n) return false;
+    if (globalVizKind === "tree" || graphHasHierarchyRoles) {
+      return n.hierarchyRole === "code";
+    }
+    return true;
+  }, [selGlobal, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
+
+  const traceDirectParentLabel = useMemo(() => {
+    if (!gDataForVis || !traceNode || traceNode.hierarchyRole !== "code") return null;
+    const pm = buildParentMapFromEdges(gDataForVis.edges);
+    const pid = pm.get(traceNode.id);
+    if (pid == null) return null;
+    return gDataForVis.nodeMap.get(pid)?.label ?? null;
+  }, [gDataForVis, traceNode]);
+
+  const traceEvidenceBundle = useMemo((): {
+    groups: { leaf: GraphNode; rows: OpenCodeEvidenceRow[] }[];
+  } => {
+    const md = selected?.open_codes_markdown;
+    if (!traceNode || !md?.trim() || !gDataForVis) {
+      return { groups: [] };
+    }
+
+    const rowsForLeaf = (leaf: GraphNode) => {
+      const fromLabel = extractEvidenceForCode(md, leaf.label);
+      if (fromLabel.length > 0) return fromLabel;
+      return extractEvidenceForCode(md, leaf.title);
+    };
+
+    if (globalVizKind !== "tree" && !graphHasHierarchyRoles) {
+      return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
+    }
+
+    if (traceNode.hierarchyRole !== "code") {
+      return { groups: [] };
+    }
+
+    return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
+  }, [selected?.open_codes_markdown, traceNode, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
+
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
     const dataUrl = fn?.();
@@ -516,6 +575,14 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                         </div>
                       )}
                     </div>
+                    <OpenCodesTracePanel
+                      selectedNode={traceNode}
+                      markdownAvailable={Boolean(selected?.open_codes_markdown?.trim())}
+                      treeMode={globalVizKind === "tree" || graphHasHierarchyRoles}
+                      traceEligible={traceEligible}
+                      directParentLabel={traceDirectParentLabel}
+                      evidenceGroups={traceEvidenceBundle.groups}
+                    />
                     <div className="library-stats-inline">
                       <StatsPanel
                         nodeCount={gStats.nodeCount}

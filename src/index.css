@@ -938,3 +938,210 @@ body::after {
   font-size: 0.75rem;
 }
 
+/* Open codes traceability (corpus evidence under graph) */
+.library-trace-panel {
+  margin: 0 0.65rem 0.75rem;
+  padding: 0.65rem 0.85rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, rgba(99, 115, 255, 0.06), rgba(124, 240, 208, 0.04));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+.library-trace-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+.library-trace-icon {
+  color: var(--accent);
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+.library-trace-title {
+  margin: 0;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.library-trace-body {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+.library-trace-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+.library-inline-code {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72em;
+  padding: 0.1em 0.35em;
+  background: var(--chip);
+  border-radius: 4px;
+}
+.library-trace-node {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+.library-trace-node-label {
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.library-trace-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(232, 121, 249, 0.15);
+  border: 1px solid rgba(232, 121, 249, 0.35);
+  color: var(--text-muted);
+}
+.library-trace-badge--theme {
+  background: rgba(124, 240, 208, 0.12);
+  border-color: rgba(124, 240, 208, 0.35);
+}
+.library-trace-badge--sub {
+  background: rgba(137, 166, 251, 0.12);
+  border-color: rgba(137, 166, 251, 0.35);
+}
+.library-trace-badge--graph {
+  background: rgba(99, 115, 255, 0.12);
+  border-color: rgba(99, 115, 255, 0.3);
+}
+
+.library-trace-parent-hint {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: 0.15rem;
+}
+.library-trace-parent-hint strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.library-trace-groups--single .library-trace-group {
+  border: none;
+  background: transparent;
+}
+.library-trace-groups--single .library-trace-group .library-trace-list {
+  padding-left: 0;
+}
+.library-trace-list {
+  max-height: min(32vh, 420px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.library-trace-item {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.library-trace-meta {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+}
+.library-trace-evidence {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-left: 3px solid rgba(124, 240, 208, 0.45);
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text);
+  font-style: italic;
+}
+.library-trace-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.library-trace-scope {
+  margin: 0 0 0.65rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.library-trace-scope strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.library-trace-groups {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: min(48vh, 560px);
+  overflow-y: auto;
+}
+
+.library-trace-group {
+  margin: 0;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.library-trace-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(99, 115, 255, 0.06);
+}
+
+.library-trace-group-code {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.library-trace-group .library-trace-list {
+  max-height: none;
+  padding: 0.35rem 0.5rem 0.65rem;
+}
+
+.library-trace-empty--inset {
+  margin: 0.35rem 0.65rem 0.65rem;
+  font-size: 0.68rem;
+}
+

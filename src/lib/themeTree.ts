@@ -25,9 +25,10 @@ export function isThemeTreeDocument(value: unknown): value is { tree: ThemeTreeN
 }
 
 function hierarchyRoleForType(t: string): HierarchyRole {
-  if (t === "code") return "code";
-  if (t === "meta_theme") return "sub_theme";
-  if (t === "root" || t === "theme") return "theme";
+  const low = t.trim().toLowerCase();
+  if (low === "code") return "code";
+  if (low === "meta_theme") return "sub_theme";
+  if (low === "root" || low === "theme") return "theme";
   return "sub_theme";
 }
 

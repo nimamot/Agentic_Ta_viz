@@ -8,6 +8,8 @@ export interface ResearchProjectRow {
   codebook: unknown;
   global_graph: unknown;
   report_markdown: string;
+  /** Reviewer corpus: ## Review N blocks with - Code / Evidence / Note lines (open coding traceability). */
+  open_codes_markdown?: string | null;
   meta: unknown | null;
   created_at: string;
 }
