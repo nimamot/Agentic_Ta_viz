@@ -8,7 +8,9 @@ import type {
   VisEdge,
   VisNode,
 } from "../types";
+import { branchLevelStyle, treeEdgeColors } from "./branchColors";
 import { buildEdgeStyle, getClusterColor, getClusterColorDim, scaleNodeSize } from "./graphBuilder";
+import { buildParentMapFromEdges } from "./treeDrilldown";
 
 function createEmptyNeighborSetMap(ids: number[]): Map<number, Set<number>> {
   const map = new Map<number, Set<number>>();
@@ -233,31 +235,110 @@ function roleBaseSize(role: HierarchyRole | undefined, degree: number, aliasCoun
   return Math.max(10, base - 2);
 }
 
-/** Cosmic/teal palette — distinct per depth, consistent with app dark UI. */
-const TREE_LEVEL_COLORS_DARK: { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }[] = [
-  { bg: "rgba(124, 240, 208, 0.42)", border: "rgba(180, 255, 235, 0.95)", hoverBg: "rgba(124, 240, 208, 0.62)", hoverBorder: "rgba(200, 255, 240, 1)", label: "rgba(230, 255, 248, 0.95)" },
-  { bg: "rgba(56, 189, 248, 0.36)", border: "rgba(147, 220, 255, 0.92)", hoverBg: "rgba(56, 189, 248, 0.55)", hoverBorder: "rgba(186, 230, 253, 1)", label: "rgba(224, 242, 254, 0.95)" },
-  { bg: "rgba(137, 166, 251, 0.36)", border: "rgba(180, 195, 255, 0.9)", hoverBg: "rgba(137, 166, 251, 0.54)", hoverBorder: "rgba(199, 210, 254, 1)", label: "rgba(238, 242, 255, 0.94)" },
-  { bg: "rgba(167, 139, 250, 0.34)", border: "rgba(210, 190, 255, 0.88)", hoverBg: "rgba(167, 139, 250, 0.52)", hoverBorder: "rgba(221, 214, 254, 1)", label: "rgba(245, 243, 255, 0.94)" },
-  { bg: "rgba(77, 233, 176, 0.34)", border: "rgba(150, 245, 210, 0.88)", hoverBg: "rgba(77, 233, 176, 0.52)", hoverBorder: "rgba(167, 250, 215, 1)", label: "rgba(236, 253, 245, 0.95)" },
-  { bg: "rgba(45, 212, 191, 0.32)", border: "rgba(120, 235, 220, 0.86)", hoverBg: "rgba(45, 212, 191, 0.5)", hoverBorder: "rgba(153, 246, 228, 1)", label: "rgba(230, 252, 248, 0.94)" },
-];
+/** Walk parents until depth 0 — identifies which top-level subtree a node belongs to. */
+export function computeBranchRootByNodeId(
+  data: GraphData,
+  depthMap: Map<number, number>
+): Map<number, number> {
+  const parentByChild = buildParentMapFromEdges(data.edges);
+  const memo = new Map<number, number>();
 
-const TREE_LEVEL_COLORS_LIGHT: { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }[] = [
-  { bg: "rgba(13, 148, 136, 0.38)", border: "rgba(15, 118, 110, 0.95)", hoverBg: "rgba(13, 148, 136, 0.52)", hoverBorder: "rgba(13, 99, 90, 1)", label: "rgba(15, 40, 38, 0.95)" },
-  { bg: "rgba(3, 105, 161, 0.34)", border: "rgba(7, 89, 133, 0.92)", hoverBg: "rgba(3, 105, 161, 0.48)", hoverBorder: "rgba(12, 74, 110, 1)", label: "rgba(15, 35, 55, 0.95)" },
-  { bg: "rgba(67, 56, 202, 0.28)", border: "rgba(55, 48, 163, 0.9)", hoverBg: "rgba(67, 56, 202, 0.42)", hoverBorder: "rgba(49, 46, 129, 1)", label: "rgba(30, 27, 75, 0.95)" },
-  { bg: "rgba(109, 40, 217, 0.26)", border: "rgba(91, 33, 182, 0.88)", hoverBg: "rgba(109, 40, 217, 0.4)", hoverBorder: "rgba(76, 29, 149, 1)", label: "rgba(40, 25, 65, 0.95)" },
-  { bg: "rgba(5, 150, 105, 0.32)", border: "rgba(4, 120, 87, 0.9)", hoverBg: "rgba(5, 150, 105, 0.46)", hoverBorder: "rgba(6, 95, 70, 1)", label: "rgba(15, 45, 35, 0.95)" },
-  { bg: "rgba(14, 116, 144, 0.3)", border: "rgba(14, 94, 120, 0.88)", hoverBg: "rgba(14, 116, 144, 0.44)", hoverBorder: "rgba(12, 74, 95, 1)", label: "rgba(15, 38, 48, 0.95)" },
-];
+  function branchRootFor(nodeId: number): number {
+    const hit = memo.get(nodeId);
+    if (hit !== undefined) return hit;
+    let cur = nodeId;
+    for (let i = 0; i < data.nodes.length + 2; i++) {
+      if ((depthMap.get(cur) ?? 0) === 0) {
+        memo.set(nodeId, cur);
+        return cur;
+      }
+      const p = parentByChild.get(cur);
+      if (p === undefined) {
+        memo.set(nodeId, cur);
+        return cur;
+      }
+      cur = p;
+    }
+    memo.set(nodeId, nodeId);
+    return nodeId;
+  }
+
+  for (const n of data.nodes) {
+    branchRootFor(n.id);
+  }
+  return memo;
+}
+
+function branchIndexMaps(
+  data: GraphData,
+  depthMap: Map<number, number>
+): { branchRootByNode: Map<number, number>; rootToBranchIndex: Map<number, number> } {
+  const branchRootByNode = computeBranchRootByNodeId(data, depthMap);
+  const roots = [...new Set(branchRootByNode.values())].sort((a, b) => a - b);
+  const rootToBranchIndex = new Map(roots.map((id, i) => [id, i]));
+  return { branchRootByNode, rootToBranchIndex };
+}
+
+/** When not using cluster colors, hierarchy roles still get distinct hues (Graph app paste view). */
+const ROLE_CHROMA_DARK: Record<HierarchyRole, { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }> = {
+  theme: {
+    bg: "rgba(124, 240, 208, 0.4)",
+    border: "rgba(160, 255, 230, 0.92)",
+    hoverBg: "rgba(124, 240, 208, 0.58)",
+    hoverBorder: "rgba(200, 255, 240, 0.98)",
+    label: "rgba(230, 255, 248, 0.95)",
+  },
+  sub_theme: {
+    bg: "rgba(137, 166, 251, 0.38)",
+    border: "rgba(176, 190, 255, 0.9)",
+    hoverBg: "rgba(137, 166, 251, 0.55)",
+    hoverBorder: "rgba(199, 210, 254, 0.98)",
+    label: "rgba(238, 242, 255, 0.94)",
+  },
+  code: {
+    bg: "rgba(232, 121, 249, 0.28)",
+    border: "rgba(240, 180, 255, 0.82)",
+    hoverBg: "rgba(232, 121, 249, 0.44)",
+    hoverBorder: "rgba(245, 200, 255, 0.92)",
+    label: "rgba(253, 244, 255, 0.92)",
+  },
+};
+
+const ROLE_CHROMA_LIGHT: Record<HierarchyRole, { bg: string; border: string; hoverBg: string; hoverBorder: string; label: string }> = {
+  theme: {
+    bg: "rgba(13, 148, 136, 0.36)",
+    border: "rgba(15, 118, 110, 0.92)",
+    hoverBg: "rgba(13, 148, 136, 0.5)",
+    hoverBorder: "rgba(13, 99, 90, 0.98)",
+    label: "rgba(15, 42, 40, 0.95)",
+  },
+  sub_theme: {
+    bg: "rgba(67, 56, 202, 0.26)",
+    border: "rgba(55, 48, 163, 0.88)",
+    hoverBg: "rgba(67, 56, 202, 0.4)",
+    hoverBorder: "rgba(49, 46, 129, 0.95)",
+    label: "rgba(30, 27, 75, 0.94)",
+  },
+  code: {
+    bg: "rgba(162, 28, 175, 0.22)",
+    border: "rgba(130, 25, 140, 0.82)",
+    hoverBg: "rgba(162, 28, 175, 0.36)",
+    hoverBorder: "rgba(110, 22, 118, 0.9)",
+    label: "rgba(45, 20, 48, 0.92)",
+  },
+};
 
 export type BuildHierarchyVisOptions = {
-  /** When set (e.g. Library global tree), nodes are tinted by depth from root instead of cluster color. */
+  /** When set (e.g. Library global tree), nodes use per-branch hues by depth. */
   treeDepthByNodeId?: Map<number, number>;
   treeTheme?: "dark" | "light";
   /** Canvas label per node id (e.g. Library short root when JSON root `name` duplicates the research question). */
   canvasLabelByNodeId?: Map<number, string>;
+  /**
+   * Softens tree branch chroma when false (matches “Clusters” toggle).
+   * Used for hierarchy edge tinting; node tint uses the `colorClusters` argument to buildHierarchyVisNodes.
+   */
+  colorClusters?: boolean;
 };
 
 function treeExplorationFontSize(
@@ -307,7 +388,7 @@ export function buildHierarchyVisNodes(
   };
 
   const theme = options?.treeTheme ?? "dark";
-  const levelPalette = theme === "light" ? TREE_LEVEL_COLORS_LIGHT : TREE_LEVEL_COLORS_DARK;
+  const rolePalette = theme === "light" ? ROLE_CHROMA_LIGHT : ROLE_CHROMA_DARK;
 
   const depthMax =
     depthMap != null && depthMap.size > 0 ? Math.max(...Array.from(depthMap.values())) : 0;
@@ -316,13 +397,31 @@ export function buildHierarchyVisNodes(
   /** At least one edge but still shallow (e.g. one theme expanded). */
   const shallowExpanded = treeExploration && data.edgeCount > 0 && depthMax <= 1;
 
+  let branchRootByNode: Map<number, number> | null = null;
+  let rootToBranchIndex: Map<number, number> | null = null;
+  if (depthMap != null && depthMap.size > 0) {
+    const bm = branchIndexMaps(data, depthMap);
+    branchRootByNode = bm.branchRootByNode;
+    rootToBranchIndex = bm.rootToBranchIndex;
+  }
+
   return data.nodes.map((node) => {
     const highlighted = node.id === selectedNodeId;
     const clusterColor = getClusterColor(node.componentId);
     const clusterColorDim = getClusterColorDim(node.componentId);
     const role = node.hierarchyRole;
     const depth = depthMap?.get(node.id) ?? 0;
-    const levelStyle = depthMap != null ? levelPalette[depth % levelPalette.length] : null;
+    const branchRoot = branchRootByNode?.get(node.id);
+    const branchIdx =
+      branchRoot !== undefined ? (rootToBranchIndex?.get(branchRoot) ?? 0) : 0;
+
+    const roleChroma =
+      branchRootByNode == null && !colorClusters && role ? rolePalette[role] : null;
+
+    const levelStyle =
+      branchRootByNode != null
+        ? branchLevelStyle(branchIdx, depth, theme, !colorClusters)
+        : roleChroma;
 
     const baseColor = levelStyle
       ? levelStyle.bg
@@ -413,13 +512,44 @@ export function buildHierarchyVisNodes(
 export function buildHierarchyVisEdges(
   data: GraphData,
   selectedNodeId: number | null,
-  isDark: boolean
+  isDark: boolean,
+  options?: BuildHierarchyVisOptions
 ): VisEdge[] {
+  const depthMap = options?.treeDepthByNodeId;
+  const tint = depthMap != null && depthMap.size > 0;
+  let branchRootByNode: Map<number, number> | null = null;
+  let rootToBranchIndex: Map<number, number> | null = null;
+  if (tint) {
+    const bm = branchIndexMaps(data, depthMap);
+    branchRootByNode = bm.branchRootByNode;
+    rootToBranchIndex = bm.rootToBranchIndex;
+  }
+  const edgeMuted = options?.colorClusters === false;
+
   return data.edges.map((edge) => {
     const emphasized =
       selectedNodeId != null && (edge.from === selectedNodeId || edge.to === selectedNodeId);
+    const base = buildEdgeStyle(edge, emphasized, isDark);
+    if (tint && branchRootByNode && rootToBranchIndex) {
+      const parentId = edge.from;
+      const br =
+        branchRootByNode.get(parentId) ??
+        branchRootByNode.get(edge.to) ??
+        parentId;
+      const bi = rootToBranchIndex.get(br) ?? 0;
+      const ec = treeEdgeColors(bi, emphasized, isDark, edgeMuted);
+      return {
+        ...base,
+        color: {
+          color: ec.color,
+          highlight: ec.highlight,
+          hover: ec.hover,
+        },
+        smooth: false,
+      } satisfies VisEdge;
+    }
     return {
-      ...buildEdgeStyle(edge, emphasized, isDark),
+      ...base,
       smooth: false,
     } satisfies VisEdge;
   });

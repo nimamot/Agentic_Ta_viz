@@ -199,9 +199,12 @@ function AppContent() {
   const hierarchyVisEdges = useMemo(
     () =>
       graphData && viewMode === "hierarchy"
-        ? buildHierarchyVisEdges(graphData, selectedNodeId, isDark)
+        ? buildHierarchyVisEdges(graphData, selectedNodeId, isDark, {
+            ...(hierarchyVisOptions ?? {}),
+            colorClusters,
+          })
         : [],
-    [graphData, viewMode, selectedNodeId, isDark]
+    [graphData, viewMode, selectedNodeId, isDark, hierarchyVisOptions, colorClusters]
   );
 
   const focusSubgraph = useMemo(() => {

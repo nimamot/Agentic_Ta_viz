@@ -1,7 +1,7 @@
 import type { CodebookJson, GraphData, GraphEdge, GraphNode, VisNode, VisEdge, FocusSubgraph } from "../types";
 
 // Evocative palette: deep cosmic hues that glow well on dark backgrounds
-const CLUSTER_COLORS = [
+export const GRAPH_CLUSTER_HEXES = [
   "#7cf0d0", // teal
   "#89a6fb", // periwinkle
   "#ff7eb3", // rose
@@ -12,7 +12,9 @@ const CLUSTER_COLORS = [
   "#38bdf8", // sky
   "#e879f9", // fuchsia
   "#a3e635", // lime
-];
+] as const;
+
+const CLUSTER_COLORS: readonly string[] = GRAPH_CLUSTER_HEXES;
 
 const CLUSTER_COLORS_DIM = [
   "rgba(124,240,208,0.55)",

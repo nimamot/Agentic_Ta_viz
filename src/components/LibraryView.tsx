@@ -258,10 +258,21 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const gEdges = useMemo(() => {
     if (!gDataForVis) return [];
     if (globalVizKind === "tree") {
-      return buildHierarchyVisEdges(gDataForVis, selGlobal, isDark);
+      return buildHierarchyVisEdges(gDataForVis, selGlobal, isDark, {
+        ...(globalTreeHierarchyOptions ?? {}),
+        colorClusters,
+      });
     }
     return buildOverviewEdges(gDataForVis, selGlobal, showInferred, isDark);
-  }, [gDataForVis, globalVizKind, selGlobal, showInferred, isDark]);
+  }, [
+    gDataForVis,
+    globalVizKind,
+    selGlobal,
+    showInferred,
+    isDark,
+    globalTreeHierarchyOptions,
+    colorClusters,
+  ]);
 
   const flowerPositions = useMemo(() => {
     if (globalVizKind !== "tree" || !gDataForVis) return null;
