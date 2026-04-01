@@ -992,17 +992,12 @@ body::after {
   color: var(--text-muted);
 }
 
+/* Report on top, global graph full width below — more vertical room to explore */
 .library-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, min(36vw, 420px)) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   align-items: stretch;
-}
-
-@media (max-width: 1100px) {
-  .library-detail-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .library-panel-head {
@@ -1072,7 +1067,7 @@ body::after {
 }
 .library-markdown {
   padding: 0.85rem 1rem 1.25rem;
-  max-height: min(52vh, 560px);
+  max-height: min(34vh, 420px);
   overflow-y: auto;
   font-size: 0.82rem;
   line-height: 1.65;
@@ -1128,16 +1123,17 @@ body::after {
   min-height: 0;
 }
 
-/* Single primary graph: tall column so vis-network has room to pan/zoom */
+/* Full-width graph under report: maximize canvas height for pan/zoom */
 .library-graph-panel--primary {
   display: flex;
   flex-direction: column;
-  min-height: min(78vh, 960px);
+  flex: 1 1 auto;
+  min-height: min(82vh, 1100px);
 }
 
 .library-graph-panel--primary .library-graph-mount {
   flex: 1 1 auto;
-  min-height: min(62vh, 820px);
+  min-height: min(68vh, 920px);
   height: auto;
 }
 
