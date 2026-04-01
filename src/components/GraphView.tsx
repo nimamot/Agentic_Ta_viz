@@ -16,6 +16,43 @@ function normalizeClickedNodeId(raw: unknown): number | null {
   return null;
 }
 
+function buildChildrenMapFromEdges(
+  edges: { from: number | string; to: number | string }[]
+): Map<number, number[]> {
+  const m = new Map<number, number[]>();
+  for (const e of edges) {
+    const from = typeof e.from === "number" ? e.from : Number(e.from);
+    const to = typeof e.to === "number" ? e.to : Number(e.to);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+    const arr = m.get(from);
+    if (arr) arr.push(to);
+    else m.set(from, [to]);
+  }
+  for (const arr of m.values()) arr.sort((a, b) => a - b);
+  return m;
+}
+
+/** All proper descendants in a directed tree (edges parent → child). */
+function collectDescendantIds(
+  rootId: number,
+  childrenMap: Map<number, number[]>
+): number[] {
+  const out: number[] = [];
+  const stack = [...(childrenMap.get(rootId) ?? [])];
+  while (stack.length) {
+    const id = stack.pop()!;
+    out.push(id);
+    for (const c of childrenMap.get(id) ?? []) stack.push(c);
+  }
+  return out;
+}
+
+type FlowerDragState = {
+  rootId: number;
+  rootStart: { x: number; y: number };
+  descStart: Map<number, { x: number; y: number }>;
+};
+
 const interactionOptions = {
   hover: true,
   tooltipDelay: 100,
@@ -107,6 +144,7 @@ export function GraphView({
   const stabilizeGenRef = useRef(0);
   const onNodeSelectRef = useRef(onNodeSelect);
   onNodeSelectRef.current = onNodeSelect;
+  const flowerDragRef = useRef<FlowerDragState | null>(null);
 
   const physics = useMemo(
     () =>
@@ -164,8 +202,68 @@ export function GraphView({
       }
     });
 
+    const onFlowerDragStart = (params: { nodes?: (string | number)[] }) => {
+      if (resolvedLayoutRef.current !== "flower") return;
+      const rootId = normalizeClickedNodeId(params.nodes?.[0]);
+      if (rootId == null) return;
+      const edgesDs = edgesDsRef.current;
+      if (!edgesDs) return;
+      const childrenMap = buildChildrenMapFromEdges(edgesDs.get());
+      const descIds = collectDescendantIds(rootId, childrenMap);
+      if (descIds.length === 0) return;
+
+      const ids = [rootId, ...descIds];
+      const positions = net.getPositions(ids);
+      const r0 = positions[rootId];
+      if (!r0 || typeof r0.x !== "number" || typeof r0.y !== "number") return;
+
+      const descStart = new Map<number, { x: number; y: number }>();
+      for (const id of descIds) {
+        const p = positions[id];
+        if (p && typeof p.x === "number" && typeof p.y === "number") {
+          descStart.set(id, { x: p.x, y: p.y });
+        }
+      }
+      flowerDragRef.current = {
+        rootId,
+        rootStart: { x: r0.x, y: r0.y },
+        descStart,
+      };
+    };
+
+    const onFlowerDragging = () => {
+      const state = flowerDragRef.current;
+      const nodesDs = nodesDsRef.current;
+      if (!state || !nodesDs) return;
+      const positions = net.getPositions([state.rootId]);
+      const r = positions[state.rootId];
+      if (!r || typeof r.x !== "number" || typeof r.y !== "number") return;
+
+      const dx = r.x - state.rootStart.x;
+      const dy = r.y - state.rootStart.y;
+      if (dx === 0 && dy === 0 && state.descStart.size === 0) return;
+
+      const updates: Array<Pick<VisNode, "id"> & { x: number; y: number }> = [];
+      for (const [id, p0] of state.descStart) {
+        updates.push({ id, x: p0.x + dx, y: p0.y + dy });
+      }
+      if (updates.length) nodesDs.update(updates as VisNode[]);
+    };
+
+    const onFlowerDragEnd = () => {
+      flowerDragRef.current = null;
+    };
+
+    net.on("dragStart", onFlowerDragStart);
+    net.on("dragging", onFlowerDragging);
+    net.on("dragEnd", onFlowerDragEnd);
+
     networkRef.current = net;
     return () => {
+      net.off("dragStart", onFlowerDragStart);
+      net.off("dragging", onFlowerDragging);
+      net.off("dragEnd", onFlowerDragEnd);
+      flowerDragRef.current = null;
       net.destroy();
       networkRef.current = null;
       nodesDsRef.current = null;
