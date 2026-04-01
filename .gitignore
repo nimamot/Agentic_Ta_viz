@@ -26,3 +26,5 @@ npm-debug.log*
 # Optional
 coverage/
 .cache/
+
+.claude/

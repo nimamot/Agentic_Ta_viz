@@ -460,10 +460,12 @@ export function buildHierarchyVisNodes(
           : titleHint;
 
     const shadow: VisNode["shadow"] = highlighted
-      ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
+      ? { enabled: true, color: "rgba(124, 240, 208, 0.55)", size: 22, x: 0, y: 0 }
       : themeRowOnly && depth === 0
-        ? { enabled: true, color: "rgba(124, 240, 208, 0.35)", size: 20, x: 0, y: 0 }
-        : false;
+        ? { enabled: true, color: "rgba(124, 240, 208, 0.35)", size: 22, x: 0, y: 0 }
+        : depth <= 1
+          ? { enabled: true, color: levelStyle ? levelStyle.bg.replace(/[\d.]+\)$/, "0.3)") : "rgba(74, 90, 255, 0.15)", size: 14, x: 0, y: 0 }
+          : false;
 
     const fontSize = treeExploration
       ? treeExplorationFontSize(depth, highlighted, role, themeRowOnly)
@@ -490,7 +492,7 @@ export function buildHierarchyVisNodes(
         },
       },
       font: {
-        face: "Space Mono, monospace",
+        face: "Syne, system-ui, sans-serif",
         size: fontSize,
         multi: treeExploration ? true : undefined,
         color: labelColor,

@@ -8,6 +8,7 @@ import {
   buildOverviewEdges,
   buildOverviewNodes,
   computeGraphStats,
+  GRAPH_CLUSTER_HEXES,
 } from "../lib/graphBuilder";
 import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchicalGraphBuilder";
 import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
@@ -446,9 +447,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                       Themes as roots
                     </label>
                     <span className="library-drill-meta">
-                      {gDataForVis?.nodeCount ?? 0} nodes visible · {globalExpandedIds.size} expanded branch
-                      {globalExpandedIds.size === 1 ? "" : "es"}
-                      {treeStripApplied ? " · top topic omitted in view" : ""} · radial layout · click to expand/collapse
+                      <strong>{gDataForVis?.nodeCount ?? 0}</strong> nodes visible · <strong>{globalExpandedIds.size}</strong> expanded branch{globalExpandedIds.size === 1 ? "" : "es"}
+                      {treeStripApplied ? " · top topic omitted" : ""} · radial layout
                     </span>
                   </div>
                 )}
@@ -465,6 +465,56 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                         fitOnStabilized={true}
                         exportWindowKey="__graphExport_libraryGlobal"
                       />
+                      {colorClusters && gDataForVis && gDataForVis.nodeCount > 0 && (
+                        <div className="graph-legend">
+                          <span className="graph-legend-title">
+                            {globalVizKind === "tree" ? "Themes" : "Clusters"}
+                          </span>
+                          {(() => {
+                            const seen = new Map<number, string>();
+                            for (const n of gDataForVis.nodes) {
+                              if (!seen.has(n.componentId)) {
+                                seen.set(n.componentId, n.hierarchyRole === "theme" || n.hierarchyRole === "sub_theme" ? n.label : `Group ${n.componentId + 1}`);
+                              }
+                              if (seen.size >= 6) break;
+                            }
+                            // For tree viz, show the top-level theme names
+                            if (globalVizKind === "tree") {
+                              const themes = gDataForVis.nodes.filter(n => {
+                                const d = globalTreeDepthByNode?.get(n.id);
+                                return d === 0;
+                              }).slice(0, 6);
+                              if (themes.length > 0) {
+                                return themes.map((n, i) => (
+                                  <div key={n.id} className="graph-legend-item">
+                                    <span
+                                      className={`graph-legend-swatch ${i === 0 ? "graph-legend-swatch--lg" : ""}`}
+                                      style={{ background: GRAPH_CLUSTER_HEXES[i % GRAPH_CLUSTER_HEXES.length] }}
+                                    />
+                                    <span className="graph-legend-label">
+                                      {n.label.length > 24 ? n.label.slice(0, 22) + "…" : n.label}
+                                    </span>
+                                  </div>
+                                ));
+                              }
+                            }
+                            return Array.from(seen.entries()).map(([compId, label]) => (
+                              <div key={compId} className="graph-legend-item">
+                                <span
+                                  className="graph-legend-swatch"
+                                  style={{ background: GRAPH_CLUSTER_HEXES[compId % GRAPH_CLUSTER_HEXES.length] }}
+                                />
+                                <span className="graph-legend-label">
+                                  {label.length > 24 ? label.slice(0, 22) + "…" : label}
+                                </span>
+                              </div>
+                            ));
+                          })()}
+                          <span className="graph-legend-hint">
+                            {globalVizKind === "tree" ? "Click nodes to expand" : "Node size = connections"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="library-stats-inline">
                       <StatsPanel
@@ -481,17 +531,14 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     <p className="library-node-hint">
                       {globalVizKind === "tree" ? (
                         <>
-                          {globalTitle ? <>Highlighted: {globalTitle}</> : null}
+                          {globalTitle ? <>Selected: <strong>{globalTitle}</strong></> : null}
                           {globalTitle ? " · " : null}
-                          Click a node with children to <strong>expand</strong> or <strong>collapse</strong>.{" "}
-                          {treeStripApplied
-                            ? "Uncheck 'Themes as roots' to show the original top topic again."
-                            : "Ancestors stay visible."}
+                          Click a node to expand or collapse its children. Drag to rearrange.
                         </>
                       ) : globalTitle ? (
-                        <>Selected: {globalTitle}</>
+                        <>Selected: <strong>{globalTitle}</strong> · Scroll to zoom, drag to pan</>
                       ) : (
-                        <>Click a node.</>
+                        <>Click a node to see details. Scroll to zoom, drag to pan.</>
                       )}
                     </p>
                   </>

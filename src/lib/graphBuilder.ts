@@ -241,13 +241,15 @@ export function buildOverviewNodes(
       ac > 1 ? `${node.label} (${ac} merged codes)` : node.label;
 
     const shadow: VisNode["shadow"] = highlighted
-      ? { enabled: true, color: "rgba(124, 240, 208, 0.5)", size: 14, x: 0, y: 0 }
-      : false;
+      ? { enabled: true, color: "rgba(124, 240, 208, 0.55)", size: 20, x: 0, y: 0 }
+      : colorClusters
+        ? { enabled: true, color: clusterColorDim.replace(/[\d.]+\)$/, "0.25)"), size: 12, x: 0, y: 0 }
+        : { enabled: true, color: "rgba(74, 90, 255, 0.12)", size: 8, x: 0, y: 0 };
     return {
       id: node.id,
       label: shouldShowLabel(node) ? node.label : "",
       title: titleHint,
-      size: highlighted ? baseSize + 6 : baseSize,
+      size: highlighted ? baseSize + 7 : baseSize,
       color: {
         background: highlighted ? "#7cf0d0" : baseColor,
         border: highlighted ? "#b8fff0" : baseBorder,
@@ -255,13 +257,13 @@ export function buildOverviewNodes(
         hover: { background: highlighted ? "#9df5da" : clusterColor, border: clusterColor },
       },
       font: {
-        face: "Space Mono, monospace",
-        size: highlighted ? 13 : 11,
-        color: highlighted ? "#b8fff0" : "rgba(220, 228, 255, 0.85)",
-        strokeWidth: 3,
-        strokeColor: "rgba(5, 6, 15, 0.9)",
+        face: "Syne, system-ui, sans-serif",
+        size: highlighted ? 14 : 12,
+        color: highlighted ? "#b8fff0" : "rgba(224, 230, 255, 0.92)",
+        strokeWidth: 3.5,
+        strokeColor: "rgba(5, 6, 15, 0.92)",
       },
-      borderWidth: highlighted ? 2.5 : 1.2,
+      borderWidth: highlighted ? 2.8 : 1.5,
       shadow,
     } satisfies VisNode;
   });
@@ -285,8 +287,8 @@ export function buildEdgeStyle(
     from: edge.from,
     to: edge.to,
     arrows: "to",
-    smooth: { type: "continuous", roundness: 0.38 },
-    width: emphasized ? 2 : (edge.inferred ? 0.8 : 1),
+    smooth: { type: "curvedCW", roundness: 0.18 },
+    width: emphasized ? 2.2 : (edge.inferred ? 0.7 : 1.1),
     color: {
       color: edge.inferred
         ? (emphasized ? emphColor : inferredDim)
@@ -294,7 +296,7 @@ export function buildEdgeStyle(
       highlight: "#7cf0d0",
       hover: "#7cf0d0",
     },
-    ...(edge.inferred ? { dashes: [4, 6] as number[] } : {}),
+    ...(edge.inferred ? { dashes: [5, 7] as number[] } : {}),
   };
 }
 
@@ -394,10 +396,10 @@ export function buildFocusSubgraph(
         hover: { background: "#9df5da", border: "#7cf0d0" },
       },
       font: {
-        face: "Space Mono, monospace",
-        size: isCenter ? 14 : 12,
+        face: "Syne, system-ui, sans-serif",
+        size: isCenter ? 15 : 12,
         color: isDark ? "#e4e8ff" : "#0c0e2a",
-        strokeWidth: 3,
+        strokeWidth: 3.5,
         strokeColor: isDark ? "rgba(5,6,15,0.95)" : "rgba(240,242,255,0.95)",
       },
       borderWidth: isCenter ? 3 : 1.5,

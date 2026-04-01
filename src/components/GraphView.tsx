@@ -177,7 +177,11 @@ export function GraphView({
       {
         autoResize: true,
         nodes: { shape: "dot" as const },
-        edges: { selectionWidth: 0, hoverWidth: 0 },
+        edges: {
+          selectionWidth: 0,
+          hoverWidth: 0,
+          arrows: { to: { enabled: true, scaleFactor: 0.45 } },
+        },
         physics: { enabled: false },
         interaction: { ...interactionOptions },
       }
@@ -460,13 +464,14 @@ export function GraphView({
       <div ref={containerRef} className="graph-container" />
       <div className="graph-controls">
         <button type="button" className="graph-ctrl" onClick={zoomIn} title="Zoom in">
-          +
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
         </button>
         <button type="button" className="graph-ctrl" onClick={zoomOut} title="Zoom out">
-          −
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
         </button>
-        <button type="button" className="graph-ctrl" onClick={fit} title="Fit graph">
-          ⊡
+        <div className="graph-ctrl-divider" />
+        <button type="button" className="graph-ctrl" onClick={fit} title="Fit to view">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 6V3a1 1 0 011-1h3M10 2h3a1 1 0 011 1v3M14 10v3a1 1 0 01-1 1h-3M6 14H3a1 1 0 01-1-1v-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       </div>
     </div>
