@@ -4,16 +4,22 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAppHash } from "./hooks/useAppHash";
 import { HelpModal } from "./components/HelpModal";
 import { LibraryView } from "./components/LibraryView";
+import { ResearchOverview } from "./components/ResearchOverview";
+
+type AppTab = "overview" | "library";
 
 function AppContent() {
   const { isDark, toggleTheme } = useTheme();
   const [showHelp, setShowHelp] = useState(false);
   const [libraryRowId, setLibraryRowId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AppTab>("overview");
 
   useAppHash({ libraryRowId, setLibraryRowId });
 
   useKeyboardShortcuts({
-    onEscape: () => setLibraryRowId(null),
+    onEscape: () => {
+      if (activeTab === "library") setLibraryRowId(null);
+    },
     onHelp: () => setShowHelp((h) => !h),
   });
 
@@ -21,6 +27,26 @@ function AppContent() {
     <div className="app" data-theme={isDark ? "dark" : "light"}>
       <header className="header">
         <h1>Research library</h1>
+        <nav className="header-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "overview"}
+            className={`header-tab ${activeTab === "overview" ? "header-tab--active" : ""}`}
+            onClick={() => setActiveTab("overview")}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "library"}
+            className={`header-tab ${activeTab === "library" ? "header-tab--active" : ""}`}
+            onClick={() => setActiveTab("library")}
+          >
+            Library
+          </button>
+        </nav>
         <div className="controls">
           <button type="button" className="icon-btn" onClick={() => setShowHelp(true)} title="Help (?)">
             ?
@@ -31,7 +57,10 @@ function AppContent() {
         </div>
       </header>
 
-      <LibraryView selectedRowId={libraryRowId} onSelectRow={setLibraryRowId} isDark={isDark} />
+      {activeTab === "overview" && <ResearchOverview isDark={isDark} />}
+      {activeTab === "library" && (
+        <LibraryView selectedRowId={libraryRowId} onSelectRow={setLibraryRowId} isDark={isDark} />
+      )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>

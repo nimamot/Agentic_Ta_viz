@@ -28,3 +28,5 @@ coverage/
 .cache/
 
 .claude/
+
+package.json

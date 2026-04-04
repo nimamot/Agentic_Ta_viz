@@ -7,7 +7,6 @@ import {
   buildGraphData,
   buildOverviewEdges,
   buildOverviewNodes,
-  computeGraphStats,
   GRAPH_CLUSTER_HEXES,
 } from "../lib/graphBuilder";
 import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchicalGraphBuilder";
@@ -27,7 +26,6 @@ import type { OpenCodeEvidenceRow } from "../lib/openCodesEvidence";
 import { extractEvidenceForCode } from "../lib/openCodesEvidence";
 import { GraphView } from "./GraphView";
 import { OpenCodesTracePanel } from "./OpenCodesTracePanel";
-import { StatsPanel } from "./StatsPanel";
 
 interface LibraryViewProps {
   selectedRowId: string | null;
@@ -101,10 +99,20 @@ function formatWhen(iso: string): string {
   }
 }
 
+function rowLabel(row: ResearchProjectRow): string {
+  return row.research_question?.trim() || row.slug || `Project ${row.id.slice(0, 8)}…`;
+}
+
+function rowOptionLabel(row: ResearchProjectRow): string {
+  const s = rowLabel(row);
+  return s.length > 140 ? `${s.slice(0, 137)}…` : s;
+}
+
 export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewProps) {
   const [rows, setRows] = useState<ResearchProjectRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
@@ -134,6 +142,22 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
       setLoading(false);
     }
   }, [configured]);
+
+  useEffect(() => {
+    setReportOpen(false);
+  }, [selectedRowId]);
+
+  useEffect(() => {
+    if (!reportOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setReportOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [reportOpen]);
 
   useEffect(() => {
     if (rows.length === 0) return;
@@ -303,8 +327,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     }));
   }, [gEdges, globalVizKind]);
 
-  const gStats = gDataForVis ? computeGraphStats(gDataForVis) : null;
-
   /** Theme-tree / hierarchical exports attach roles; plain edge graphs do not. */
   const graphHasHierarchyRoles = useMemo(() => {
     if (!gDataForVis) return false;
@@ -374,14 +396,13 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   return (
     <div className="library-page" data-theme={isDark ? "dark" : "light"}>
-      <section className="library-hero">
+      <section className="library-hero library-hero--compact">
         <div className="library-hero-inner">
           <div className="library-hero-copy">
             <p className="library-kicker">Supabase</p>
             <h2 className="library-title">Research library</h2>
             <p className="library-sub">
-              Load saved global graphs and reports from your database. Table:{" "}
-              <code className="library-code">{tableName}</code>
+              Table <code className="library-code">{tableName}</code>
             </p>
           </div>
           <div className="library-hero-actions">
@@ -395,51 +416,86 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
         </div>
         {fetchError && <div className="library-banner error">{fetchError}</div>}
         {rows.length > 0 && (
-          <div className="library-cards" role="listbox" aria-label="Research questions">
-            {rows.map((row) => {
-              const active = row.id === selectedRowId;
-              const label = row.research_question?.trim() || row.slug || `Project ${row.id.slice(0, 8)}…`;
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  className={`library-card ${active ? "active" : ""}`}
-                  onClick={() => onSelectRow(row.id)}
-                >
-                  <span className="library-card-title">{label}</span>
-                  <span className="library-card-meta">
-                    {row.slug} · {formatWhen(row.created_at)}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="library-row-picker">
+            <label className="library-select-label" htmlFor="library-rq-select">
+              Research question
+            </label>
+            <select
+              id="library-rq-select"
+              className="library-select"
+              value={selectedRowId ?? ""}
+              onChange={(e) => onSelectRow(e.target.value || null)}
+              aria-label="Choose research question"
+            >
+              {rows.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {rowOptionLabel(row)}
+                </option>
+              ))}
+            </select>
+            {selected && (
+              <span className="library-select-meta" title={`${selected.slug} · ${formatWhen(selected.created_at)}`}>
+                {selected.slug} · {formatWhen(selected.created_at)}
+              </span>
+            )}
           </div>
         )}
       </section>
 
       {selected && (
-        <div className="library-detail">
-          <header className="library-detail-header">
-            <h3 className="library-detail-question">
-              {selected.research_question?.trim() || "Untitled research question"}
-            </h3>
-            <p className="library-detail-slug">{selected.slug}</p>
-          </header>
+        <div className="library-detail library-detail--graph">
+          <div className="library-detail-toolbar">
+            <p className="library-detail-toolbar-meta" title={rowLabel(selected)}>
+              <span className="library-detail-toolbar-slug">{selected.slug}</span>
+              <span className="library-detail-toolbar-when">{formatWhen(selected.created_at)}</span>
+            </p>
+            <button
+              type="button"
+              className="library-report-fab"
+              onClick={() => setReportOpen(true)}
+              aria-expanded={reportOpen}
+              aria-controls="library-report-panel"
+            >
+              Report
+            </button>
+          </div>
 
-          <div className="library-detail-grid">
-            <article className="library-report glass-panel">
-              <div className="library-panel-head">
-                <span className="library-panel-icon">◆</span>
-                <h4>Report</h4>
+          {reportOpen && (
+            <>
+              <div
+                className="library-report-backdrop"
+                aria-hidden
+                onClick={() => setReportOpen(false)}
+              />
+              <div
+                className="library-report-float glass-panel"
+                id="library-report-panel"
+                role="dialog"
+                aria-labelledby="library-report-title"
+                aria-modal="true"
+              >
+                <div className="library-panel-head library-panel-head--closable">
+                  <span className="library-panel-icon">◆</span>
+                  <h4 id="library-report-title">Report</h4>
+                  <button
+                    type="button"
+                    className="library-report-close"
+                    onClick={() => setReportOpen(false)}
+                    aria-label="Close report"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="library-markdown library-markdown--float">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {selected.report_markdown || "_No report text._"}
+                  </ReactMarkdown>
+                </div>
               </div>
-              <div className="library-markdown">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{selected.report_markdown || "_No report text._"}</ReactMarkdown>
-              </div>
-            </article>
+            </>
+          )}
 
-            <article className="library-graph-panel library-graph-panel--primary glass-panel">
+          <article className="library-graph-panel library-graph-panel--primary glass-panel">
                 <div className="library-panel-head">
                   <span className="library-panel-icon">◎</span>
                   <h4>Global graph</h4>
@@ -511,9 +567,9 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     </span>
                   </div>
                 )}
-                {gDataForVis && gStats && (
+                {gDataForVis && (
                   <>
-                    <div className="library-graph-mount">
+                    <div className="library-graph-mount library-graph-mount--fill">
                       <GraphView
                         key={`lib-g-${selected.id}-${globalVizKind ?? "x"}`}
                         layoutEngine={globalVizKind === "tree" ? "flower" : "force"}
@@ -583,18 +639,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                       directParentLabel={traceDirectParentLabel}
                       evidenceGroups={traceEvidenceBundle.groups}
                     />
-                    <div className="library-stats-inline">
-                      <StatsPanel
-                        nodeCount={gStats.nodeCount}
-                        edgeCount={gStats.edgeCount}
-                        componentCount={gStats.componentCount}
-                        density={gStats.density}
-                        maxDegree={gStats.maxDegree}
-                        directEdges={gStats.directEdgeCount}
-                        inferredEdges={gStats.inferredEdgeCount}
-                        viewMode="overview"
-                      />
-                    </div>
                     <p className="library-node-hint">
                       {globalVizKind === "tree" ? (
                         <>
@@ -610,8 +654,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     </p>
                   </>
                 )}
-            </article>
-          </div>
+          </article>
         </div>
       )}
 

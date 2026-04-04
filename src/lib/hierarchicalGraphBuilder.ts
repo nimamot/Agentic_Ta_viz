@@ -492,7 +492,7 @@ export function buildHierarchyVisNodes(
         },
       },
       font: {
-        face: "Syne, system-ui, sans-serif",
+        face: "Instrument Sans, system-ui, sans-serif",
         size: fontSize,
         multi: treeExploration ? true : undefined,
         color: labelColor,

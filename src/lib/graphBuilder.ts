@@ -257,7 +257,7 @@ export function buildOverviewNodes(
         hover: { background: highlighted ? "#9df5da" : clusterColor, border: clusterColor },
       },
       font: {
-        face: "Syne, system-ui, sans-serif",
+        face: "Instrument Sans, system-ui, sans-serif",
         size: highlighted ? 14 : 12,
         color: highlighted ? "#b8fff0" : "rgba(224, 230, 255, 0.92)",
         strokeWidth: 3.5,
@@ -396,7 +396,7 @@ export function buildFocusSubgraph(
         hover: { background: "#9df5da", border: "#7cf0d0" },
       },
       font: {
-        face: "Syne, system-ui, sans-serif",
+        face: "Instrument Sans, system-ui, sans-serif",
         size: isCenter ? 15 : 12,
         color: isDark ? "#e4e8ff" : "#0c0e2a",
         strokeWidth: 3.5,
