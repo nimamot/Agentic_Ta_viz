@@ -1938,6 +1938,174 @@ body::after {
   line-height: 1.5;
 }
 
+/* Validator panel — sample tool trace */
+.pipeline-validator-trace {
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.pipeline-validator-trace-intro {
+  margin: 0 0 0.85rem;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.pipeline-trace-event {
+  margin-bottom: 0.65rem;
+}
+
+.pipeline-trace-event-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.4rem;
+  line-height: 1.35;
+}
+
+.pipeline-trace-ts {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.pipeline-trace-tag {
+  padding: 0.12em 0.45em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  color: var(--accent);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pipeline-trace-tool {
+  color: var(--text);
+  opacity: 0.92;
+}
+
+.pipeline-trace-tool::before {
+  content: "(";
+  opacity: 0.5;
+}
+
+.pipeline-trace-tool::after {
+  content: ")";
+  opacity: 0.5;
+}
+
+.pipeline-trace-card {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  padding: 0.65rem 0.8rem;
+}
+
+.pipeline-trace-card--verdict {
+  padding-top: 0.55rem;
+}
+
+.pipeline-trace-kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) 1fr;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  align-items: start;
+}
+
+.pipeline-trace-kv dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pipeline-trace-kv dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.pipeline-trace-kv dd q {
+  font-style: italic;
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
+}
+
+.pipeline-trace-kv--empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.pipeline-trace-rule {
+  height: 1px;
+  margin: 0.75rem 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-bright) 12%,
+    var(--border-bright) 88%,
+    transparent
+  );
+  opacity: 0.85;
+}
+
+.pipeline-trace-verdict {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.pipeline-trace-verdict--fail {
+  color: #fb7185;
+  text-shadow: 0 0 24px color-mix(in srgb, #fb7185 35%, transparent);
+}
+
+.pipeline-page[data-theme="light"] .pipeline-trace-verdict--fail {
+  color: #e11d48;
+  text-shadow: none;
+}
+
+.pipeline-trace-verdict--pass {
+  color: #5ad8c4;
+  text-shadow: 0 0 20px color-mix(in srgb, #5ad8c4 28%, transparent);
+}
+
+.pipeline-page[data-theme="light"] .pipeline-trace-verdict--pass {
+  color: #0d9488;
+  text-shadow: none;
+}
+
+.pipeline-trace-issues {
+  margin: 0;
+  padding-left: 1.05rem;
+  font-size: 0.7rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.pipeline-trace-issues li {
+  margin-bottom: 0.45rem;
+}
+
+.pipeline-trace-issues li::marker {
+  color: #fb7185;
+}
+
+.pipeline-page[data-theme="light"] .pipeline-trace-issues li::marker {
+  color: #e11d48;
+}
+
 /* React Flow theme overrides */
 .pipeline-canvas .react-flow__edge-text {
   font-family: var(--font-mono) !important;

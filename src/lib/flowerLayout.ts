@@ -74,6 +74,21 @@ export function computeFlowerPositions(
   }
   for (const r of roots) countSub(r);
 
+  /** Which top-level root (theme) each node belongs to — used to avoid cross-tree same-depth repulsion. */
+  const forestRoot = new Map<number, number>();
+  for (const r of roots) {
+    const stack = [r];
+    while (stack.length) {
+      const u = stack.pop()!;
+      if (forestRoot.has(u)) continue;
+      forestRoot.set(u, r);
+      for (const c of childrenMap.get(u) ?? []) stack.push(c);
+    }
+  }
+  for (const n of data.nodes) {
+    if (!forestRoot.has(n.id)) forestRoot.set(n.id, n.id);
+  }
+
   // --- angular wedge [ang0, ang1] for each node’s subtree ---
   const ang0 = new Map<number, number>();
   const ang1 = new Map<number, number>();
@@ -182,6 +197,7 @@ export function computeFlowerPositions(
       if (ids.length < 2) continue;
       for (let a = 0; a < ids.length; a++) {
         for (let b = a + 1; b < ids.length; b++) {
+          if (forestRoot.get(ids[a]) !== forestRoot.get(ids[b])) continue;
           const pa = pos.get(ids[a]);
           const pb = pos.get(ids[b]);
           if (!pa || !pb) continue;
@@ -228,6 +244,7 @@ export function computeFlowerPositions(
       if (ids.length < 2) continue;
       for (let a = 0; a < ids.length; a++) {
         for (let b = a + 1; b < ids.length; b++) {
+          if (forestRoot.get(ids[a]) !== forestRoot.get(ids[b])) continue;
           const ida = ids[a];
           const idb = ids[b];
           const ra = fixedR.get(ida) ?? 0;
@@ -267,5 +284,53 @@ export function computeFlowerPositions(
     }
   }
 
+  nudgeChildrenOutwardFromParents(data, pos);
+
   return pos;
+}
+
+const OUTWARD_MIN_GAP = 58;
+
+/**
+ * After polar repulsion, children can end up “inside” the parent toward the origin (reads as opening backward).
+ * Keep each child at least as far from the origin as its parent, and bias the parent→child vector outward along OP.
+ */
+function nudgeChildrenOutwardFromParents(data: GraphData, pos: Map<number, { x: number; y: number }>): void {
+  const edges = [...data.edges].sort((e1, e2) => e1.to - e2.to);
+  for (let pass = 0; pass < 6; pass++) {
+    for (const e of edges) {
+      const pid = e.from;
+      const cid = e.to;
+      const pp = pos.get(pid);
+      const cp = pos.get(cid);
+      if (!pp || !cp) continue;
+      const rp = Math.hypot(pp.x, pp.y);
+      const thc = Math.atan2(cp.y, cp.x);
+      let cx = cp.x;
+      let cy = cp.y;
+
+      if (rp > 1e-4) {
+        const vx = cx - pp.x;
+        const vy = cy - pp.y;
+        const inward = vx * pp.x + vy * pp.y;
+        if (inward < 0) {
+          const push = (-inward / (rp * rp) + 0.06) * rp;
+          const ux = pp.x / rp;
+          const uy = pp.y / rp;
+          cx += ux * push;
+          cy += uy * push;
+        }
+      }
+
+      let rc = Math.hypot(cx, cy);
+      const targetR = rp < 1e-4 ? OUTWARD_MIN_GAP : rp + OUTWARD_MIN_GAP;
+      if (rc < targetR) {
+        cx = targetR * Math.cos(thc);
+        cy = targetR * Math.sin(thc);
+        rc = targetR;
+      }
+
+      pos.set(cid, { x: cx, y: cy });
+    }
+  }
 }

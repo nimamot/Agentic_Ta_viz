@@ -124,8 +124,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [showLabels, setShowLabels] = useState(true);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
-  /** Hide the JSON root so its children become multiple top-level roots in the layout. */
-  const [omitTopParent, setOmitTopParent] = useState(true);
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
   /** For global tree: which node ids have their children revealed (ancestors stay visible). */
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
@@ -194,8 +192,9 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return stripTreeRootFromGraph(gDataVisible, treeRootId);
   }, [gDataVisible, treeRootId]);
 
+  /** Always omit the tree JSON root so themes sit as radial roots (same as former “Themes as roots” on). */
   const treeStripApplied =
-    globalVizKind === "tree" && omitTopParent && strippedTreePreview != null && strippedTreePreview.nodeCount > 0;
+    globalVizKind === "tree" && strippedTreePreview != null && strippedTreePreview.nodeCount > 0;
 
   /** Graph passed to vis (children as roots when strip is on and non-empty). */
   const gDataForVis = useMemo(() => {
@@ -575,14 +574,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     >
                       Reset view
                     </button>
-                    <label className="library-mini-check library-drill-check">
-                      <input
-                        type="checkbox"
-                        checked={omitTopParent}
-                        onChange={(e) => setOmitTopParent(e.target.checked)}
-                      />
-                      Themes as roots
-                    </label>
                     <span className="library-drill-meta">
                       <strong>{gDataForVis?.nodeCount ?? 0}</strong> nodes visible · <strong>{globalExpandedIds.size}</strong> expanded branch{globalExpandedIds.size === 1 ? "" : "es"}
                       {treeStripApplied ? " · top topic omitted" : ""} · radial layout
