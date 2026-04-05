@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
+
+interface SchoolBurnoutEvalRow {
+  id: string;
+  construct: string;
+  dimension: string;
+  dimension_description: string;
+  indicator: string;
+  text: string;
+}
+
+const EVAL_SCHOOL_BURNOUT_ROWS = evalDatasetJson as SchoolBurnoutEvalRow[];
 
 /** Edit these for your defense / portfolio slide deck. */
 const PRESENTATION = {
@@ -7,7 +19,7 @@ const PRESENTATION = {
   author: "Nima Motieifard",
 } as const;
 
-const SECTION_COUNT = 6;
+const SECTION_COUNT = 7;
 
 const SECTION_LABELS = [
   "Overview",
@@ -15,6 +27,7 @@ const SECTION_LABELS = [
   "Focus",
   "My work",
   "Pipeline",
+  "Evaluation",
   "Future",
 ] as const;
 
@@ -197,6 +210,47 @@ function GroundedTheorySteps() {
   );
 }
 
+function EvalDatasetTable() {
+  const n = EVAL_SCHOOL_BURNOUT_ROWS.length;
+  return (
+    <figure className="research-eval-dataset">
+      <figcaption className="research-eval-dataset-caption">
+        <code className="research-eval-filename">school_burnout_synthetic</code>
+        <span className="research-eval-dataset-meta">
+          {" "}
+          · {n} rows × 6 columns · dimension, dimension_description, indicator, text
+        </span>
+        <span className="research-eval-dataset-hint">
+          {" "}
+          Theme columns are <strong>gold labels</strong>; the pipeline evaluation uses <strong>text</strong> only.
+        </span>
+      </figcaption>
+      <div className="research-eval-table-scroll" tabIndex={0} role="region" aria-label="Dataset table, scroll vertically">
+        <table className="research-eval-table">
+          <thead>
+            <tr>
+              <th scope="col">Theme</th>
+              <th scope="col">Theme_description</th>
+              <th scope="col">indicator</th>
+              <th scope="col">text</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EVAL_SCHOOL_BURNOUT_ROWS.map((row) => (
+              <tr key={row.id}>
+                <td className="research-eval-td research-eval-td--dimension">{row.dimension}</td>
+                <td className="research-eval-td research-eval-td--desc">{row.dimension_description}</td>
+                <td className="research-eval-td research-eval-td--indicator">{row.indicator}</td>
+                <td className="research-eval-td research-eval-td--text">{row.text}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  );
+}
+
 function MyWorkFlow() {
   return (
     <div className="research-workflow" aria-label="Inputs to outputs">
@@ -370,8 +424,19 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-5-title">
-          <div className="research-slide-inner">
+          <div className="research-slide-inner research-slide-inner--eval">
             <h2 id="research-slide-5-title" className="research-h2">
+              Pipeline evaluation
+            </h2>
+            <h3 className="research-h3 research-h3--spaced">Evaluation dataset</h3>
+            <p className="research-body">Gold labels · text-only in.</p>
+            <EvalDatasetTable />
+          </div>
+        </section>
+
+        <section className="research-slide" aria-labelledby="research-slide-6-title">
+          <div className="research-slide-inner">
+            <h2 id="research-slide-6-title" className="research-h2">
               Future improvements
             </h2>
             <ul className="research-future-list">

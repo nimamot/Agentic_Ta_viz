@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
   useNodesState,
   useEdgesState,
   MarkerType,
@@ -306,7 +305,6 @@ export function PipelineView({ isDark, presentationEmbed }: PipelineViewProps) {
               gap={36}
               size={1.2}
             />
-            <Controls showInteractive={false} className="pipeline-controls" />
           </ReactFlow>
         </div>
         {selectedPNode && (
@@ -315,10 +313,6 @@ export function PipelineView({ isDark, presentationEmbed }: PipelineViewProps) {
             onClose={() => setSelectedId(null)}
           />
         )}
-      </div>
-
-      <div className="pipeline-footer">
-        Skills via <code>GT_USE_SKILLS</code> · Prompts in <code>agents/skills/</code>
       </div>
     </div>
   );
