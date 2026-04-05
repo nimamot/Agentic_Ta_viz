@@ -27,6 +27,12 @@ import {
 import type { CodebookJson, GraphData, GraphNode, ResearchProjectRow } from "../types";
 import type { OpenCodeEvidenceRow } from "../lib/openCodesEvidence";
 import { extractEvidenceForCode } from "../lib/openCodesEvidence";
+import {
+  buildCooccurrenceVisInput,
+  parseCooccurrencePayload,
+  type CooccurrenceLayer,
+} from "../lib/cooccurrence";
+import { CooccurrenceNetworkView } from "./CooccurrenceNetworkView";
 import { GraphView } from "./GraphView";
 import { OpenCodesTracePanel } from "./OpenCodesTracePanel";
 
@@ -123,6 +129,9 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
   /** For global tree: which node ids have their children revealed (ancestors stay visible). */
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
+  const [cooccurrenceLayer, setCooccurrenceLayer] = useState<CooccurrenceLayer>("meta");
+  const [cooccurrenceMaxEdges, setCooccurrenceMaxEdges] = useState(80);
+  const [cooccurrenceMinCount, setCooccurrenceMinCount] = useState(1);
 
   const configured = isSupabaseConfigured();
 
@@ -394,6 +403,19 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     };
   }, [selected?.open_codes_markdown, traceNode, gData, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
 
+  const cooccurrenceParsed = useMemo(
+    () => parseCooccurrencePayload(selected?.cooccurrence),
+    [selected?.cooccurrence]
+  );
+
+  const cooccurrenceVis = useMemo(() => {
+    if (!cooccurrenceParsed.ok) return null;
+    return buildCooccurrenceVisInput(cooccurrenceParsed.data, cooccurrenceLayer, {
+      maxEdges: cooccurrenceMaxEdges,
+      minCount: cooccurrenceMinCount,
+    });
+  }, [cooccurrenceParsed, cooccurrenceLayer, cooccurrenceMaxEdges, cooccurrenceMinCount]);
+
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
     const dataUrl = fn?.();
@@ -655,6 +677,117 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     </p>
                   </>
                 )}
+          </article>
+
+          <article
+            className="library-graph-panel library-graph-panel--cooccurrence glass-panel"
+            aria-label="Theme co-occurrence network"
+          >
+            <div className="library-panel-head">
+              <div className="library-panel-head-text">
+                <span className="library-panel-icon" aria-hidden="true">
+                  ⬡
+                </span>
+                <div>
+                  <h4>Theme co-occurrence</h4>
+                  <p className="library-panel-sub">
+                    Which themes or meta-themes tend to appear in the same review (not the taxonomy tree).
+                  </p>
+                </div>
+              </div>
+              <div className="library-panel-tools cooccurrence-toolbar" role="toolbar" aria-label="Co-occurrence options">
+                <label className="library-toolbar-label library-toolbar-label--compact" htmlFor="library-coocc-layer">
+                  Layer
+                </label>
+                <select
+                  id="library-coocc-layer"
+                  className="library-select library-select--toolbar"
+                  value={cooccurrenceLayer}
+                  onChange={(e) => setCooccurrenceLayer(e.target.value as CooccurrenceLayer)}
+                  aria-label="Co-occurrence layer"
+                >
+                  <option value="meta">Meta-themes</option>
+                  <option value="theme">Themes</option>
+                </select>
+                <label className="library-toolbar-label library-toolbar-label--compact" htmlFor="library-coocc-max">
+                  Max edges
+                </label>
+                <select
+                  id="library-coocc-max"
+                  className="library-select library-select--toolbar"
+                  value={cooccurrenceMaxEdges}
+                  onChange={(e) => setCooccurrenceMaxEdges(Number(e.target.value))}
+                  aria-label="Maximum edges to show"
+                >
+                  <option value={40}>40</option>
+                  <option value={80}>80</option>
+                  <option value={150}>150</option>
+                  <option value={300}>300</option>
+                </select>
+                <label className="library-toolbar-label library-toolbar-label--compact" htmlFor="library-coocc-min">
+                  Min count
+                </label>
+                <select
+                  id="library-coocc-min"
+                  className="library-select library-select--toolbar"
+                  value={cooccurrenceMinCount}
+                  onChange={(e) => setCooccurrenceMinCount(Number(e.target.value))}
+                  aria-label="Minimum co-occurrence count"
+                >
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                </select>
+                {cooccurrenceParsed.ok ? (
+                  <button
+                    type="button"
+                    className="library-mini-btn"
+                    disabled={!cooccurrenceVis || cooccurrenceVis.edges.length === 0}
+                    onClick={() =>
+                      exportPng("__graphExport_libraryCooccurrence", `cooccurrence-${selected?.slug ?? "graph"}.png`)
+                    }
+                  >
+                    Export
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {!cooccurrenceParsed.ok ? (
+              <div className="library-cooccurrence-empty" role="status">
+                <p className="library-cooccurrence-empty-title">No co-occurrence data</p>
+                <p className="library-cooccurrence-empty-body">{cooccurrenceParsed.error}</p>
+              </div>
+            ) : cooccurrenceVis && cooccurrenceVis.edges.length === 0 ? (
+              <div className="library-cooccurrence-empty" role="status">
+                <p className="library-cooccurrence-empty-title">No edges match filters</p>
+                <p className="library-cooccurrence-empty-body">
+                  Try lowering <strong>Min count</strong> or raising <strong>Max edges</strong>, or switch layer.
+                </p>
+              </div>
+            ) : cooccurrenceVis && cooccurrenceVis.edges.length > 0 ? (
+              <>
+                <div className="library-graph-mount library-graph-mount--fill library-graph-mount--cooccurrence">
+                  <CooccurrenceNetworkView
+                    key={`${selected?.id}-${cooccurrenceLayer}-${cooccurrenceMaxEdges}-${cooccurrenceMinCount}`}
+                    nodes={cooccurrenceVis.nodes}
+                    edges={cooccurrenceVis.edges}
+                    isDark={isDark}
+                    exportWindowKey="__graphExport_libraryCooccurrence"
+                  />
+                </div>
+                <p className="library-node-hint library-node-hint--cooccurrence">
+                  Undirected network: edge weight reflects how often two labels co-occur in the same review.
+                  {cooccurrenceVis.totalReviews > 0 ? (
+                    <>
+                      {" "}
+                      Corpus: <strong>{cooccurrenceVis.totalReviews.toLocaleString()}</strong> reviews.
+                    </>
+                  ) : null}
+                </p>
+              </>
+            ) : null}
           </article>
           </div>
         </div>

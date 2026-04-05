@@ -10,6 +10,8 @@ export interface ResearchProjectRow {
   report_markdown: string;
   /** Reviewer corpus: ## Review N blocks with - Code / Evidence / Note lines (open coding traceability). */
   open_codes_markdown?: string | null;
+  /** Post-pipeline theme / meta-theme co-occurrence within reviews (optional; null on older rows). */
+  cooccurrence?: unknown | null;
   meta: unknown | null;
   created_at: string;
 }

@@ -1075,6 +1075,63 @@ body::after {
   flex-shrink: 0;
 }
 
+.library-graph-panel--cooccurrence {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.library-graph-panel--cooccurrence .library-panel-head {
+  flex-shrink: 0;
+}
+
+.cooccurrence-toolbar {
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  align-items: center;
+}
+
+.library-toolbar-label--compact {
+  margin: 0;
+  font-size: 0.52rem;
+}
+
+.library-workspace .library-graph-panel--cooccurrence .library-graph-mount--cooccurrence {
+  flex: 0 0 auto;
+  min-height: min(58vh, 720px);
+  height: auto;
+}
+
+.library-cooccurrence-empty {
+  margin: 0.65rem 0.85rem 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border-bright);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.library-cooccurrence-empty-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.library-cooccurrence-empty-body {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.library-node-hint--cooccurrence {
+  margin: 0 0.85rem 0.75rem;
+}
+
 .library-drill-bar {
   display: flex;
   flex-wrap: wrap;
