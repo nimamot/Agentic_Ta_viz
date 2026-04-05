@@ -28,7 +28,7 @@ const PRESENTATION = {
   author: "Nima Motieifard",
 } as const;
 
-const SECTION_COUNT = 7;
+const SECTION_COUNT = 8;
 
 const SECTION_LABELS = [
   "Overview",
@@ -37,6 +37,7 @@ const SECTION_LABELS = [
   "My work",
   "Pipeline",
   "Evaluation",
+  "Contribution",
   "Future",
 ] as const;
 
@@ -520,7 +521,54 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
 
         <section className="research-slide" aria-labelledby="research-slide-6-title">
           <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-6-title" title="Future improvements" />
+            <DeckSectionTitle id="research-slide-6-title" title="Contribution" />
+            <div className="research-bm-grid">
+              <section className="research-deck-panel research-deck-panel--lavender">
+                <h3 className="research-bm-panel-h">Built-in validation</h3>
+                <p className="research-bm-panel-body">
+                  Reviews both generated codes and code-to-theme assignments.
+                </p>
+              </section>
+              <section className="research-deck-panel research-deck-panel--teal">
+                <h3 className="research-bm-panel-h">Open-source workflow</h3>
+                <p className="research-bm-panel-body">
+                  Modular, extensible pipeline for LLM-guided thematic analysis.
+                </p>
+              </section>
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
+                aria-label="Additional contributions"
+              >
+                <p className="research-bm-kicker">Highlights</p>
+                <ul className="research-bm-list research-bm-list--loose research-contribution-more">
+                  <li>
+                    <strong>Skill-based agent design</strong> — Separates reusable stage skills from run-specific prompts
+                    and inputs.
+                  </li>
+                  <li>
+                    <strong>Research-question-guided analysis</strong> — Keeps coding and theme construction aligned with
+                    the analytic goal.
+                  </li>
+                  <li>
+                    <strong>Traceable visualization dashboard</strong> — Lets users follow themes, codes, and reports back
+                    to source text.
+                  </li>
+                  <li>
+                    <strong>End-to-end system</strong> — Goes from corpus input to codebook, hierarchy, and final report.
+                  </li>
+                  <li>
+                    <strong>Grounded-theory-inspired structure</strong> — Translates qualitative coding stages into an
+                    inspectable agent workflow.
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section className="research-slide" aria-labelledby="research-slide-7-title">
+          <div className="research-slide-inner research-slide-inner--deck">
+            <DeckSectionTitle id="research-slide-7-title" title="Future improvements" />
             <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
               <ul className="research-bm-list research-bm-list--loose">
                 <li>
