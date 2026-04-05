@@ -691,7 +691,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                 <div>
                   <h4>Theme co-occurrence</h4>
                   <p className="library-panel-sub">
-                    Which themes or meta-themes tend to appear in the same review (not the taxonomy tree).
+                    Which themes or meta-themes tend to appear in the same review.
                   </p>
                 </div>
               </div>
