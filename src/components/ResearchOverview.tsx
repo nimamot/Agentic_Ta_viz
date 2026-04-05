@@ -13,6 +13,14 @@ interface SchoolBurnoutEvalRow {
 
 const EVAL_SCHOOL_BURNOUT_ROWS = evalDatasetJson as SchoolBurnoutEvalRow[];
 
+/** Distinct dimension / indicator samples for the presentation table. */
+const EVAL_DATASET_HIGHLIGHT_IDS = new Set([
+  "syn_0000", // Exhaustion · overwhelmed by schoolwork
+  "syn_0095", // Exhaustion · poor sleep due to schoolwork
+  "syn_0202", // Cynicism · low motivation / giving up
+  "syn_0402", // Inadequacy · lower expectations
+]);
+
 /** Edit these for your defense / portfolio slide deck. */
 const PRESENTATION = {
   title: "LLM-Guided Grounded Thematic Analysis at Scale",
@@ -218,7 +226,7 @@ function EvalDatasetTable() {
         <code className="research-eval-filename">school_burnout_synthetic</code>
         <span className="research-eval-dataset-meta">
           {" "}
-          · {n} rows × 6 columns · dimension, dimension_description, indicator, text
+          · {n} rows × 4 columns · Theme, Theme_description, indicator, text
         </span>
         <span className="research-eval-dataset-hint">
           {" "}
@@ -237,7 +245,10 @@ function EvalDatasetTable() {
           </thead>
           <tbody>
             {EVAL_SCHOOL_BURNOUT_ROWS.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                className={EVAL_DATASET_HIGHLIGHT_IDS.has(row.id) ? "research-eval-tr--highlight" : undefined}
+              >
                 <td className="research-eval-td research-eval-td--dimension">{row.dimension}</td>
                 <td className="research-eval-td research-eval-td--desc">{row.dimension_description}</td>
                 <td className="research-eval-td research-eval-td--indicator">{row.indicator}</td>
@@ -361,8 +372,9 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         <section className="research-slide" aria-labelledby="research-slide-1-title">
           <div className="research-slide-inner">
             <h2 id="research-slide-1-title" className="research-h2">
-              Background
+              Background and motivation
             </h2>
+            <h3 className="research-h3">Background</h3>
             <p className="research-lead">
               Purpose of this project is to{" "}
               <strong>
@@ -375,6 +387,8 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               scale. This work asks how far automated agents can carry out grounded, transparent coding and structuring
               while remaining accountable to a stated research question.
             </p>
+            <h3 className="research-h3 research-h3--spaced">Motivation</h3>
+            <p className="research-body">Relevant papers and how their findings motivated this work.</p>
           </div>
         </section>
 
