@@ -30,6 +30,19 @@ function IntersectionVenn() {
   const left = { x: cx - d * 0.866, y: cy + d * 0.5 };
   const right = { x: cx + d * 0.866, y: cy + d * 0.5 };
 
+  /** Outermost point of each lobe: from circle center, away from the triple-overlap centroid (same idea as top label). */
+  const lobeR = R * 0.36;
+  const lobePoint = (c: { x: number; y: number }) => {
+    const vx = cx - c.x;
+    const vy = cy - c.y;
+    const len = Math.hypot(vx, vy) || 1;
+    return { x: c.x - (vx / len) * lobeR, y: c.y - (vy / len) * lobeR };
+  };
+  const topLobe = lobePoint(top);
+  const leftLobe = lobePoint(left);
+  const rightLobe = lobePoint(right);
+  const lineGap = 11;
+
   return (
     <figure className="research-venn" aria-label="Research sits at the intersection of three fields">
       <svg viewBox="40 8 320 298" className="research-venn-svg" role="img">
@@ -104,12 +117,12 @@ function IntersectionVenn() {
         />
 
         {/*
-          Labels sit in each circle’s outer lobe (mostly non-overlap region):
-          top = CS, lower-left = computational social science, lower-right = linguistics.
+          Labels at lobe centroids (symmetric with top): anchor is inside the disk so
+          textAnchor="middle" glyphs stay inside the circle.
         */}
         <text
-          x={top.x}
-          y={top.y - 46}
+          x={topLobe.x}
+          y={topLobe.y - lineGap}
           textAnchor="middle"
           className="research-venn-label"
           filter={`url(#${p}-label-shadow)`}
@@ -117,8 +130,8 @@ function IntersectionVenn() {
           Computer
         </text>
         <text
-          x={top.x}
-          y={top.y - 30}
+          x={topLobe.x}
+          y={topLobe.y + lineGap}
           textAnchor="middle"
           className="research-venn-label"
           filter={`url(#${p}-label-shadow)`}
@@ -127,8 +140,8 @@ function IntersectionVenn() {
         </text>
 
         <text
-          x={left.x - 38}
-          y={left.y - 8}
+          x={leftLobe.x}
+          y={leftLobe.y - lineGap}
           textAnchor="middle"
           className="research-venn-label"
           filter={`url(#${p}-label-shadow)`}
@@ -136,8 +149,8 @@ function IntersectionVenn() {
           Computational
         </text>
         <text
-          x={left.x - 38}
-          y={left.y + 10}
+          x={leftLobe.x}
+          y={leftLobe.y + lineGap}
           textAnchor="middle"
           className="research-venn-label research-venn-label--small"
           filter={`url(#${p}-label-shadow)`}
@@ -146,8 +159,8 @@ function IntersectionVenn() {
         </text>
 
         <text
-          x={right.x + 40}
-          y={right.y + 2}
+          x={rightLobe.x}
+          y={rightLobe.y}
           textAnchor="middle"
           className="research-venn-label"
           filter={`url(#${p}-label-shadow)`}
