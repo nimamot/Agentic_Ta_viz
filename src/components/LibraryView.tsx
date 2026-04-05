@@ -14,9 +14,11 @@ import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/th
 import { computeFlowerPositions } from "../lib/flowerLayout";
 import {
   buildParentMapFromEdges,
+  collectDescendantOpenCodeLeaves,
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
   isOpenCodeCorpusNode,
+  MAX_DESCENDANT_LEAVES_FOR_CORPUS,
   remapDepthsAfterStrippingRoot,
   removeExpandedSubtreeFromSet,
   sliceExpandedTree,
@@ -321,13 +323,18 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return gDataForVis.nodeMap.get(selGlobal) ?? null;
   }, [selGlobal, gDataForVis]);
 
-  /** Corpus panel for open-code nodes (or structural leaves when pipeline types mis-tag as sub_theme). */
+  /** Corpus for open-code leaves, themes, and sub-themes (parents aggregate descendant codes). */
   const traceEligible = useMemo(() => {
     if (selGlobal == null || !gDataForVis || !gData) return false;
     const n = gDataForVis.nodeMap.get(selGlobal);
     if (!n) return false;
     if (globalVizKind === "tree" || graphHasHierarchyRoles) {
-      return isOpenCodeCorpusNode(gData, n);
+      return (
+        isOpenCodeCorpusNode(gData, n) ||
+        n.hierarchyRole === "theme" ||
+        n.hierarchyRole === "sub_theme" ||
+        gData.edges.some((e) => e.from === n.id)
+      );
     }
     return true;
   }, [selGlobal, gDataForVis, gData, globalVizKind, graphHasHierarchyRoles]);
@@ -342,10 +349,11 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   const traceEvidenceBundle = useMemo((): {
     groups: { leaf: GraphNode; rows: OpenCodeEvidenceRow[] }[];
+    evidenceMeta: { truncated: boolean; totalLeaves: number; shownCount: number } | null;
   } => {
     const md = selected?.open_codes_markdown;
     if (!traceNode || !md?.trim() || !gDataForVis) {
-      return { groups: [] };
+      return { groups: [], evidenceMeta: null };
     }
 
     const rowsForLeaf = (leaf: GraphNode) => {
@@ -355,14 +363,35 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     };
 
     if (globalVizKind !== "tree" && !graphHasHierarchyRoles) {
-      return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
+      const rows = rowsForLeaf(traceNode);
+      return {
+        groups: [{ leaf: traceNode, rows }],
+        evidenceMeta: { truncated: false, totalLeaves: 1, shownCount: 1 },
+      };
     }
 
-    if (!gData || !isOpenCodeCorpusNode(gData, traceNode)) {
-      return { groups: [] };
+    if (!gData) {
+      return { groups: [], evidenceMeta: null };
     }
 
-    return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
+    if (isOpenCodeCorpusNode(gData, traceNode)) {
+      return {
+        groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }],
+        evidenceMeta: { truncated: false, totalLeaves: 1, shownCount: 1 },
+      };
+    }
+
+    const allLeaves = collectDescendantOpenCodeLeaves(gData, traceNode.id);
+    const shown = allLeaves.slice(0, MAX_DESCENDANT_LEAVES_FOR_CORPUS);
+    const truncated = allLeaves.length > MAX_DESCENDANT_LEAVES_FOR_CORPUS;
+    return {
+      groups: shown.map((leaf) => ({ leaf, rows: rowsForLeaf(leaf) })),
+      evidenceMeta: {
+        truncated,
+        totalLeaves: allLeaves.length,
+        shownCount: shown.length,
+      },
+    };
   }, [selected?.open_codes_markdown, traceNode, gData, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
 
   const exportPng = (key: string, filename: string) => {
@@ -609,6 +638,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                       traceEligible={traceEligible}
                       directParentLabel={traceDirectParentLabel}
                       evidenceGroups={traceEvidenceBundle.groups}
+                      evidenceMeta={traceEvidenceBundle.evidenceMeta}
                     />
                     <p className="library-node-hint">
                       {globalVizKind === "tree" ? (

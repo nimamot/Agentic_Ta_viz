@@ -12,6 +12,35 @@ export function isOpenCodeCorpusNode(data: GraphData, n: GraphNode): boolean {
   return !hasChildEdge;
 }
 
+/** Max descendant open-code leaves to load corpus for under a branch node (UI cap). */
+export const MAX_DESCENDANT_LEAVES_FOR_CORPUS = 10;
+
+/**
+ * Pre-order DFS from `rootId` along directed edges (parent → child). Collects every descendant
+ * that `isOpenCodeCorpusNode` treats as an open-code leaf. Does not include `rootId` unless it is
+ * itself such a leaf. Children are visited in ascending id order for stable results.
+ */
+export function collectDescendantOpenCodeLeaves(data: GraphData, rootId: number): GraphNode[] {
+  const out: GraphNode[] = [];
+
+  function walk(id: number): void {
+    const n = data.nodeMap.get(id);
+    if (!n) return;
+    if (isOpenCodeCorpusNode(data, n)) {
+      out.push(n);
+      return;
+    }
+    const childIds = data.edges
+      .filter((e) => e.from === id)
+      .map((e) => e.to)
+      .sort((a, b) => a - b);
+    for (const c of childIds) walk(c);
+  }
+
+  walk(rootId);
+  return out;
+}
+
 /** Directed tree: each child has exactly one parent edge (from → to). */
 export function buildParentMapFromEdges(edges: GraphEdge[]): Map<number, number> {
   const m = new Map<number, number>();
