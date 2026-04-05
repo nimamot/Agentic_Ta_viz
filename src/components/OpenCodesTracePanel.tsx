@@ -57,12 +57,15 @@ export function OpenCodesTracePanel({
           <>
             <div className="library-trace-node">
               <span className="library-trace-node-label">{selectedNode.label}</span>
-              {selectedNode.hierarchyRole === "code" && (
-                <span className="library-trace-badge" title="Open code">
-                  code
+              {treeMode && traceEligible && (
+                <span
+                  className="library-trace-badge"
+                  title={selectedNode.hierarchyRole === "code" ? "Open code" : "Leaf code (corpus)"}
+                >
+                  {selectedNode.hierarchyRole === "code" ? "code" : "leaf"}
                 </span>
               )}
-              {treeMode && selectedNode.hierarchyRole === "code" && directParentLabel && (
+              {treeMode && traceEligible && directParentLabel && (
                 <span className="library-trace-parent-hint" title="Direct parent in the tree">
                   Parent: <strong>{directParentLabel}</strong>
                 </span>

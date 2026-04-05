@@ -1,5 +1,16 @@
-import type { GraphData, GraphEdge } from "../types";
+import type { GraphData, GraphEdge, GraphNode } from "../types";
 import { finalizeUndirectedGraph } from "./hierarchicalGraphBuilder";
+
+/**
+ * Whether open-coding corpus evidence should apply: explicit `code` role, or a non-theme leaf
+ * (no outgoing edges). Handles pipeline `type` strings that default to sub_theme in themeTree.
+ */
+export function isOpenCodeCorpusNode(data: GraphData, n: GraphNode): boolean {
+  if (n.hierarchyRole === "code") return true;
+  if (n.hierarchyRole === "theme") return false;
+  const hasChildEdge = data.edges.some((e) => e.from === n.id);
+  return !hasChildEdge;
+}
 
 /** Directed tree: each child has exactly one parent edge (from → to). */
 export function buildParentMapFromEdges(edges: GraphEdge[]): Map<number, number> {

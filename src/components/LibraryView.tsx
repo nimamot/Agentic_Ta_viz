@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { fetchResearchProjects } from "../lib/fetchResearchProjects";
-import { getSupabaseTableName, isSupabaseConfigured } from "../lib/supabaseClient";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
 import {
   buildGraphData,
   buildOverviewEdges,
@@ -16,6 +16,7 @@ import {
   buildParentMapFromEdges,
   computeDirectedDepthFromRoot,
   findDirectedTreeRootId,
+  isOpenCodeCorpusNode,
   remapDepthsAfterStrippingRoot,
   removeExpandedSubtreeFromSet,
   sliceExpandedTree,
@@ -112,7 +113,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [rows, setRows] = useState<ResearchProjectRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [colorClusters, setColorClusters] = useState(true);
   const [showInferred, setShowInferred] = useState(true);
@@ -123,7 +123,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
 
   const configured = isSupabaseConfigured();
-  const tableName = getSupabaseTableName();
 
   const load = useCallback(async () => {
     if (!configured) {
@@ -142,22 +141,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
       setLoading(false);
     }
   }, [configured]);
-
-  useEffect(() => {
-    setReportOpen(false);
-  }, [selectedRowId]);
-
-  useEffect(() => {
-    if (!reportOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setReportOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [reportOpen]);
 
   useEffect(() => {
     if (rows.length === 0) return;
@@ -338,24 +321,24 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return gDataForVis.nodeMap.get(selGlobal) ?? null;
   }, [selGlobal, gDataForVis]);
 
-  /** Corpus panel only for open-code nodes when the graph carries hierarchy roles (tree or edge export with roles). */
+  /** Corpus panel for open-code nodes (or structural leaves when pipeline types mis-tag as sub_theme). */
   const traceEligible = useMemo(() => {
-    if (selGlobal == null || !gDataForVis) return false;
+    if (selGlobal == null || !gDataForVis || !gData) return false;
     const n = gDataForVis.nodeMap.get(selGlobal);
     if (!n) return false;
     if (globalVizKind === "tree" || graphHasHierarchyRoles) {
-      return n.hierarchyRole === "code";
+      return isOpenCodeCorpusNode(gData, n);
     }
     return true;
-  }, [selGlobal, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
+  }, [selGlobal, gDataForVis, gData, globalVizKind, graphHasHierarchyRoles]);
 
   const traceDirectParentLabel = useMemo(() => {
-    if (!gDataForVis || !traceNode || traceNode.hierarchyRole !== "code") return null;
-    const pm = buildParentMapFromEdges(gDataForVis.edges);
+    if (!gData || !traceNode || !isOpenCodeCorpusNode(gData, traceNode)) return null;
+    const pm = buildParentMapFromEdges(gData.edges);
     const pid = pm.get(traceNode.id);
     if (pid == null) return null;
-    return gDataForVis.nodeMap.get(pid)?.label ?? null;
-  }, [gDataForVis, traceNode]);
+    return gData.nodeMap.get(pid)?.label ?? null;
+  }, [gData, traceNode]);
 
   const traceEvidenceBundle = useMemo((): {
     groups: { leaf: GraphNode; rows: OpenCodeEvidenceRow[] }[];
@@ -375,12 +358,12 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
       return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
     }
 
-    if (traceNode.hierarchyRole !== "code") {
+    if (!gData || !isOpenCodeCorpusNode(gData, traceNode)) {
       return { groups: [] };
     }
 
     return { groups: [{ leaf: traceNode, rows: rowsForLeaf(traceNode) }] };
-  }, [selected?.open_codes_markdown, traceNode, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
+  }, [selected?.open_codes_markdown, traceNode, gData, gDataForVis, globalVizKind, graphHasHierarchyRoles]);
 
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
@@ -396,110 +379,98 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   return (
     <div className="library-page" data-theme={isDark ? "dark" : "light"}>
-      <section className="library-hero library-hero--compact">
-        <div className="library-hero-inner">
-          <div className="library-hero-copy">
-            <p className="library-kicker">Supabase</p>
-            <h2 className="library-title">Research library</h2>
-            <p className="library-sub">
-              Table <code className="library-code">{tableName}</code>
-            </p>
-          </div>
-          <div className="library-hero-actions">
-            <button type="button" className="library-btn primary" onClick={load} disabled={loading || !configured}>
-              {loading ? "Fetching…" : "Fetch from database"}
+      <div className="library-shell">
+        <div className="library-toolbar-min glass-panel">
+          <div className="library-toolbar-min-row">
+            <button
+              type="button"
+              className="library-btn library-btn--primary library-btn--sync"
+              onClick={load}
+              disabled={loading || !configured}
+            >
+              {loading ? "Loading…" : "Sync from database"}
             </button>
+            {rows.length > 0 && (
+              <>
+                <label className="library-toolbar-label" htmlFor="library-rq-select">
+                  Project
+                </label>
+                <select
+                  id="library-rq-select"
+                  className="library-select library-select--toolbar"
+                  value={selectedRowId ?? ""}
+                  onChange={(e) => onSelectRow(e.target.value || null)}
+                  aria-label="Choose research project"
+                >
+                  {rows.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {rowOptionLabel(row)}
+                    </option>
+                  ))}
+                </select>
+                {selected ? (
+                  <div className="library-toolbar-chips" aria-label="Project metadata">
+                    <span className="library-chip" title="Row slug">
+                      {selected.slug}
+                    </span>
+                    <span className="library-chip library-chip--muted" title="Loaded at">
+                      {formatWhen(selected.created_at)}
+                    </span>
+                  </div>
+                ) : null}
+              </>
+            )}
             {!configured && (
-              <span className="library-config-hint">Configure env keys to enable fetch.</span>
+              <p className="library-config-hint library-config-hint--inline">
+                Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
+              </p>
             )}
           </div>
         </div>
-        {fetchError && <div className="library-banner error">{fetchError}</div>}
-        {rows.length > 0 && (
-          <div className="library-row-picker">
-            <label className="library-select-label" htmlFor="library-rq-select">
-              Research question
-            </label>
-            <select
-              id="library-rq-select"
-              className="library-select"
-              value={selectedRowId ?? ""}
-              onChange={(e) => onSelectRow(e.target.value || null)}
-              aria-label="Choose research question"
-            >
-              {rows.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {rowOptionLabel(row)}
-                </option>
-              ))}
-            </select>
-            {selected && (
-              <span className="library-select-meta" title={`${selected.slug} · ${formatWhen(selected.created_at)}`}>
-                {selected.slug} · {formatWhen(selected.created_at)}
-              </span>
-            )}
+        {fetchError && (
+          <div className="library-banner library-banner--error" role="alert">
+            {fetchError}
           </div>
         )}
-      </section>
 
       {selected && (
         <div className="library-detail library-detail--graph">
-          <div className="library-detail-toolbar">
-            <p className="library-detail-toolbar-meta" title={rowLabel(selected)}>
-              <span className="library-detail-toolbar-slug">{selected.slug}</span>
-              <span className="library-detail-toolbar-when">{formatWhen(selected.created_at)}</span>
-            </p>
-            <button
-              type="button"
-              className="library-report-fab"
-              onClick={() => setReportOpen(true)}
-              aria-expanded={reportOpen}
-              aria-controls="library-report-panel"
-            >
-              Report
-            </button>
+          <div className="library-context-bar glass-panel">
+            <div className="library-context-info">
+              <span className="library-context-label">Now viewing</span>
+              <p className="library-context-rq" title={rowLabel(selected)}>
+                {rowLabel(selected)}
+              </p>
+            </div>
           </div>
 
-          {reportOpen && (
-            <>
-              <div
-                className="library-report-backdrop"
-                aria-hidden
-                onClick={() => setReportOpen(false)}
-              />
-              <div
-                className="library-report-float glass-panel"
-                id="library-report-panel"
-                role="dialog"
-                aria-labelledby="library-report-title"
-                aria-modal="true"
-              >
-                <div className="library-panel-head library-panel-head--closable">
-                  <span className="library-panel-icon">◆</span>
-                  <h4 id="library-report-title">Report</h4>
-                  <button
-                    type="button"
-                    className="library-report-close"
-                    onClick={() => setReportOpen(false)}
-                    aria-label="Close report"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="library-markdown library-markdown--float">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {selected.report_markdown || "_No report text._"}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </>
-          )}
+          <div className="library-workspace">
+          <aside className="library-report-inline glass-panel" aria-label="Research report">
+            <div className="library-report-inline-head">
+              <span className="library-panel-icon" aria-hidden="true">
+                ◆
+              </span>
+              <h4 id="library-report-heading">Research report</h4>
+            </div>
+            <div className="library-markdown library-markdown--inline">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {selected.report_markdown || "_No report text._"}
+              </ReactMarkdown>
+            </div>
+          </aside>
 
           <article className="library-graph-panel library-graph-panel--primary glass-panel">
                 <div className="library-panel-head">
-                  <span className="library-panel-icon">◎</span>
-                  <h4>Global graph</h4>
-                  <div className="library-panel-tools">
+                  <div className="library-panel-head-text">
+                    <span className="library-panel-icon" aria-hidden="true">
+                      ◎
+                    </span>
+                    <div>
+                      <h4>Theme graph</h4>
+                      <p className="library-panel-sub">Interactive view of your exported global_graph</p>
+                    </div>
+                  </div>
+                  <div className="library-panel-tools" role="toolbar" aria-label="Graph display options">
                     {globalVizKind === "edges" && (
                       <label className="library-mini-check">
                         <input
@@ -655,14 +626,20 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                   </>
                 )}
           </article>
+          </div>
         </div>
       )}
 
       {rows.length === 0 && !loading && !fetchError && configured && (
-        <div className="library-empty glass-panel">
-          <p>Nothing loaded yet. Press <strong>Fetch from database</strong> to load rows.</p>
+        <div className="library-empty library-empty--cta glass-panel">
+          <p className="library-empty-title">No rows in memory</p>
+          <p className="library-empty-body">
+            Use <strong>Sync from database</strong> above to load projects from Supabase, then choose one to open the
+            graph.
+          </p>
         </div>
       )}
+      </div>
     </div>
   );
 }
