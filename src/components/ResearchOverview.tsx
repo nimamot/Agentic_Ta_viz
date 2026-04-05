@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Icon } from "@iconify/react";
 import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
 
@@ -38,6 +39,18 @@ const SECTION_LABELS = [
   "Evaluation",
   "Future",
 ] as const;
+
+/** Section heading with accent bar (matches Background & motivation title style). */
+function DeckSectionTitle({ id, title }: { id: string; title: string }) {
+  return (
+    <h2 id={id} className="research-bm-page-title">
+      <span className="research-bm-title-block">
+        <span className="research-bm-title-line">{title}</span>
+        <span className="research-bm-title-bar" aria-hidden="true" />
+      </span>
+    </h2>
+  );
+}
 
 function IntersectionVenn() {
   const uid = useId().replace(/:/g, "");
@@ -262,9 +275,9 @@ function EvalDatasetTable() {
   );
 }
 
-function MyWorkFlow() {
+function MyWorkFlow({ className }: { className?: string }) {
   return (
-    <div className="research-workflow" aria-label="Inputs to outputs">
+    <div className={className ? `research-workflow ${className}` : "research-workflow"} aria-label="Inputs to outputs">
       <div className="research-workflow-row">
         <div className="research-workflow-card">
           <h3 className="research-workflow-card-title">Input data</h3>
@@ -357,11 +370,13 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         <section className="research-slide research-slide--hero" aria-labelledby="research-slide-0-title">
           <div className="research-slide-inner research-slide-inner--hero">
             <div className="research-hero-head">
-              <p className="research-kicker">Research overview</p>
-              <h1 id="research-slide-0-title" className="research-title">
-                {PRESENTATION.title}
-              </h1>
-              <p className="research-author">{PRESENTATION.author}</p>
+              <div className="research-deck-panel research-deck-panel--neutral research-hero-intro-panel">
+                <p className="research-kicker">Research overview</p>
+                <h1 id="research-slide-0-title" className="research-title">
+                  {PRESENTATION.title}
+                </h1>
+                <p className="research-author">{PRESENTATION.author}</p>
+              </div>
             </div>
             <div className="research-hero-vis">
               <IntersectionVenn />
@@ -370,63 +385,118 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-1-title">
-          <div className="research-slide-inner">
-            <h2 id="research-slide-1-title" className="research-h2">
-              Background and motivation
+          <div className="research-slide-inner research-slide-inner--deck">
+            <h2 id="research-slide-1-title" className="research-bm-page-title">
+              <span className="research-bm-title-block">
+                <span className="research-bm-title-line">Background</span>
+                <span className="research-bm-title-bar" aria-hidden="true" />
+              </span>
+              <span className="research-bm-title-join">&nbsp;&amp; motivation</span>
             </h2>
-            <h3 className="research-h3">Background</h3>
-            <p className="research-lead">
-              Purpose of this project is to{" "}
-              <strong>
-                develop and evaluate an LLM-based agent workflow for extracting and organizing information from text
-              </strong>
-              , supporting insight generation with <strong>minimal surrounding context</strong>.
-            </p>
-            <p className="research-body">
-              Qualitative researchers routinely work with large text collections; manual thematic analysis does not
-              scale. This work asks how far automated agents can carry out grounded, transparent coding and structuring
-              while remaining accountable to a stated research question.
-            </p>
-            <h3 className="research-h3 research-h3--spaced">Motivation</h3>
-            <p className="research-body">Relevant papers and how their findings motivated this work.</p>
+
+            <div className="research-bm-grid">
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
+                aria-label="Project purpose"
+              >
+                <p className="research-bm-kicker">Project purpose</p>
+                <p className="research-bm-panel-lead">
+                  Purpose of this project is to{" "}
+                  <strong>
+                    develop and evaluate an LLM-based agent workflow for extracting and organizing information from
+                    text
+                  </strong>
+                  , supporting insight generation with <strong>minimal surrounding context</strong>.
+                </p>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--lavender"
+                aria-labelledby="research-bm-bg-heading"
+              >
+                <h3 id="research-bm-bg-heading" className="research-bm-panel-h">
+                  <Icon icon="carbon:document-blank" aria-hidden="true" />
+                  Background
+                </h3>
+                <p className="research-bm-panel-body">
+                  Qualitative researchers routinely work with large text collections; manual thematic analysis does not
+                  scale.
+                </p>
+                <p className="research-bm-panel-body">
+                  This work asks how far automated agents can carry out grounded, transparent coding and structuring while
+                  remaining accountable to a stated research question.
+                </p>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--teal"
+                aria-labelledby="research-bm-mot-heading"
+              >
+                <h3 id="research-bm-mot-heading" className="research-bm-panel-h">
+                  <Icon icon="solar:stars-bold" aria-hidden="true" />
+                  Motivation
+                </h3>
+                <p className="research-bm-panel-body">
+                  Prior literature on qualitative methods, agentic LLM systems, and evaluation — and how those threads
+                  motivated the design choices here.
+                </p>
+                <ul className="research-bm-list">
+                  <li>Review of relevant agentic / thematic-analysis workflows</li>
+                  <li>Synthesizing findings to inform this pipeline&apos;s design</li>
+                </ul>
+              </section>
+            </div>
           </div>
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-2-title">
-          <div className="research-slide-inner research-slide-inner--focus">
-            <h2 id="research-slide-2-title" className="research-h2">
-              Focus
-            </h2>
-            <div className="research-two-col">
-              <div>
-                <h3 className="research-h3">Thematic analysis</h3>
-                <p className="research-body">
+          <div className="research-slide-inner research-slide-inner--deck">
+            <DeckSectionTitle id="research-slide-2-title" title="Focus" />
+            <div className="research-bm-grid">
+              <section className="research-deck-panel research-deck-panel--lavender" aria-labelledby="research-focus-ta">
+                <h3 id="research-focus-ta" className="research-bm-panel-h">
+                  Thematic analysis
+                </h3>
+                <p className="research-bm-panel-body">
                   A family of approaches for identifying, analyzing, and reporting patterns (themes) across qualitative
                   data. Themes capture shared meaning relevant to the research question and are typically illustrated
                   with data extracts.
                 </p>
-              </div>
-              <div>
-                <h3 className="research-h3">Grounded theory (GT)</h3>
-                <p className="research-body">
+              </section>
+              <section className="research-deck-panel research-deck-panel--teal" aria-labelledby="research-focus-gt">
+                <h3 id="research-focus-gt" className="research-bm-panel-h">
+                  Grounded theory (GT)
+                </h3>
+                <p className="research-bm-panel-body">
                   An inductive methodology for building theory from data. In social science it is widely used to study
                   human behavior and social dynamics—often at scale when texts (interviews, posts, reviews) stand in for
                   field notes.
                 </p>
-              </div>
+              </section>
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
+                aria-labelledby="research-focus-gt-steps"
+              >
+                <p className="research-bm-kicker">Coding trajectory</p>
+                <h3 id="research-focus-gt-steps" className="research-bm-panel-h">
+                  Typical GT coding trajectory
+                </h3>
+                <GroundedTheorySteps />
+              </section>
             </div>
-            <h3 className="research-h3 research-h3--spaced">Typical GT coding trajectory</h3>
-            <GroundedTheorySteps />
           </div>
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-3-title">
-          <div className="research-slide-inner">
-            <h2 id="research-slide-3-title" className="research-h2">
-              My work
-            </h2>
-            <p className="research-lead">End-to-end flow from your corpus to structured outputs and a report.</p>
-            <MyWorkFlow />
+          <div className="research-slide-inner research-slide-inner--deck">
+            <DeckSectionTitle id="research-slide-3-title" title="My work" />
+            <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
+              <p className="research-bm-kicker">Scope</p>
+              <p className="research-bm-panel-lead">
+                End-to-end flow from your corpus to structured outputs and a report.
+              </p>
+              <MyWorkFlow className="research-workflow--deck" />
+            </section>
           </div>
         </section>
 
@@ -439,38 +509,38 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
 
         <section className="research-slide" aria-labelledby="research-slide-5-title">
           <div className="research-slide-inner research-slide-inner--eval">
-            <h2 id="research-slide-5-title" className="research-h2">
-              Pipeline evaluation
-            </h2>
-            <h3 className="research-h3 research-h3--spaced">Evaluation dataset</h3>
-            <p className="research-body">Gold labels · text-only in.</p>
-            <EvalDatasetTable />
+            <DeckSectionTitle id="research-slide-5-title" title="Pipeline evaluation" />
+            <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
+              <p className="research-bm-kicker">Evaluation dataset</p>
+              <p className="research-bm-panel-body">Gold labels · text-only in.</p>
+              <EvalDatasetTable />
+            </section>
           </div>
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-6-title">
-          <div className="research-slide-inner">
-            <h2 id="research-slide-6-title" className="research-h2">
-              Future improvements
-            </h2>
-            <ul className="research-future-list">
-              <li>
-                <strong>Parallelized open coding</strong> — shard the corpus across workers while preserving shared code
-                lists and merge semantics.
-              </li>
-              <li>
-                <strong>Human-in-the-loop checkpoints</strong> — optional review gates before axial clustering and before
-                final reporting.
-              </li>
-              <li>
-                <strong>Calibration &amp; evaluation</strong> — systematic comparison to human-coded gold subsets and
-                stability under prompt or model changes.
-              </li>
-              <li>
-                <strong>Streaming &amp; incremental updates</strong> — extend the workflow as new text arrives without a
-                full rerun.
-              </li>
-            </ul>
+          <div className="research-slide-inner research-slide-inner--deck">
+            <DeckSectionTitle id="research-slide-6-title" title="Future improvements" />
+            <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
+              <ul className="research-bm-list research-bm-list--loose">
+                <li>
+                  <strong>Parallelized open coding</strong> — shard the corpus across workers while preserving shared code
+                  lists and merge semantics.
+                </li>
+                <li>
+                  <strong>Human-in-the-loop checkpoints</strong> — optional review gates before axial clustering and before
+                  final reporting.
+                </li>
+                <li>
+                  <strong>Calibration &amp; evaluation</strong> — systematic comparison to human-coded gold subsets and
+                  stability under prompt or model changes.
+                </li>
+                <li>
+                  <strong>Streaming &amp; incremental updates</strong> — extend the workflow as new text arrives without a
+                  full rerun.
+                </li>
+              </ul>
+            </section>
           </div>
         </section>
       </div>
