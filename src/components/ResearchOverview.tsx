@@ -275,33 +275,6 @@ function EvalDatasetTable() {
   );
 }
 
-function MyWorkFlow({ className }: { className?: string }) {
-  return (
-    <div className={className ? `research-workflow ${className}` : "research-workflow"} aria-label="Inputs to outputs">
-      <div className="research-workflow-row">
-        <div className="research-workflow-card">
-          <h3 className="research-workflow-card-title">Input data</h3>
-          <p className="research-workflow-card-body">Text corpus (e.g. reviews) plus an explicit research question.</p>
-        </div>
-        <span className="research-workflow-arrow" aria-hidden="true">
-          →
-        </span>
-        <div className="research-workflow-card research-workflow-card--accent">
-          <h3 className="research-workflow-card-title">My workflow</h3>
-          <p className="research-workflow-card-body">LLM-based agent pipeline for coding, validation, and structure.</p>
-        </div>
-        <span className="research-workflow-arrow" aria-hidden="true">
-          →
-        </span>
-        <div className="research-workflow-card">
-          <h3 className="research-workflow-card-title">Outputs</h3>
-          <p className="research-workflow-card-body">Codebook, hierarchical theme graph, and narrative research report.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 interface ResearchOverviewProps {
   isDark: boolean;
 }
