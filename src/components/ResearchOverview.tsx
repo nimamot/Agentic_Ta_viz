@@ -395,56 +395,95 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               </span>
             </h2>
 
-            <div className="research-bm-grid">
+            <div className="research-bm-grid research-bm-grid--bm-funnel">
               <section
                 className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
-                aria-label="Project purpose"
+                aria-labelledby="bm-why-matters-heading"
               >
-                <p className="research-bm-kicker">Project purpose</p>
-                <p className="research-bm-panel-lead">
-                  Purpose of this project is to{" "}
-                  <strong>
-                    develop and evaluate an LLM-based agent workflow for extracting and organizing information from
-                    text
-                  </strong>
-                  , supporting insight generation with <strong>minimal surrounding context</strong>.
-                </p>
-              </section>
-
-              <section
-                className="research-deck-panel research-deck-panel--lavender"
-                aria-labelledby="research-bm-bg-heading"
-              >
-                <h3 id="research-bm-bg-heading" className="research-bm-panel-h">
-                  <Icon icon="carbon:document-blank" aria-hidden="true" />
-                  Background
+                <h3 id="bm-why-matters-heading" className="research-bm-kicker research-bm-kicker--section">
+                  Why this matters
                 </h3>
-                <p className="research-bm-panel-body">
-                  Qualitative researchers routinely work with large text collections; manual thematic analysis does not
-                  scale.
-                </p>
-                <p className="research-bm-panel-body">
-                  This work asks how far automated agents can carry out grounded, transparent coding and structuring while
-                  remaining accountable to a stated research question.
-                </p>
-              </section>
-
-              <section
-                className="research-deck-panel research-deck-panel--teal"
-                aria-labelledby="research-bm-mot-heading"
-              >
-                <h3 id="research-bm-mot-heading" className="research-bm-panel-h">
-                  <Icon icon="solar:stars-bold" aria-hidden="true" />
-                  Motivation
-                </h3>
-                <p className="research-bm-panel-body">
-                  Prior literature on qualitative methods, agentic LLM systems, and evaluation — and how those threads
-                  motivated the design choices here.
-                </p>
-                <ul className="research-bm-list">
-                  <li>Review of relevant agentic / thematic-analysis workflows</li>
-                  <li>Synthesizing findings to inform this pipeline&apos;s design</li>
+                <ul className="research-bm-list research-bm-list--loose research-bm-list--funnel">
+                  <li>
+                    <strong>Grounded theory and thematic analysis are central in the social sciences</strong> because they
+                    help researchers move from raw text to interpretable patterns, categories, and theory about human
+                    behavior, experience, and social dynamics.
+                  </li>
+                  <li>
+                    They are valuable precisely because they capture <strong>context, meaning, and explanation</strong>,
+                    not just surface-level patterns. But manual coding, theme refinement, and theorization are slow,
+                    labor-intensive, and difficult to scale.
+                  </li>
                 </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--lavender research-deck-panel--span"
+                aria-labelledby="bm-llm-promise-heading"
+              >
+                <h3 id="bm-llm-promise-heading" className="research-bm-kicker research-bm-kicker--section">
+                  Why LLMs are promising
+                </h3>
+                <ul className="research-bm-list research-bm-list--funnel">
+                  <li>
+                    Recent work shows that LLMs can assist with{" "}
+                    <strong>coding, grouping, and theme generation</strong> across larger corpora, making qualitative
+                    analysis more scalable and reducing repetitive analytic effort.
+                  </li>
+                </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--teal research-deck-panel--span"
+                aria-labelledby="bm-current-work-heading"
+              >
+                <h3 id="bm-current-work-heading" className="research-bm-kicker research-bm-kicker--section">
+                  Current work
+                </h3>
+                <ul className="research-bm-list research-bm-list--loose research-bm-list--funnel">
+                  <li>
+                    <strong>LOGOS</strong>: shows that LLMs can support grounded-theory-style coding, structured
+                    codebooks, and hierarchical schema construction for qualitative research.
+                  </li>
+                  <li>
+                    <strong>Thematic-LM</strong>: uses a multi-agent setup for large-scale thematic analysis, with
+                    specialized agents and an adaptive codebook to support broader and more diverse coding.
+                  </li>
+                  <li>
+                    <strong>LLM-Assisted TA</strong>: highlights the methodological side of the problem, showing that
+                    efficiency gains come with concerns around bias, contextual loss, reproducibility, and human
+                    oversight.
+                  </li>
+                </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--lavender research-deck-panel--span"
+                aria-labelledby="bm-gap-heading"
+              >
+                <h3 id="bm-gap-heading" className="research-bm-kicker research-bm-kicker--section">
+                  What is still missing
+                </h3>
+                <ul className="research-bm-list research-bm-list--funnel">
+                  <li>
+                    The literature makes clear that scale alone is not enough. Researchers still need workflows that
+                    preserve <strong>transparency, contextual fidelity, reproducibility, and interpretive accountability</strong>.
+                  </li>
+                </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
+                aria-labelledby="bm-project-mot-heading"
+              >
+                <h3 id="bm-project-mot-heading" className="research-bm-panel-h">
+                  <Icon icon="solar:stars-bold" aria-hidden="true" />
+                  Project motivation
+                </h3>
+                <p className="research-bm-panel-lead">
+                  This project is motivated by that gap: building an LLM-guided workflow that supports scale while
+                  remaining <strong>validated, traceable, and accountable to a stated research question</strong>.
+                </p>
               </section>
             </div>
           </div>
