@@ -31,8 +31,8 @@ const SECTION_COUNT = 8;
 
 const SECTION_LABELS = [
   "Overview",
+  "Context",
   "Background",
-  "Focus",
   "My work",
   "Pipeline",
   "Evaluation",
@@ -212,16 +212,16 @@ function IntersectionVenn() {
 
 function GroundedTheorySteps() {
   const steps = [
-    { n: "1", title: "Open coding", desc: "Break text into discrete codes grounded in the data." },
-    { n: "2", title: "Axial coding", desc: "Relate codes into categories and patterns." },
-    { n: "3", title: "Selective coding", desc: "Integrate around a core storyline or framework." },
+    { n: "1", title: "Open coding", desc: "Discrete codes from the data" },
+    { n: "2", title: "Axial coding", desc: "Categories and relationships" },
+    { n: "3", title: "Selective coding", desc: "Core storyline / framework" },
   ];
   return (
     <ol className="research-gt-steps">
       {steps.map((s) => (
         <li key={s.n} className="research-gt-step">
-          <span className="research-gt-step-num">{s.n}</span>
-          <div>
+          <div className="research-gt-step-inner">
+            <span className="research-gt-step-num">{s.n}</span>
             <strong className="research-gt-step-title">{s.title}</strong>
             <p className="research-gt-step-desc">{s.desc}</p>
           </div>
@@ -384,9 +384,84 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
+        {/* ── Slide 1: Thematic Analysis & Grounded Theory ── */}
         <section className="research-slide research-slide--bm" aria-labelledby="research-slide-1-title">
           <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
-            <h2 id="research-slide-1-title" className="research-bm-page-title">
+            <DeckSectionTitle id="research-slide-1-title" title="Context" />
+            <div className="research-bm-grid research-bm-grid--narrative">
+              {/* Row 1: TA + Social science importance */}
+              <section
+                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card"
+                aria-labelledby="research-focus-ta-heading"
+              >
+                <p className="research-bm-slide-label">What is</p>
+                <h3 id="research-focus-ta-heading" className="research-bm-slide-claim">
+                  Thematic Analysis
+                </h3>
+                <p className="research-bm-slide-sub">
+                  Identifying shared patterns of meaning across qualitative text
+                </p>
+                <ul className="research-bm-slide-bullets">
+                  <li>Interviews, surveys, social media, documents</li>
+                  <li>Guided by a research question</li>
+                  <li>Interpretation — not word counts</li>
+                </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--teal research-bm-slide-card"
+                aria-labelledby="research-focus-ss-heading"
+              >
+                <p className="research-bm-slide-label">Why it matters</p>
+                <h3 id="research-focus-ss-heading" className="research-bm-slide-claim">
+                  Central to Social Science
+                </h3>
+                <p className="research-bm-slide-sub">
+                  The core method family for text-based inquiry
+                </p>
+                <ul className="research-bm-slide-bullets">
+                  <li>Health, education, policy, psychology</li>
+                  <li>Captures context, meaning, and nuance</li>
+                  <li>But: manual, slow, hard to scale</li>
+                </ul>
+              </section>
+
+              {/* Row 2: GT definition + GT steps visual */}
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
+                aria-labelledby="research-focus-gt-heading"
+              >
+                <p className="research-bm-slide-label">The standard approach</p>
+                <h3 id="research-focus-gt-heading" className="research-bm-slide-claim">
+                  Grounded Theory
+                </h3>
+                <p className="research-bm-slide-sub">
+                  Building themes inductively from data
+                </p>
+                <ul className="research-bm-slide-bullets">
+                  <li>Theory emerges from the text itself</li>
+                  <li>Systematic: codes → categories → themes</li>
+                  <li>Widely used to structure thematic analysis</li>
+                </ul>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card research-bm-slide-card--gt-trajectory"
+                aria-labelledby="research-focus-gt-steps-heading"
+              >
+                <h3 id="research-focus-gt-steps-heading" className="research-gt-trajectory-title">
+                  GT coding stages
+                </h3>
+                <GroundedTheorySteps />
+              </section>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Slide 2: LLM Opportunity → Current Work → Gap ── */}
+        <section className="research-slide research-slide--bm" aria-labelledby="research-slide-2-title">
+          <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
+            <h2 id="research-slide-2-title" className="research-bm-page-title">
               <span className="research-bm-title-block research-bm-title-block--with-join">
                 <span className="research-bm-title-line">Background</span>
                 <span className="research-bm-title-join">&nbsp;&amp; motivation</span>
@@ -394,129 +469,70 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               </span>
             </h2>
 
-            <div className="research-bm-grid research-bm-grid--slide-deck">
+            <div className="research-bm-grid research-bm-grid--narrative">
+              {/* Row 1: LLM opportunity (full width) */}
               <section
-                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
-                aria-labelledby="bm-why-matters-heading"
+                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card research-bm-slide-card--span"
+                aria-labelledby="bm-llm-opportunity-heading"
               >
-                <h3 id="bm-why-matters-heading" className="research-bm-slide-label">
-                  Why it matters
+                <p className="research-bm-slide-label">The opportunity</p>
+                <h3 id="bm-llm-opportunity-heading" className="research-bm-slide-claim">
+                  LLMs for Qualitative Analysis
                 </h3>
-                <p className="research-bm-slide-claim">Turns raw text into explanation</p>
-                <ul className="research-bm-slide-bullets">
-                  <li>context</li>
-                  <li>meaning</li>
-                  <li>explanation</li>
-                  <li>theory-building</li>
+                <p className="research-bm-slide-sub">
+                  LLMs can perform the cognitive steps of GT — coding, grouping, abstracting — at scale
+                </p>
+                <ul className="research-bm-slide-bullets research-bm-slide-bullets--inline">
+                  <li>Process thousands of texts</li>
+                  <li>Generate and refine codes</li>
+                  <li>Build thematic hierarchies</li>
+                  <li>Produce narrative reports</li>
                 </ul>
               </section>
 
+              {/* Row 2: Current work + Gap & motivation */}
               <section
-                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card"
-                aria-labelledby="bm-llm-help-heading"
-              >
-                <h3 id="bm-llm-help-heading" className="research-bm-slide-label">
-                  Why LLMs help
-                </h3>
-                <p className="research-bm-slide-claim">LLMs make qualitative analysis more scalable</p>
-                <ul className="research-bm-slide-bullets">
-                  <li>coding</li>
-                  <li>grouping</li>
-                  <li>theme generation</li>
-                  <li>larger corpora</li>
-                </ul>
-              </section>
-
-              <section
-                className="research-deck-panel research-deck-panel--teal research-bm-slide-card research-bm-slide-card--span"
+                className="research-deck-panel research-deck-panel--teal research-bm-slide-card"
                 aria-labelledby="bm-current-work-heading"
               >
-                <h3 id="bm-current-work-heading" className="research-bm-slide-label">
-                  Current work
+                <p className="research-bm-slide-label">Existing approaches</p>
+                <h3 id="bm-current-work-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
+                  Current Work
                 </h3>
                 <div className="research-bm-work-minis">
                   <div className="research-bm-mini-card">
                     <p className="research-bm-mini-name">LOGOS</p>
-                    <ul className="research-bm-mini-list">
-                      <li>GT-style coding</li>
-                      <li>structured codebooks</li>
-                      <li>hierarchy construction</li>
-                    </ul>
+                    <p className="research-bm-mini-desc">GT-style coding &amp; hierarchy construction</p>
                   </div>
                   <div className="research-bm-mini-card">
                     <p className="research-bm-mini-name">Thematic-LM</p>
-                    <ul className="research-bm-mini-list">
-                      <li>multi-agent setup</li>
-                      <li>large-scale TA</li>
-                      <li>adaptive codebook</li>
-                    </ul>
+                    <p className="research-bm-mini-desc">Multi-agent large-scale TA</p>
                   </div>
                   <div className="research-bm-mini-card">
                     <p className="research-bm-mini-name">LLM-Assisted TA</p>
-                    <ul className="research-bm-mini-list">
-                      <li>methodological reflection</li>
-                      <li>risks and tradeoffs</li>
-                      <li>human oversight</li>
-                    </ul>
+                    <p className="research-bm-mini-desc">Methodological reflection &amp; human oversight</p>
                   </div>
                 </div>
               </section>
 
               <section
-                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card research-bm-slide-card--span"
+                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
                 aria-labelledby="bm-gap-mot-heading"
               >
-                <h3 id="bm-gap-mot-heading" className="research-bm-slide-label">
-                  Gap &amp; motivation
+                <p className="research-bm-slide-label">What's missing</p>
+                <h3 id="bm-gap-mot-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
+                  Gap &amp; Motivation
                 </h3>
-                <p className="research-bm-slide-claim">Scale alone is not enough</p>
+                <p className="research-bm-slide-sub">Scale alone is not enough</p>
                 <ul className="research-bm-slide-bullets">
-                  <li>transparency</li>
-                  <li>contextual fidelity</li>
-                  <li>reproducibility</li>
-                  <li>researcher oversight</li>
+                  <li>Limited transparency</li>
+                  <li>Weak contextual fidelity</li>
+                  <li>No reproducibility guarantees</li>
+                  <li>Insufficient researcher oversight</li>
                 </ul>
                 <p className="research-bm-slide-focus">
-                  <strong>My focus:</strong> validated, traceable, research-question-guided workflow
+                  <strong>My focus:</strong> a validated, traceable, research-question-guided workflow
                 </p>
-              </section>
-            </div>
-          </div>
-        </section>
-
-        <section className="research-slide" aria-labelledby="research-slide-2-title">
-          <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-2-title" title="Focus" />
-            <div className="research-bm-grid">
-              <section className="research-deck-panel research-deck-panel--lavender" aria-labelledby="research-focus-ta">
-                <h3 id="research-focus-ta" className="research-bm-panel-h">
-                  Thematic analysis
-                </h3>
-                <p className="research-bm-panel-body">
-                  A family of approaches for identifying, analyzing, and reporting patterns (themes) across qualitative
-                  data. Themes capture shared meaning relevant to the research question and are typically illustrated
-                  with data extracts.
-                </p>
-              </section>
-              <section className="research-deck-panel research-deck-panel--teal" aria-labelledby="research-focus-gt">
-                <h3 id="research-focus-gt" className="research-bm-panel-h">
-                  Grounded theory (GT)
-                </h3>
-                <p className="research-bm-panel-body">
-                  An inductive methodology for building theory from data. In social science it is widely used to study
-                  human behavior and social dynamics—often at scale when texts (interviews, posts, reviews) stand in for
-                  field notes.
-                </p>
-              </section>
-              <section
-                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
-                aria-labelledby="research-focus-gt-steps"
-              >
-                <p className="research-bm-kicker">Coding trajectory</p>
-                <h3 id="research-focus-gt-steps" className="research-bm-panel-h">
-                  Typical GT coding trajectory
-                </h3>
-                <GroundedTheorySteps />
               </section>
             </div>
           </div>
