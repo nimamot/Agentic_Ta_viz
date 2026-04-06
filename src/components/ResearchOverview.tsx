@@ -33,7 +33,7 @@ const SECTION_LABELS = [
   "Overview",
   "Context",
   "Background",
-  "My work",
+  "This work",
   "Pipeline",
   "Evaluation",
   "Contribution",
@@ -538,16 +538,50 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide" aria-labelledby="research-slide-3-title">
-          <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-3-title" title="My work" />
-            <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
-              <p className="research-bm-kicker">Scope</p>
-              <p className="research-bm-panel-lead">
-                End-to-end flow from your corpus to structured outputs and a report.
-              </p>
-              <MyWorkFlow className="research-workflow--deck" />
-            </section>
+        <section className="research-slide research-slide--bm" aria-labelledby="research-slide-3-title">
+          <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
+            <DeckSectionTitle id="research-slide-3-title" title="This work" />
+            <div className="research-bm-grid research-bm-grid--narrative">
+              {/* Research question — full width, prominent */}
+              <section
+                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card research-bm-slide-card--span"
+                aria-labelledby="rq-heading"
+              >
+                <p className="research-bm-slide-label">Research question</p>
+                <h3 id="rq-heading" className="research-bm-slide-claim">
+                  Can an LLM-based pipeline perform grounded thematic analysis that is transparent, traceable, and faithful to the source data?
+                </h3>
+              </section>
+
+              {/* Thesis + Approach side by side */}
+              <section
+                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
+                aria-labelledby="thesis-heading"
+              >
+                <p className="research-bm-slide-label">Thesis</p>
+                <h3 id="thesis-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
+                  End-to-End LLM Pipeline for GT-Based TA
+                </h3>
+                <p className="research-bm-slide-sub">
+                  By structuring LLM agents around GT coding stages and adding built-in validation, we can produce thematic analyses that are scalable without sacrificing methodological rigor.
+                </p>
+              </section>
+
+              <section
+                className="research-deck-panel research-deck-panel--teal research-bm-slide-card"
+                aria-labelledby="approach-heading"
+              >
+                <h3 id="approach-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
+                  Approach
+                </h3>
+                <ul className="research-bm-slide-bullets">
+                  <li>Research-question-guided coding</li>
+                  <li>GT-inspired stage pipeline (open → axial → selective)</li>
+                  <li>Validation agents that review codes and assignments</li>
+                  <li>Traceable outputs: codebook, theme graph, report</li>
+                </ul>
+              </section>
+            </div>
           </div>
         </section>
 
