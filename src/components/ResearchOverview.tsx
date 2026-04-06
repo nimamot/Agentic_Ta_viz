@@ -388,11 +388,11 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         <section className="research-slide" aria-labelledby="research-slide-1-title">
           <div className="research-slide-inner research-slide-inner--deck">
             <h2 id="research-slide-1-title" className="research-bm-page-title">
-              <span className="research-bm-title-block">
+              <span className="research-bm-title-block research-bm-title-block--with-join">
                 <span className="research-bm-title-line">Background</span>
+                <span className="research-bm-title-join">&nbsp;&amp; motivation</span>
                 <span className="research-bm-title-bar" aria-hidden="true" />
               </span>
-              <span className="research-bm-title-join">&nbsp;&amp; motivation</span>
             </h2>
 
             <div className="research-bm-grid">

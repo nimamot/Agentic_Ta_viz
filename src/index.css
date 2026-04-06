@@ -2362,6 +2362,36 @@ body::after {
   gap: 0.35rem;
 }
 
+/* “Background” + “& motivation” on one baseline row; accent bar only under first word */
+.research-bm-title-block--with-join {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.15rem;
+  row-gap: 0.35rem;
+  align-items: baseline;
+  justify-items: start;
+}
+
+.research-bm-title-block--with-join .research-bm-title-line {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.research-bm-title-block--with-join .research-bm-title-join {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: baseline;
+  padding-bottom: 0;
+  font-weight: 800;
+}
+
+.research-bm-title-block--with-join .research-bm-title-bar {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+}
+
 .research-bm-title-line {
   font-weight: 800;
   letter-spacing: inherit;
@@ -2376,7 +2406,6 @@ body::after {
 }
 
 .research-bm-title-join {
-  padding-bottom: 0.2rem;
   font-weight: 800;
 }
 
@@ -2564,9 +2593,26 @@ body::after {
     align-items: flex-start;
   }
 
-  .research-bm-title-join {
-    padding-bottom: 0;
-    margin-top: 0.15rem;
+  .research-bm-title-block--with-join {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    row-gap: 0.3rem;
+  }
+
+  .research-bm-title-block--with-join .research-bm-title-line {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .research-bm-title-block--with-join .research-bm-title-bar {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .research-bm-title-block--with-join .research-bm-title-join {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 0.05rem;
   }
 }
 
