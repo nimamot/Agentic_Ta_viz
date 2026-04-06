@@ -205,9 +205,9 @@ function fitPipeline(
 ) {
   requestAnimationFrame(() => {
     void instance.fitView({
-      padding: presentationEmbed ? 0.03 : 0.08,
+      padding: presentationEmbed ? 0.11 : 0.08,
       minZoom: 0.2,
-      maxZoom: presentationEmbed ? 1.85 : 1.45,
+      maxZoom: presentationEmbed ? 1.65 : 1.45,
       duration: 280,
     });
   });
