@@ -29,18 +29,18 @@ const loopSet = new Set(pipelineManifest.loopPairs.flat());
 const VALIDATOR_IDS = new Set<string>(["validate_open_codes", "refine"]);
 
 /**
- * Single main spine + one validator row: both validators sit on the same y,
- * each under the stage they gate (open coding → validate codes; high-level → validate assignments).
+ * Multi-row grid so the graph fits a full slide/viewport height-wise:
+ * row 0 — ingest → open → axial → high-level
+ * row 1 — validators under the stages they gate
+ * row 2 — hierarchy → meta-themes → report (spread to match top width)
  */
 function buildLayoutNodes(selected: string | null): Node[] {
   const W = PIPELINE_NODE_W;
   const H = PIPELINE_NODE_H;
   const GX = 36;
-  const GY = 44;
+  const GY = 48;
   const stepX = W + GX;
-
-  const y0 = 0;
-  const yValidator = H + GY;
+  const stepY = H + GY;
 
   const spine = [
     "ingest",
@@ -78,17 +78,17 @@ function buildLayoutNodes(selected: string | null): Node[] {
     });
   };
 
-  spine.forEach((id, i) => push(id, i * stepX, y0));
-
   const ocIdx = spine.indexOf("open_coding");
   const hlIdx = spine.indexOf("high_level");
+
+  spine.slice(0, 4).forEach((id, i) => push(id, i * stepX, 0));
 
   const valNode = pipelineManifest.nodes.find((n) => n.id === "validate_open_codes");
   if (valNode) {
     result.push({
       id: "validate_open_codes",
       type: "pipeline",
-      position: { x: ocIdx * stepX, y: yValidator },
+      position: { x: ocIdx * stepX, y: stepY },
       width: W,
       height: H,
       data: {
@@ -106,7 +106,7 @@ function buildLayoutNodes(selected: string | null): Node[] {
     result.push({
       id: "refine",
       type: "pipeline",
-      position: { x: hlIdx * stepX, y: yValidator },
+      position: { x: hlIdx * stepX, y: stepY },
       width: W,
       height: H,
       data: {
@@ -118,6 +118,12 @@ function buildLayoutNodes(selected: string | null): Node[] {
       draggable: true,
     });
   }
+
+  const topSpan = hlIdx * stepX + W;
+  const row2Y = 2 * stepY;
+  push("hierarchy", 0, row2Y);
+  push("meta_themes", 1.5 * stepX, row2Y);
+  push("research_report", Math.max(0, topSpan - W), row2Y);
 
   return result;
 }
@@ -193,12 +199,15 @@ function buildLayoutEdges(isDark: boolean): Edge[] {
   });
 }
 
-function fitPipeline(instance: { fitView: (opts?: object) => Promise<boolean> }) {
+function fitPipeline(
+  instance: { fitView: (opts?: object) => Promise<boolean> },
+  presentationEmbed?: boolean
+) {
   requestAnimationFrame(() => {
     void instance.fitView({
-      padding: 0.08,
-      minZoom: 0.35,
-      maxZoom: 1.45,
+      padding: presentationEmbed ? 0.03 : 0.08,
+      minZoom: 0.2,
+      maxZoom: presentationEmbed ? 1.85 : 1.45,
       duration: 280,
     });
   });
@@ -235,20 +244,23 @@ export function PipelineView({ isDark, presentationEmbed }: PipelineViewProps) {
 
   useEffect(() => {
     if (!rf) return;
-    fitPipeline(rf);
-  }, [rf, nodes.length]);
+    fitPipeline(rf, presentationEmbed);
+  }, [rf, nodes.length, presentationEmbed]);
 
   useEffect(() => {
     if (!rf) return;
-    const onResize = () => fitPipeline(rf);
+    const onResize = () => fitPipeline(rf, presentationEmbed);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [rf]);
+  }, [rf, presentationEmbed]);
 
-  const onInit = useCallback((instance: { fitView: (opts?: object) => Promise<boolean> }) => {
-    setRf(instance);
-    fitPipeline(instance);
-  }, []);
+  const onInit = useCallback(
+    (instance: { fitView: (opts?: object) => Promise<boolean> }) => {
+      setRf(instance);
+      fitPipeline(instance, presentationEmbed);
+    },
+    [presentationEmbed]
+  );
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedId((prev) => (prev === node.id ? null : node.id));
