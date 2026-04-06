@@ -519,35 +519,6 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                   Can an LLM-based pipeline perform grounded thematic analysis that is transparent, traceable, and faithful to the source data?
                 </h3>
               </section>
-
-              {/* Thesis + Approach side by side */}
-              <section
-                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
-                aria-labelledby="thesis-heading"
-              >
-                <p className="research-bm-slide-label">Thesis</p>
-                <h3 id="thesis-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
-                  End-to-End LLM Pipeline for GT-Based TA
-                </h3>
-                <p className="research-bm-slide-sub">
-                  By structuring LLM agents around GT coding stages and adding built-in validation, we can produce thematic analyses that are scalable without sacrificing methodological rigor.
-                </p>
-              </section>
-
-              <section
-                className="research-deck-panel research-deck-panel--teal research-bm-slide-card"
-                aria-labelledby="approach-heading"
-              >
-                <h3 id="approach-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
-                  Approach
-                </h3>
-                <ul className="research-bm-slide-bullets">
-                  <li>Research-question-guided coding</li>
-                  <li>GT-inspired stage pipeline (open → axial → selective)</li>
-                  <li>Validation agents that review codes and assignments</li>
-                  <li>Traceable outputs: codebook, theme graph, report</li>
-                </ul>
-              </section>
             </div>
           </div>
         </section>

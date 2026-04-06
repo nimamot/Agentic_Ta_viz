@@ -142,16 +142,22 @@ body::after {
   flex-shrink: 0;
 }
 
-.header h1::before {
-  content: '◈';
+.header-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   color: var(--accent);
-  animation: pulse-glyph 4s ease-in-out infinite;
-  font-size: 0.85rem;
+  animation: pulse-brand-icon 4s ease-in-out infinite;
 }
 
-@keyframes pulse-glyph {
-  0%, 100% { opacity: 1; text-shadow: 0 0 6px var(--accent); }
-  50% { opacity: 0.35; text-shadow: none; }
+.header-brand-icon-svg {
+  display: block;
+}
+
+@keyframes pulse-brand-icon {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 55%, transparent)); }
+  50% { opacity: 0.45; filter: none; }
 }
 
 .controls {
