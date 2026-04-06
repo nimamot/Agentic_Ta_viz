@@ -2960,7 +2960,7 @@ h3.research-bm-kicker--section {
 }
 
 .research-venn-center {
-  fill: var(--text);
+  fill: #000000;
   font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 800;

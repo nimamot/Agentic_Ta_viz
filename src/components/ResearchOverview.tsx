@@ -141,14 +141,7 @@ function IntersectionVenn() {
           />
         </g>
 
-        <rect
-          x={cx - 56}
-          y={cy - 18}
-          width="112"
-          height="36"
-          rx="10"
-          className="research-venn-hub"
-        />
+        {/* center label only, no box */}
 
         {/*
           Labels at lobe centroids (symmetric with top): anchor is inside the disk so
@@ -203,7 +196,7 @@ function IntersectionVenn() {
         </text>
 
         <text x={cx} y={cy + 5} textAnchor="middle" className="research-venn-center" filter={`url(#${p}-label-shadow)`}>
-          This work
+          Research Focus
         </text>
       </svg>
     </figure>
