@@ -462,22 +462,37 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 className="research-deck-panel research-deck-panel--teal research-bm-slide-card"
                 aria-labelledby="bm-current-work-heading"
               >
-                <p className="research-bm-slide-label">Existing approaches</p>
+                {/* <p className="research-bm-slide-label">Existing approaches</p> */}
                 <h3 id="bm-current-work-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
                   Current Work
                 </h3>
                 <div className="research-bm-work-minis">
                   <div className="research-bm-mini-card">
-                    <p className="research-bm-mini-name">LOGOS</p>
-                    <p className="research-bm-mini-desc">GT-style coding &amp; hierarchy construction</p>
+                    <p className="research-bm-mini-name">
+                      LOGOS — LLM-driven end-to-end grounded theory framework
+                    </p>
+                    <p className="research-bm-mini-desc">
+                      Grounded-theory–style coding, clustering, and hierarchical schema induction for qualitative
+                      corpora.
+                    </p>
                   </div>
                   <div className="research-bm-mini-card">
-                    <p className="research-bm-mini-name">Thematic-LM</p>
-                    <p className="research-bm-mini-desc">Multi-agent large-scale TA</p>
+                    <p className="research-bm-mini-name">
+                      Thematic-LM — LLM-based multi-agent system for large-scale thematic analysis
+                    </p>
+                    <p className="research-bm-mini-desc">
+                      Multiple language-model agents (coding, aggregation, codebook updates) to run thematic analysis at
+                      scale on large datasets.
+                    </p>
                   </div>
                   <div className="research-bm-mini-card">
-                    <p className="research-bm-mini-name">LLM-Assisted TA</p>
-                    <p className="research-bm-mini-desc">Methodological reflection &amp; human oversight</p>
+                    <p className="research-bm-mini-name">
+                      Large language model–assisted thematic analysis
+                    </p>
+                    <p className="research-bm-mini-desc">
+                      Methodological reflection, transparency, and human oversight in LLM-supported thematic analysis
+                      workflows.
+                    </p>
                   </div>
                 </div>
               </section>
@@ -486,7 +501,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
                 aria-labelledby="bm-gap-mot-heading"
               >
-                <p className="research-bm-slide-label">What's missing</p>
+                {/* <p className="research-bm-slide-label">What's missing</p> */}
                 <h3 id="bm-gap-mot-heading" className="research-bm-slide-claim research-bm-slide-claim--sm">
                   Gap &amp; Motivation
                 </h3>
@@ -497,9 +512,15 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                   <li>No reproducibility guarantees</li>
                   <li>Insufficient researcher oversight</li>
                 </ul>
-                <p className="research-bm-slide-focus">
-                  <strong>My focus:</strong> a validated, traceable, research-question-guided workflow
-                </p>
+                <div className="research-bm-slide-focus">
+                  <p className="research-bm-slide-focus-lead">My focus</p>
+                  <ul className="research-bm-slide-bullets research-bm-slide-bullets--focus">
+                    <li><strong>Validation</strong> built in at key coding stages</li>
+                    <li><strong>Traceability</strong> from themes back to source text</li>
+                    <li><strong>Research-question</strong> alignment throughout the pipeline</li>
+                    <li><strong>Research-facing</strong> outputs for inspection and use</li>
+                  </ul>
+                </div>
               </section>
             </div>
           </div>
@@ -590,7 +611,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
 
         <section className="research-slide" aria-labelledby="research-slide-7-title">
           <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-7-title" title="Future improvements" />
+            <DeckSectionTitle id="research-slide-7-title" title="Future Work" />
             <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
               <ul className="research-bm-list research-bm-list--loose">
                 <li>
