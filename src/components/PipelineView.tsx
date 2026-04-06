@@ -205,9 +205,9 @@ function fitPipeline(
 ) {
   requestAnimationFrame(() => {
     void instance.fitView({
-      padding: presentationEmbed ? 0.11 : 0.08,
-      minZoom: 0.2,
-      maxZoom: presentationEmbed ? 1.65 : 1.45,
+      padding: presentationEmbed ? 0.22 : 0.08,
+      minZoom: 0.15,
+      maxZoom: presentationEmbed ? 1.35 : 1.45,
       duration: 280,
     });
   });
@@ -304,8 +304,8 @@ export function PipelineView({ isDark, presentationEmbed }: PipelineViewProps) {
             onInit={onInit}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
-            minZoom={0.25}
-            maxZoom={2}
+            minZoom={presentationEmbed ? 0.12 : 0.25}
+            maxZoom={presentationEmbed ? 1.35 : 2}
             proOptions={{ hideAttribution: true }}
             connectionLineType={ConnectionLineType.SmoothStep}
             zoomOnScroll={!presentationEmbed}
