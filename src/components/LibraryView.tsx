@@ -542,15 +542,6 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
       {selected && (
         <div className="library-detail library-detail--graph">
-          <div className="library-context-bar glass-panel">
-            <div className="library-context-info">
-              <span className="library-context-label">Now viewing</span>
-              <p className="library-context-rq" title={rowLabel(selected)}>
-                {rowLabel(selected)}
-              </p>
-            </div>
-          </div>
-
           <div className="library-workspace">
           <aside className="library-report-inline glass-panel" aria-label="Research report">
             <div className="library-report-inline-head">
