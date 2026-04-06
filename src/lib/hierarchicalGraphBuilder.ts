@@ -235,6 +235,30 @@ function roleBaseSize(role: HierarchyRole | undefined, degree: number, aliasCoun
   return Math.max(10, base - 2);
 }
 
+/** Count all nodes in the directed subtree rooted at `rootId` (parent → child edges), including the root. */
+export function countDirectedSubtreeSize(data: GraphData, rootId: number): number {
+  let count = 0;
+  const seen = new Set<number>();
+  function dfs(id: number) {
+    if (seen.has(id)) return;
+    seen.add(id);
+    count++;
+    for (const e of data.edges) {
+      if (e.from === id) dfs(e.to);
+    }
+  }
+  dfs(rootId);
+  return count;
+}
+
+function normalizeThemeTreeType(t: string | undefined): string {
+  return (t ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+export function isMetaThemeTreeNode(node: GraphNode): boolean {
+  return normalizeThemeTreeType(node.themeTreeType) === "meta_theme";
+}
+
 /** Walk parents until depth 0 — identifies which top-level subtree a node belongs to. */
 export function computeBranchRootByNodeId(
   data: GraphData,
@@ -335,6 +359,11 @@ export type BuildHierarchyVisOptions = {
   /** Canvas label per node id (e.g. Library short root when JSON root `name` duplicates the research question). */
   canvasLabelByNodeId?: Map<number, string>;
   /**
+   * Full exported tree for meta-theme size / subtree counts. When the visible `data` is sliced by expand/collapse,
+   * pass the unsliced graph so meta-theme node size reflects total descendants, not only visible nodes.
+   */
+  metricsGraph?: GraphData;
+  /**
    * Softens tree branch chroma when false (matches “Clusters” toggle).
    * Used for hierarchy edge tinting; node tint uses the `colorClusters` argument to buildHierarchyVisNodes.
    */
@@ -397,6 +426,17 @@ export function buildHierarchyVisNodes(
   /** At least one edge but still shallow (e.g. one theme expanded). */
   const shallowExpanded = treeExploration && data.edgeCount > 0 && depthMax <= 1;
 
+  const metricsSource = options?.metricsGraph ?? data;
+  const metaThemeSubtreeSizes = new Map<number, number>();
+  let maxMetaSubtree = 1;
+  for (const n of metricsSource.nodes) {
+    if (isMetaThemeTreeNode(n)) {
+      const sz = countDirectedSubtreeSize(metricsSource, n.id);
+      metaThemeSubtreeSizes.set(n.id, sz);
+      maxMetaSubtree = Math.max(maxMetaSubtree, sz);
+    }
+  }
+
   let branchRootByNode: Map<number, number> | null = null;
   let rootToBranchIndex: Map<number, number> | null = null;
   if (depthMap != null && depthMap.size > 0) {
@@ -444,6 +484,12 @@ export function buildHierarchyVisNodes(
       if (depth === 0) baseSize = Math.round(baseSize + 14);
       else if (depth === 1) baseSize = Math.round(baseSize + 6);
     }
+    if (metaThemeSubtreeSizes.has(node.id)) {
+      const sz = metaThemeSubtreeSizes.get(node.id)!;
+      const ratio = maxMetaSubtree > 0 ? sz / maxMetaSubtree : 1;
+      const bonus = Math.round(44 * Math.sqrt(Math.min(1, Math.max(0, ratio))));
+      baseSize += bonus;
+    }
     const titleHint =
       role === "code" && node.provenance.length
         ? `${node.title}\n(raw: ${node.provenance[0]})`
@@ -452,12 +498,17 @@ export function buildHierarchyVisNodes(
     const canvasOverride = options?.canvasLabelByNodeId?.get(node.id);
     const displayLabel = canvasOverride ?? node.label;
 
-    const fullTitle =
+    let fullTitle =
       canvasOverride != null
         ? `${node.label}${titleHint !== node.label ? `\n${titleHint}` : ""}`
         : treeExploration && node.label && node.label !== titleHint
           ? `${node.label}\n${titleHint}`
           : titleHint;
+
+    if (metaThemeSubtreeSizes.has(node.id)) {
+      const sz = metaThemeSubtreeSizes.get(node.id)!;
+      fullTitle = `${fullTitle}\nSubtree: ${sz} node${sz === 1 ? "" : "s"}`;
+    }
 
     const shadow: VisNode["shadow"] = highlighted
       ? { enabled: true, color: "rgba(124, 240, 208, 0.55)", size: 22, x: 0, y: 0 }

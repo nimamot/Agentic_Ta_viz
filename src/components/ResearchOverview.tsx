@@ -31,8 +31,8 @@ const SECTION_COUNT = 8;
 
 const SECTION_LABELS = [
   "Overview",
-  "Context",
   "Background",
+  "Motivation",
   "This work",
   "Pipeline",
   "Evaluation",
@@ -360,7 +360,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         {/* ── Slide 1: Thematic Analysis & Grounded Theory ── */}
         <section className="research-slide research-slide--bm" aria-labelledby="research-slide-1-title">
           <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
-            <DeckSectionTitle id="research-slide-1-title" title="Context" />
+            <DeckSectionTitle id="research-slide-1-title" title="Background" />
             <div className="research-bm-grid research-bm-grid--narrative">
               {/* Row 1: TA + Social science importance */}
               <section
@@ -369,7 +369,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               >
                 <p className="research-bm-slide-label">What is</p>
                 <h3 id="research-focus-ta-heading" className="research-bm-slide-claim">
-                  Thematic Analysis
+                  Thematic Analysis (TA)
                 </h3>
                 <p className="research-bm-slide-sub">
                   Identifying shared patterns of meaning across qualitative text
@@ -406,7 +406,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               >
                 <p className="research-bm-slide-label">The standard approach</p>
                 <h3 id="research-focus-gt-heading" className="research-bm-slide-claim">
-                  Grounded Theory
+                  Grounded Theory (GT)
                 </h3>
                 <p className="research-bm-slide-sub">
                   Building themes inductively from data
@@ -434,13 +434,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         {/* ── Slide 2: LLM Opportunity → Current Work → Gap ── */}
         <section className="research-slide research-slide--bm" aria-labelledby="research-slide-2-title">
           <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
-            <h2 id="research-slide-2-title" className="research-bm-page-title">
-              <span className="research-bm-title-block research-bm-title-block--with-join">
-                <span className="research-bm-title-line">Background</span>
-                <span className="research-bm-title-join">&nbsp;&amp; motivation</span>
-                <span className="research-bm-title-bar" aria-hidden="true" />
-              </span>
-            </h2>
+            <DeckSectionTitle id="research-slide-2-title" title="Motivation" />
 
             <div className="research-bm-grid research-bm-grid--narrative">
               {/* Row 1: LLM opportunity (full width) */}

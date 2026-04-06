@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import { DataSet, Network } from "vis-network/standalone";
 import type { VisNode, VisEdge } from "../types";
 import { getOverviewPhysicsOptions, getFocusPhysicsOptions } from "../lib/graphBuilder";
@@ -38,6 +38,18 @@ function collectDescendantIds(
   childrenMap: Map<number, number[]>
 ): number[] {
   const out: number[] = [];
+  const stack = [...(childrenMap.get(rootId) ?? [])];
+  while (stack.length) {
+    const id = stack.pop()!;
+    out.push(id);
+    for (const c of childrenMap.get(id) ?? []) stack.push(c);
+  }
+  return out;
+}
+
+/** Root plus all descendants (directed tree), for sector centroids. */
+function collectSubtreeIds(rootId: number, childrenMap: Map<number, number[]>): number[] {
+  const out: number[] = [rootId];
   const stack = [...(childrenMap.get(rootId) ?? [])];
   while (stack.length) {
     const id = stack.pop()!;
@@ -123,6 +135,9 @@ interface GraphViewProps {
   exportWindowKey?: string;
   /** Wider spacing for readable one-level tree views (Library drill-down). */
   hierarchicalSpacing?: HierarchicalSpacingOptions;
+  /** Meta-theme nodes (theme tree): show fixed labels at subtree centroids when `showMetaThemeSectorLabels` is true. */
+  metaThemeSectorLabels?: { id: number; label: string }[];
+  showMetaThemeSectorLabels?: boolean;
 }
 
 export function GraphView({
@@ -135,11 +150,14 @@ export function GraphView({
   fitOnStabilized = true,
   exportWindowKey = "__graphExport",
   hierarchicalSpacing,
+  metaThemeSectorLabels,
+  showMetaThemeSectorLabels,
 }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
   const nodesDsRef = useRef<DataSet<VisNode> | null>(null);
   const edgesDsRef = useRef<DataSet<VisEdge> | null>(null);
+  const metaSectorLabelElsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const topologyRef = useRef<string | null>(null);
   const stabilizeGenRef = useRef(0);
   const onNodeSelectRef = useRef(onNodeSelect);
@@ -459,9 +477,97 @@ export function GraphView({
     };
   }, [exportCanvas, exportWindowKey]);
 
+  /** Position meta-theme sector labels at subtree centroids (canvas → DOM), updates on pan/zoom/drag. */
+  useLayoutEffect(() => {
+    const net = networkRef.current;
+    const edgesDs = edgesDsRef.current;
+    if (
+      !net ||
+      !edgesDs ||
+      !isFlower ||
+      !showMetaThemeSectorLabels ||
+      !metaThemeSectorLabels?.length
+    ) {
+      return;
+    }
+
+    let raf = 0;
+    const updatePositions = () => {
+      const rawEdges = edgesDs.get();
+      const childrenMap = buildChildrenMapFromEdges(rawEdges);
+      let positions: ReturnType<Network["getPositions"]>;
+      try {
+        positions = net.getPositions();
+      } catch {
+        return;
+      }
+
+      for (const { id, label: _l } of metaThemeSectorLabels) {
+        const el = metaSectorLabelElsRef.current.get(id);
+        if (!el) continue;
+        const subtreeIds = collectSubtreeIds(id, childrenMap);
+        let sx = 0;
+        let sy = 0;
+        let n = 0;
+        for (const nid of subtreeIds) {
+          const p = positions[nid as keyof typeof positions] as { x: number; y: number } | undefined;
+          if (p && typeof p.x === "number" && typeof p.y === "number") {
+            sx += p.x;
+            sy += p.y;
+            n++;
+          }
+        }
+        if (n === 0) {
+          el.style.visibility = "hidden";
+          continue;
+        }
+        el.style.visibility = "visible";
+        const dom = net.canvasToDOM({ x: sx / n, y: sy / n });
+        el.style.left = `${dom.x}px`;
+        el.style.top = `${dom.y}px`;
+      }
+    };
+
+    const onAfterDrawing = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        updatePositions();
+      });
+    };
+
+    net.on("afterDrawing", onAfterDrawing);
+    requestAnimationFrame(() => updatePositions());
+
+    return () => {
+      net.off("afterDrawing", onAfterDrawing);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isFlower, showMetaThemeSectorLabels, metaThemeSectorLabels, nodes, edges]);
+
   return (
     <div className="graph-view-wrap">
-      <div ref={containerRef} className="graph-container" />
+      <div className="graph-container">
+        {/* vis-network appends to this div only — labels stay a React sibling overlay */}
+        <div ref={containerRef} className="graph-container-vis" />
+        {isFlower && showMetaThemeSectorLabels && metaThemeSectorLabels && metaThemeSectorLabels.length > 0 ? (
+          <div className="graph-meta-sector-labels" role="region" aria-label="Meta theme regions">
+            {metaThemeSectorLabels.map(({ id, label }) => (
+              <div
+                key={id}
+                ref={(el) => {
+                  if (el) metaSectorLabelElsRef.current.set(id, el);
+                  else metaSectorLabelElsRef.current.delete(id);
+                }}
+                className="graph-meta-sector-label"
+                title={label}
+              >
+                {label.length > 56 ? `${label.slice(0, 54)}…` : label}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className="graph-controls">
         <button type="button" className="graph-ctrl" onClick={zoomIn} title="Zoom in">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>

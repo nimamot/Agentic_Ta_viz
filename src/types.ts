@@ -55,6 +55,8 @@ export interface GraphNode {
   provenance: string[];
   /** Set when the graph was built from hierarchical theme JSON. */
   hierarchyRole?: HierarchyRole;
+  /** Original theme-tree `type` string when exported from `buildHierarchyGraphFromThemeTree` (e.g. `meta_theme`, `theme`, `code`). */
+  themeTreeType?: string;
 }
 
 export interface GraphEdge {

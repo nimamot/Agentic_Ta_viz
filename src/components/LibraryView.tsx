@@ -9,7 +9,11 @@ import {
   buildOverviewNodes,
   GRAPH_CLUSTER_HEXES,
 } from "../lib/graphBuilder";
-import { buildHierarchyVisEdges, buildHierarchyVisNodes } from "../lib/hierarchicalGraphBuilder";
+import {
+  buildHierarchyVisEdges,
+  buildHierarchyVisNodes,
+  isMetaThemeTreeNode,
+} from "../lib/hierarchicalGraphBuilder";
 import { buildHierarchyGraphFromThemeTree, isThemeTreeDocument } from "../lib/themeTree";
 import { computeFlowerPositions } from "../lib/flowerLayout";
 import {
@@ -117,6 +121,15 @@ function rowOptionLabel(row: ResearchProjectRow): string {
   return s.length > 140 ? `${s.slice(0, 137)}…` : s;
 }
 
+/** Drops the pipeline-appended "## Graph structure" section (counts line); the graph UI shows structure already. */
+function stripGraphStructureSection(md: string): string {
+  return md
+    .replace(/\r\n/g, "\n")
+    .replace(/(?:^|\n)##\s+Graph structure\s*\n[\s\S]*?(?=\n##\s+|$)/i, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewProps) {
   const [rows, setRows] = useState<ResearchProjectRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +172,12 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   }, [rows, selectedRowId, onSelectRow]);
 
   const selected = rows.find((r) => r.id === selectedRowId) ?? null;
+
+  const reportMarkdownDisplay = useMemo(() => {
+    const raw = selected?.report_markdown ?? "";
+    const cleaned = stripGraphStructureSection(raw);
+    return cleaned.trim() || "_No report text._";
+  }, [selected?.report_markdown]);
 
   const globalParsed = useMemo(
     () =>
@@ -236,6 +255,30 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     if (treeRootId != null) setGlobalExpandedIds(new Set([treeRootId]));
   }, [treeRootId]);
 
+  const handleGlobalTreeExpandAll = useCallback(() => {
+    if (!gData || treeRootId == null) return;
+    const next = new Set<number>();
+    next.add(treeRootId);
+    for (const e of gData.edges) {
+      next.add(e.from);
+    }
+    setGlobalExpandedIds(next);
+  }, [gData, treeRootId]);
+
+  const treeFullyExpanded = useMemo(() => {
+    if (!gData || treeRootId == null || globalVizKind !== "tree") return false;
+    const parents = new Set<number>();
+    parents.add(treeRootId);
+    for (const e of gData.edges) {
+      parents.add(e.from);
+    }
+    if (parents.size === 0) return true;
+    for (const p of parents) {
+      if (!globalExpandedIds.has(p)) return false;
+    }
+    return true;
+  }, [gData, treeRootId, globalVizKind, globalExpandedIds]);
+
   const globalTreeDepthByNode = useMemo(() => {
     if (globalVizKind !== "tree" || !gDataVisible || treeRootId == null) return undefined;
     const base = computeDirectedDepthFromRoot(gDataVisible, treeRootId);
@@ -263,11 +306,25 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return {
       treeDepthByNodeId: globalTreeDepthByNode,
       treeTheme: isDark ? ("dark" as const) : ("light" as const),
+      /** Full tree: meta-theme sizes use total descendant counts even when the view is expand-sliced. */
+      metricsGraph: gData ?? undefined,
       ...(globalCanvasLabelOverrides?.size
         ? { canvasLabelByNodeId: globalCanvasLabelOverrides }
         : {}),
     };
-  }, [globalTreeDepthByNode, isDark, globalCanvasLabelOverrides]);
+  }, [globalTreeDepthByNode, isDark, globalCanvasLabelOverrides, gData]);
+
+  /** Static sector labels on the flower graph when fully expanded (centroid of each meta-theme subtree). */
+  const metaThemeSectorLabels = useMemo(() => {
+    if (!gData || globalVizKind !== "tree") return undefined;
+    const list: { id: number; label: string }[] = [];
+    for (const n of gData.nodes) {
+      if (isMetaThemeTreeNode(n)) {
+        list.push({ id: n.id, label: n.label });
+      }
+    }
+    return list.length > 0 ? list : undefined;
+  }, [gData, globalVizKind]);
 
   const gNodes = useMemo(() => {
     if (!gDataForVis) return [];
@@ -504,7 +561,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
             </div>
             <div className="library-markdown library-markdown--inline">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {selected.report_markdown || "_No report text._"}
+                {reportMarkdownDisplay}
               </ReactMarkdown>
             </div>
           </aside>
@@ -566,14 +623,25 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                 {globalParsed.error && <div className="library-parse-error">{globalParsed.error}</div>}
                 {globalVizKind === "tree" && gData && !globalParsed.error && treeRootId != null && (
                   <div className="library-drill-bar">
-                    <button
-                      type="button"
-                      className="library-drill-btn"
-                      onClick={handleGlobalTreeReset}
-                      title="Collapse to root and its first level only"
-                    >
-                      Reset view
-                    </button>
+                    <div className="library-drill-actions">
+                      <button
+                        type="button"
+                        className="library-drill-btn"
+                        onClick={handleGlobalTreeReset}
+                        title="Collapse to root and its first level only"
+                      >
+                        Reset view
+                      </button>
+                      <button
+                        type="button"
+                        className="library-drill-btn library-drill-btn--primary"
+                        onClick={handleGlobalTreeExpandAll}
+                        disabled={treeFullyExpanded}
+                        title="Expand every branch so all nodes in the tree are visible"
+                      >
+                        Expand all
+                      </button>
+                    </div>
                     <span className="library-drill-meta">
                       <strong>{gDataForVis?.nodeCount ?? 0}</strong> nodes visible · <strong>{globalExpandedIds.size}</strong> expanded branch{globalExpandedIds.size === 1 ? "" : "es"}
                       {treeStripApplied ? " · top topic omitted" : ""} · radial layout
@@ -592,6 +660,10 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                         onNodeSelect={globalVizKind === "tree" ? handleGlobalNodeSelect : setSelGlobal}
                         fitOnStabilized={true}
                         exportWindowKey="__graphExport_libraryGlobal"
+                        metaThemeSectorLabels={metaThemeSectorLabels}
+                        showMetaThemeSectorLabels={
+                          globalVizKind === "tree" && treeFullyExpanded && Boolean(metaThemeSectorLabels?.length)
+                        }
                       />
                       {colorClusters && gDataForVis && gDataForVis.nodeCount > 0 && (
                         <div className="graph-legend">

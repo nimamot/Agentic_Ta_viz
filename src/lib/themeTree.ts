@@ -64,6 +64,7 @@ export function buildHierarchyGraphFromThemeTree(root: ThemeTreeNode): GraphData
       frequency: 0,
       provenance: role === "code" ? [n.name] : [],
       hierarchyRole: role,
+      themeTreeType: n.type,
     });
     if (parentId != null) {
       edges.push({
