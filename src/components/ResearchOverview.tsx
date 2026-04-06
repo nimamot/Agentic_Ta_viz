@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Icon } from "@iconify/react";
 import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
 
@@ -385,8 +384,8 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide" aria-labelledby="research-slide-1-title">
-          <div className="research-slide-inner research-slide-inner--deck">
+        <section className="research-slide research-slide--bm" aria-labelledby="research-slide-1-title">
+          <div className="research-slide-inner research-slide-inner--deck research-slide-inner--bm-slide">
             <h2 id="research-slide-1-title" className="research-bm-page-title">
               <span className="research-bm-title-block research-bm-title-block--with-join">
                 <span className="research-bm-title-line">Background</span>
@@ -395,94 +394,90 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               </span>
             </h2>
 
-            <div className="research-bm-grid research-bm-grid--bm-funnel">
+            <div className="research-bm-grid research-bm-grid--slide-deck">
               <section
-                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
+                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card"
                 aria-labelledby="bm-why-matters-heading"
               >
-                <h3 id="bm-why-matters-heading" className="research-bm-kicker research-bm-kicker--section">
-                  Why this matters
+                <h3 id="bm-why-matters-heading" className="research-bm-slide-label">
+                  Why it matters
                 </h3>
-                <ul className="research-bm-list research-bm-list--loose research-bm-list--funnel">
-                  <li>
-                    <strong>Grounded theory and thematic analysis are central in the social sciences</strong> because they
-                    help researchers move from raw text to interpretable patterns, categories, and theory about human
-                    behavior, experience, and social dynamics.
-                  </li>
-                  <li>
-                    They are valuable precisely because they capture <strong>context, meaning, and explanation</strong>,
-                    not just surface-level patterns. But manual coding, theme refinement, and theorization are slow,
-                    labor-intensive, and difficult to scale.
-                  </li>
+                <p className="research-bm-slide-claim">Turns raw text into explanation</p>
+                <ul className="research-bm-slide-bullets">
+                  <li>context</li>
+                  <li>meaning</li>
+                  <li>explanation</li>
+                  <li>theory-building</li>
                 </ul>
               </section>
 
               <section
-                className="research-deck-panel research-deck-panel--lavender research-deck-panel--span"
-                aria-labelledby="bm-llm-promise-heading"
+                className="research-deck-panel research-deck-panel--lavender research-bm-slide-card"
+                aria-labelledby="bm-llm-help-heading"
               >
-                <h3 id="bm-llm-promise-heading" className="research-bm-kicker research-bm-kicker--section">
-                  Why LLMs are promising
+                <h3 id="bm-llm-help-heading" className="research-bm-slide-label">
+                  Why LLMs help
                 </h3>
-                <ul className="research-bm-list research-bm-list--funnel">
-                  <li>
-                    Recent work shows that LLMs can assist with{" "}
-                    <strong>coding, grouping, and theme generation</strong> across larger corpora, making qualitative
-                    analysis more scalable and reducing repetitive analytic effort.
-                  </li>
+                <p className="research-bm-slide-claim">LLMs make qualitative analysis more scalable</p>
+                <ul className="research-bm-slide-bullets">
+                  <li>coding</li>
+                  <li>grouping</li>
+                  <li>theme generation</li>
+                  <li>larger corpora</li>
                 </ul>
               </section>
 
               <section
-                className="research-deck-panel research-deck-panel--teal research-deck-panel--span"
+                className="research-deck-panel research-deck-panel--teal research-bm-slide-card research-bm-slide-card--span"
                 aria-labelledby="bm-current-work-heading"
               >
-                <h3 id="bm-current-work-heading" className="research-bm-kicker research-bm-kicker--section">
+                <h3 id="bm-current-work-heading" className="research-bm-slide-label">
                   Current work
                 </h3>
-                <ul className="research-bm-list research-bm-list--loose research-bm-list--funnel">
-                  <li>
-                    <strong>LOGOS</strong>: shows that LLMs can support grounded-theory-style coding, structured
-                    codebooks, and hierarchical schema construction for qualitative research.
-                  </li>
-                  <li>
-                    <strong>Thematic-LM</strong>: uses a multi-agent setup for large-scale thematic analysis, with
-                    specialized agents and an adaptive codebook to support broader and more diverse coding.
-                  </li>
-                  <li>
-                    <strong>LLM-Assisted TA</strong>: highlights the methodological side of the problem, showing that
-                    efficiency gains come with concerns around bias, contextual loss, reproducibility, and human
-                    oversight.
-                  </li>
-                </ul>
+                <div className="research-bm-work-minis">
+                  <div className="research-bm-mini-card">
+                    <p className="research-bm-mini-name">LOGOS</p>
+                    <ul className="research-bm-mini-list">
+                      <li>GT-style coding</li>
+                      <li>structured codebooks</li>
+                      <li>hierarchy construction</li>
+                    </ul>
+                  </div>
+                  <div className="research-bm-mini-card">
+                    <p className="research-bm-mini-name">Thematic-LM</p>
+                    <ul className="research-bm-mini-list">
+                      <li>multi-agent setup</li>
+                      <li>large-scale TA</li>
+                      <li>adaptive codebook</li>
+                    </ul>
+                  </div>
+                  <div className="research-bm-mini-card">
+                    <p className="research-bm-mini-name">LLM-Assisted TA</p>
+                    <ul className="research-bm-mini-list">
+                      <li>methodological reflection</li>
+                      <li>risks and tradeoffs</li>
+                      <li>human oversight</li>
+                    </ul>
+                  </div>
+                </div>
               </section>
 
               <section
-                className="research-deck-panel research-deck-panel--lavender research-deck-panel--span"
-                aria-labelledby="bm-gap-heading"
+                className="research-deck-panel research-deck-panel--neutral research-bm-slide-card research-bm-slide-card--span"
+                aria-labelledby="bm-gap-mot-heading"
               >
-                <h3 id="bm-gap-heading" className="research-bm-kicker research-bm-kicker--section">
-                  What is still missing
+                <h3 id="bm-gap-mot-heading" className="research-bm-slide-label">
+                  Gap &amp; motivation
                 </h3>
-                <ul className="research-bm-list research-bm-list--funnel">
-                  <li>
-                    The literature makes clear that scale alone is not enough. Researchers still need workflows that
-                    preserve <strong>transparency, contextual fidelity, reproducibility, and interpretive accountability</strong>.
-                  </li>
+                <p className="research-bm-slide-claim">Scale alone is not enough</p>
+                <ul className="research-bm-slide-bullets">
+                  <li>transparency</li>
+                  <li>contextual fidelity</li>
+                  <li>reproducibility</li>
+                  <li>researcher oversight</li>
                 </ul>
-              </section>
-
-              <section
-                className="research-deck-panel research-deck-panel--neutral research-deck-panel--span"
-                aria-labelledby="bm-project-mot-heading"
-              >
-                <h3 id="bm-project-mot-heading" className="research-bm-panel-h">
-                  <Icon icon="solar:stars-bold" aria-hidden="true" />
-                  Project motivation
-                </h3>
-                <p className="research-bm-panel-lead">
-                  This project is motivated by that gap: building an LLM-guided workflow that supports scale while
-                  remaining <strong>validated, traceable, and accountable to a stated research question</strong>.
+                <p className="research-bm-slide-focus">
+                  <strong>My focus:</strong> validated, traceable, research-question-guided workflow
                 </p>
               </section>
             </div>

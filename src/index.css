@@ -2201,6 +2201,11 @@ body::after {
   width: 100%;
 }
 
+.research-slide--bm {
+  padding-top: clamp(1.2rem, 3vh, 2.2rem);
+  padding-bottom: clamp(1.2rem, 3vh, 2.2rem);
+}
+
 .research-slide--pipeline {
   padding: 0;
   justify-content: flex-start;
@@ -2425,10 +2430,135 @@ body::after {
   align-items: stretch;
 }
 
-/* Background & motivation — single-column funnel of full-width cards */
-.research-bm-grid--bm-funnel {
-  grid-template-columns: 1fr;
-  gap: 0.7rem 1rem;
+/* Background & motivation — slide-style 2×2 + full-width rows */
+.research-slide-inner--bm-slide {
+  padding-top: 0.5rem;
+  padding-bottom: clamp(1.1rem, 2.8vh, 1.85rem);
+}
+
+.research-slide-inner--bm-slide .research-bm-page-title {
+  margin-bottom: clamp(1.35rem, 3.2vh, 2.1rem);
+}
+
+.research-bm-grid--slide-deck {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.15rem, 2.4vw, 1.65rem);
+  align-items: stretch;
+}
+
+.research-bm-slide-card--span {
+  grid-column: 1 / -1;
+}
+
+.research-deck-panel.research-bm-slide-card {
+  padding: clamp(1.2rem, 2.2vw, 1.55rem) clamp(1.25rem, 2.4vw, 1.65rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 0;
+}
+
+.research-bm-slide-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(0.56rem, 0.95vw, 0.64rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.research-bm-slide-claim {
+  margin: 0;
+  font-size: clamp(1.12rem, 2.05vw, 1.42rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.research-bm-slide-bullets {
+  margin: 0.1rem 0 0;
+  padding-left: 1.05rem;
+  font-size: clamp(0.92rem, 1.28vw, 1.02rem);
+  line-height: 1.32;
+  color: var(--rs-body-color);
+}
+
+.research-bm-slide-bullets li {
+  margin-bottom: 0.22rem;
+}
+
+.research-bm-slide-bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.research-bm-slide-bullets li::marker {
+  color: var(--research-bm-strong);
+}
+
+.research-bm-work-minis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem 0.8rem;
+  margin-top: 0.05rem;
+}
+
+.research-bm-mini-card {
+  border-radius: 11px;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--border-bright) 42%, var(--border));
+  background: color-mix(in srgb, var(--surface-glass) 55%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.research-overview[data-theme="light"] .research-bm-mini-card {
+  background: color-mix(in srgb, #ffffff 82%, transparent);
+}
+
+.research-bm-mini-name {
+  margin: 0 0 0.4rem;
+  font-weight: 800;
+  font-size: clamp(0.72rem, 1.05vw, 0.8rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--research-bm-strong);
+}
+
+.research-bm-mini-list {
+  margin: 0;
+  padding-left: 0.95rem;
+  font-size: clamp(0.82rem, 1.12vw, 0.9rem);
+  line-height: 1.28;
+  color: var(--rs-body-color);
+}
+
+.research-bm-mini-list li {
+  margin-bottom: 0.18rem;
+}
+
+.research-bm-mini-list li:last-child {
+  margin-bottom: 0;
+}
+
+.research-bm-mini-list li::marker {
+  color: color-mix(in srgb, var(--research-bm-strong) 75%, var(--text-muted));
+}
+
+.research-bm-slide-focus {
+  margin: 0.65rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-bright) 38%, var(--border));
+  font-size: clamp(0.95rem, 1.32vw, 1.05rem);
+  font-weight: 600;
+  line-height: 1.38;
+  color: var(--text);
+}
+
+.research-bm-slide-focus strong {
+  color: var(--research-bm-strong);
+  font-weight: 800;
 }
 
 .research-deck-panel {
@@ -2619,6 +2749,10 @@ h3.research-bm-kicker--section {
 
 @media (max-width: 768px) {
   .research-bm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .research-bm-work-minis {
     grid-template-columns: 1fr;
   }
 
