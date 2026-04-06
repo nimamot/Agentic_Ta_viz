@@ -12,7 +12,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { pipelineManifest, MODEL_KIND_COLORS } from "../lib/pipelineManifest";
+import { pipelineManifest } from "../lib/pipelineManifest";
 import { PipelineNodeComponent } from "./PipelineNode";
 import { PipelineDetailPanel } from "./PipelineDetailPanel";
 
@@ -148,18 +148,14 @@ function handlesForEdge(e: (typeof pipelineManifest.edges)[number]): {
 }
 
 function buildLayoutEdges(isDark: boolean): Edge[] {
+  /** Single stroke for all edges so the graph reads as one flow (node cards keep role colors). */
+  const edgeStroke = isDark ? "rgba(200, 208, 245, 0.82)" : "rgba(72, 78, 102, 0.88)";
+
   return pipelineManifest.edges.map((e, i): Edge => {
     const isLoop = pipelineManifest.loopPairs.some(
       ([a, b]) =>
         (e.source === a && e.target === b) || (e.source === b && e.target === a)
     );
-
-    const accent = (() => {
-      const srcNode = pipelineManifest.nodes.find((n) => n.id === e.source);
-      return srcNode ? MODEL_KIND_COLORS[srcNode.modelKind] : "#5a6080";
-    })();
-
-    const loopAccent = MODEL_KIND_COLORS.validator;
 
     const { sourceHandle, targetHandle } = handlesForEdge(e);
 
@@ -173,15 +169,14 @@ function buildLayoutEdges(isDark: boolean): Edge[] {
       label: e.label,
       type: "smoothstep",
       style: {
-        stroke: isLoop ? loopAccent : accent,
-        strokeWidth: isLoop ? 3.5 : 2.25,
-        opacity: 0.72,
+        stroke: edgeStroke,
+        strokeWidth: isLoop ? 2.85 : 2.35,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 18,
         height: 18,
-        color: isLoop ? loopAccent : accent,
+        color: edgeStroke,
       },
       labelStyle: {
         fill: isDark ? "#e4e8ff" : "#0c0e2a",
