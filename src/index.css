@@ -3263,7 +3263,80 @@ h3.research-bm-kicker--section {
   border: 1px solid color-mix(in srgb, var(--border-bright) 40%, var(--border));
 }
 
-/* No filter — images render as-is in both themes */
+/* HTML metric tables (replaces raster screenshots) */
+.research-eval-metrics-scroll {
+  overflow-x: auto;
+  margin-top: 0.15rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-bright) 38%, var(--border));
+  background: var(--surface-2);
+}
+
+.research-eval-metrics-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: clamp(0.62rem, 0.95vw, 0.72rem);
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.research-eval-metrics-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  font-weight: 800;
+  font-size: 0.95em;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-glass) 88%, var(--surface-2));
+  border-bottom: 1px solid var(--border-bright);
+}
+
+.research-eval-metrics-th--idx {
+  width: 2rem;
+  text-align: center;
+}
+
+.research-eval-metrics-th--num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.research-eval-metrics-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.research-eval-metrics-td {
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-bright) 55%, transparent);
+}
+
+.research-eval-metrics-td--idx {
+  text-align: center;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.research-eval-metrics-td--class {
+  max-width: 12rem;
+  word-break: break-word;
+}
+
+.research-eval-metrics-td--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.research-eval-metrics-table--summary .research-eval-metrics-td:not(.research-eval-metrics-td--num) {
+  font-size: 1.02em;
+}
 
 @media (max-width: 768px) {
   .research-eval-results-grid {

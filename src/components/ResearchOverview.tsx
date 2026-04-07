@@ -2,8 +2,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
 import evalHeatmap from "../../public/eval/heatmap.png";
-import evalPerClass from "../../public/eval/per_class.png";
-import evalSummary from "../../public/eval/summary.png";
 
 interface SchoolBurnoutEvalRow {
   id: string;
@@ -15,6 +13,38 @@ interface SchoolBurnoutEvalRow {
 }
 
 const EVAL_SCHOOL_BURNOUT_ROWS = evalDatasetJson as SchoolBurnoutEvalRow[];
+
+/** Pipeline eval metrics (same run as confusion-matrix heatmap). */
+const EVAL_PER_CLASS_METRICS = [
+  {
+    className: "Cynicism toward the meaning of school",
+    precision: 0.818182,
+    recall: 0.782609,
+    f1: 0.8,
+  },
+  {
+    className: "Exhaustion at school",
+    precision: 0.83871,
+    recall: 0.866667,
+    f1: 0.852459,
+  },
+  {
+    className: "Sense of inadequacy at school",
+    precision: 0.923077,
+    recall: 0.8,
+    f1: 0.857143,
+  },
+] as const;
+
+const EVAL_OVERALL_METRICS = [
+  { metric: "accuracy", value: 0.823529 },
+  { metric: "macro_f1", value: 0.836534 },
+  { metric: "weighted_f1", value: 0.835749 },
+] as const;
+
+function fmt6(n: number): string {
+  return n.toFixed(6);
+}
 
 /** Edit these for your defense / portfolio slide deck. */
 const PRESENTATION = {
@@ -221,6 +251,71 @@ function GroundedTheorySteps() {
   );
 }
 
+function EvalPerClassMetricsTable() {
+  return (
+    <div className="research-eval-metrics-scroll">
+      <table className="research-eval-metrics-table">
+        <thead>
+          <tr>
+            <th scope="col" className="research-eval-metrics-th research-eval-metrics-th--idx">
+              #
+            </th>
+            <th scope="col">Class</th>
+            <th scope="col" className="research-eval-metrics-th--num">
+              Precision
+            </th>
+            <th scope="col" className="research-eval-metrics-th--num">
+              Recall
+            </th>
+            <th scope="col" className="research-eval-metrics-th--num">
+              F1
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {EVAL_PER_CLASS_METRICS.map((row, i) => (
+            <tr key={row.className}>
+              <td className="research-eval-metrics-td research-eval-metrics-td--idx">{i}</td>
+              <td className="research-eval-metrics-td research-eval-metrics-td--class">{row.className}</td>
+              <td className="research-eval-metrics-td research-eval-metrics-td--num">{fmt6(row.precision)}</td>
+              <td className="research-eval-metrics-td research-eval-metrics-td--num">{fmt6(row.recall)}</td>
+              <td className="research-eval-metrics-td research-eval-metrics-td--num">{fmt6(row.f1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EvalOverallMetricsTable() {
+  return (
+    <div className="research-eval-metrics-scroll research-eval-metrics-scroll--compact">
+      <table className="research-eval-metrics-table research-eval-metrics-table--summary">
+        <thead>
+          <tr>
+            <th scope="col" className="research-eval-metrics-th research-eval-metrics-th--idx">
+              #
+            </th>
+            <th scope="col">Metric</th>
+            <th scope="col" className="research-eval-metrics-th--num">
+              Value
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {EVAL_OVERALL_METRICS.map((row, i) => (
+            <tr key={row.metric}>
+              <td className="research-eval-metrics-td research-eval-metrics-td--idx">{i}</td>
+              <td className="research-eval-metrics-td">{row.metric}</td>
+              <td className="research-eval-metrics-td research-eval-metrics-td--num">{fmt6(row.value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function EvalDatasetTable() {
   const n = EVAL_SCHOOL_BURNOUT_ROWS.length;
@@ -557,20 +652,12 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
               <div className="research-eval-results-side">
                 <section className="research-deck-panel research-deck-panel--lavender research-eval-results-card">
                   <p className="research-bm-kicker">Per-class metrics</p>
-                  <img
-                    src={evalPerClass}
-                    alt="Per-class precision, recall, and F1 scores"
-                    className="research-eval-img"
-                  />
+                  <EvalPerClassMetricsTable />
                 </section>
 
                 <section className="research-deck-panel research-deck-panel--teal research-eval-results-card">
                   <p className="research-bm-kicker">Overall performance</p>
-                  <img
-                    src={evalSummary}
-                    alt="Accuracy, macro F1, and weighted F1"
-                    className="research-eval-img"
-                  />
+                  <EvalOverallMetricsTable />
                 </section>
               </div>
             </div>
