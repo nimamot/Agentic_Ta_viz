@@ -3196,8 +3196,62 @@ h3.research-bm-kicker--section {
 }
 
 .research-slide-inner--eval {
-  max-width: min(100%, 96vw);
+  max-width: min(64rem, 96vw);
   width: 100%;
+}
+
+.research-eval-dataset-compact {
+  padding: 0.75rem 1.1rem;
+}
+
+.research-eval-dataset-compact .research-bm-panel-body {
+  margin: 0.25rem 0 0;
+  font-size: clamp(0.78rem, 1.05vw, 0.88rem);
+  line-height: 1.45;
+}
+
+.research-eval-results-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 0.85rem;
+  margin-top: 0.65rem;
+  align-items: start;
+}
+
+.research-eval-results-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.research-eval-results-card {
+  padding: 0.75rem 0.9rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.research-eval-results-card--wide {
+  align-self: stretch;
+}
+
+.research-eval-img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-bright) 40%, var(--border));
+}
+
+/* Dark theme: invert the matplotlib white-bg images for readability */
+.research-overview[data-theme="dark"] .research-eval-img {
+  filter: invert(1) hue-rotate(180deg);
+  border-color: color-mix(in srgb, var(--border-bright) 30%, transparent);
+}
+
+@media (max-width: 768px) {
+  .research-eval-results-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .research-eval-dataset {
