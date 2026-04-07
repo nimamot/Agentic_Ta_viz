@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
+import evalHeatmap from "../../public/eval/heatmap.png";
+import evalPerClass from "../../public/eval/per_class.png";
+import evalSummary from "../../public/eval/summary.png";
+
+interface SchoolBurnoutEvalRow {
+  id: string;
+  construct: string;
+  dimension: string;
+  dimension_description: string;
+  indicator: string;
+  text: string;
+}
+
+const EVAL_SCHOOL_BURNOUT_ROWS = evalDatasetJson as SchoolBurnoutEvalRow[];
 
 /** Edit these for your defense / portfolio slide deck. */
 const PRESENTATION = {
@@ -206,6 +221,42 @@ function GroundedTheorySteps() {
   );
 }
 
+
+function EvalDatasetTable() {
+  const n = EVAL_SCHOOL_BURNOUT_ROWS.length;
+  return (
+    <figure className="research-eval-dataset">
+      <figcaption className="research-eval-dataset-caption">
+        <code className="research-eval-filename">school_burnout_synthetic</code>
+        <span className="research-eval-dataset-meta">
+          {" "}· {n} rows × 4 columns
+        </span>
+      </figcaption>
+      <div className="research-eval-table-scroll" tabIndex={0} role="region" aria-label="Dataset table">
+        <table className="research-eval-table">
+          <thead>
+            <tr>
+              <th scope="col">Theme</th>
+              <th scope="col">Theme_description</th>
+              <th scope="col">indicator</th>
+              <th scope="col">text</th>
+            </tr>
+          </thead>
+          <tbody>
+            {EVAL_SCHOOL_BURNOUT_ROWS.map((row) => (
+              <tr key={row.id}>
+                <td className="research-eval-td research-eval-td--dimension">{row.dimension}</td>
+                <td className="research-eval-td research-eval-td--desc">{row.dimension_description}</td>
+                <td className="research-eval-td research-eval-td--indicator">{row.indicator}</td>
+                <td className="research-eval-td research-eval-td--text">{row.text}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  );
+}
 
 interface ResearchOverviewProps {
   isDark: boolean;
@@ -489,18 +540,15 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
             <DeckSectionTitle id="research-slide-5-title" title="Pipeline evaluation" />
 
             <section className="research-deck-panel research-deck-panel--neutral research-eval-dataset-compact">
-              <p className="research-bm-kicker">Evaluation dataset</p>
-              <p className="research-bm-panel-body">
-                <code className="research-eval-filename">school_burnout_synthetic</code> · 451 rows × 4 columns ·
-                Gold theme labels; pipeline receives <strong>text only</strong>.
-              </p>
+              <h3 className="research-eval-dataset-heading">Evaluation dataset</h3>
+              <EvalDatasetTable />
             </section>
 
             <div className="research-eval-results-grid">
               <section className="research-deck-panel research-deck-panel--neutral research-eval-results-card research-eval-results-card--wide">
                 <p className="research-bm-kicker">Confusion matrix</p>
                 <img
-                  src="/eval/heatmap.png"
+                  src={evalHeatmap}
                   alt="Test confusion matrix — gold themes vs pipeline predictions"
                   className="research-eval-img"
                 />
@@ -510,7 +558,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 <section className="research-deck-panel research-deck-panel--lavender research-eval-results-card">
                   <p className="research-bm-kicker">Per-class metrics</p>
                   <img
-                    src="/eval/per_class.png"
+                    src={evalPerClass}
                     alt="Per-class precision, recall, and F1 scores"
                     className="research-eval-img"
                   />
@@ -519,7 +567,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 <section className="research-deck-panel research-deck-panel--teal research-eval-results-card">
                   <p className="research-bm-kicker">Overall performance</p>
                   <img
-                    src="/eval/summary.png"
+                    src={evalSummary}
                     alt="Accuracy, macro F1, and weighted F1"
                     className="research-eval-img"
                   />

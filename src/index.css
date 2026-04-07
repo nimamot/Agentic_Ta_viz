@@ -3195,19 +3195,40 @@ h3.research-bm-kicker--section {
   opacity: 0.95;
 }
 
-.research-slide-inner--eval {
+.research-slide-inner.research-slide-inner--eval {
   max-width: min(64rem, 96vw);
   width: 100%;
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 .research-eval-dataset-compact {
-  padding: 0.75rem 1.1rem;
+  padding: 0.75rem 1rem;
 }
 
-.research-eval-dataset-compact .research-bm-panel-body {
-  margin: 0.25rem 0 0;
-  font-size: clamp(0.78rem, 1.05vw, 0.88rem);
-  line-height: 1.45;
+.research-eval-dataset-heading {
+  margin: 0 0 0.3rem;
+  font-size: clamp(0.92rem, 1.3vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.research-eval-dataset-compact .research-eval-table-scroll {
+  max-height: min(22vh, 180px);
+}
+
+.research-eval-dataset-compact .research-eval-table {
+  font-size: clamp(0.55rem, 0.9vw, 0.65rem);
+}
+
+.research-eval-dataset-compact .research-eval-table thead th {
+  padding: 0.35rem 0.45rem;
+  font-size: 1em;
+}
+
+.research-eval-dataset-compact .research-eval-td {
+  padding: 0.28rem 0.45rem;
 }
 
 .research-eval-results-grid {
@@ -3242,11 +3263,7 @@ h3.research-bm-kicker--section {
   border: 1px solid color-mix(in srgb, var(--border-bright) 40%, var(--border));
 }
 
-/* Dark theme: invert the matplotlib white-bg images for readability */
-.research-overview[data-theme="dark"] .research-eval-img {
-  filter: invert(1) hue-rotate(180deg);
-  border-color: color-mix(in srgb, var(--border-bright) 30%, transparent);
-}
+/* No filter — images render as-is in both themes */
 
 @media (max-width: 768px) {
   .research-eval-results-grid {
