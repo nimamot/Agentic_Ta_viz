@@ -1922,23 +1922,6 @@ body::after {
   border-radius: 4px;
 }
 
-.pipeline-detail-skill {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  padding: 0.45rem 0.7rem;
-  background: var(--surface-2);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  color: var(--accent);
-}
-
-.pipeline-detail-no-skill {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
 .pipeline-detail-list {
   margin: 0;
   padding: 0 0 0 1.1rem;

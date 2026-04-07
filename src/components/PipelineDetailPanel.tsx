@@ -53,24 +53,6 @@ export function PipelineDetailPanel({ node, onClose }: Props) {
           </p>
         </div>
 
-        {node.skill && (
-          <div className="pipeline-detail-section">
-            <h4>Skill</h4>
-            <code className="pipeline-detail-skill">
-              agents/skills/{node.skill}.md
-            </code>
-          </div>
-        )}
-
-        {!node.skill && (
-          <div className="pipeline-detail-section">
-            <h4>Skill</h4>
-            <span className="pipeline-detail-no-skill">
-              Prompt / code in Python only
-            </span>
-          </div>
-        )}
-
         {node.inputs.length > 0 && (
           <div className="pipeline-detail-section">
             <h4>Inputs</h4>
