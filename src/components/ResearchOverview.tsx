@@ -739,10 +739,6 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                   <strong>Calibration &amp; evaluation</strong> — systematic comparison to human-coded gold subsets and
                   stability under prompt or model changes.
                 </li>
-                <li>
-                  <strong>Streaming &amp; incremental updates</strong> — extend the workflow as new text arrives without a
-                  full rerun.
-                </li>
               </ul>
             </section>
           </div>
