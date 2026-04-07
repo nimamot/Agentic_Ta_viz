@@ -2934,6 +2934,17 @@ h3.research-bm-kicker--section {
   font-style: italic;
 }
 
+.research-references-list a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  word-break: break-all;
+}
+
+.research-references-list a:hover {
+  color: var(--text);
+}
+
 @media (max-width: 768px) {
   .research-bm-grid {
     grid-template-columns: 1fr;

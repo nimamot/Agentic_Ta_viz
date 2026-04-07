@@ -743,32 +743,54 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
             <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span research-references-panel">
               <ol className="research-references-list">
                 <li>
-                  Braun, V. &amp; Clarke, V. (2006). Using thematic analysis in psychology.{" "}
-                  <em>Qualitative Research in Psychology</em>, 3(2), 77–101.
+                  Pi, X., Yang, Q., &amp; Nguyen, C. (2025). LOGOS: LLM-driven end-to-end grounded theory development and
+                  schema induction for qualitative research [Preprint]. arXiv.{" "}
+                  <a href="https://arxiv.org/abs/2509.24294" target="_blank" rel="noopener noreferrer">
+                    https://arxiv.org/abs/2509.24294
+                  </a>
                 </li>
                 <li>
-                  Glaser, B. G. &amp; Strauss, A. L. (1967).{" "}
-                  <em>The Discovery of Grounded Theory: Strategies for Qualitative Research</em>. Aldine.
+                  Meng, H., Lyu, Q., Qin, P., Yang, Y., Zhang, R., Lin, W.-C., &amp; Lee, Y.-C. (2026). Designing
+                  computational tools for exploring causal relationships in qualitative data [Preprint]. arXiv.{" "}
+                  <a href="https://arxiv.org/abs/2602.06506" target="_blank" rel="noopener noreferrer">
+                    https://arxiv.org/abs/2602.06506
+                  </a>
                 </li>
                 <li>
-                  Charmaz, K. (2006).{" "}
-                  <em>Constructing Grounded Theory: A Practical Guide through Qualitative Analysis</em>. SAGE.
+                  Ornelas, T., Araújo, A. A., Araújo, J., Araújo, M., Trinkenreich, B., &amp; Kalinowski, M. (2025).
+                  LLM-assisted thematic analysis: Opportunities, limitations, and recommendations [Preprint]. arXiv.{" "}
+                  <a href="https://doi.org/10.48550/arXiv.2511.14528" target="_blank" rel="noopener noreferrer">
+                    https://doi.org/10.48550/arXiv.2511.14528
+                  </a>
                 </li>
                 <li>
-                  Dai, S., Dai, M., Zhong, Y. et al. (2025). LOGOS: LLM-driven end-to-end grounded theory development
-                  and schema induction for qualitative research. <em>Preprint</em>.
+                  Qiao, T., Walker, C., Cunningham, C. W., &amp; Koh, Y. S. (2025). Thematic-LM: A LLM-based multi-agent
+                  system for large-scale thematic analysis. In Proceedings of the ACM Web Conference 2025. OpenReview.{" "}
+                  <a href="https://openreview.net/forum?id=jiv0Gl6sto" target="_blank" rel="noopener noreferrer">
+                    https://openreview.net/forum?id=jiv0Gl6sto
+                  </a>
                 </li>
                 <li>
-                  Qiao, T., Walker, C., Cunningham, C. W. &amp; Koh, Y. S. (2025). Thematic-LM: a LLM-based
-                  multi-agent system for large-scale thematic analysis. <em>Proceedings of The Web Conference (WWW)</em>.
+                  Kiger, M. E., &amp; Varpio, L. (2020). Thematic analysis of qualitative data: AMEE Guide No. 131.{" "}
+                  <em>Medical Teacher</em>, 42(8), 846–854.{" "}
+                  <a href="https://doi.org/10.1080/0142159X.2020.1755030" target="_blank" rel="noopener noreferrer">
+                    https://doi.org/10.1080/0142159X.2020.1755030
+                  </a>
                 </li>
                 <li>
-                  Tai, R. H., Achilles, C. M. et al. (2024). An examination of the use of large language models to aid
-                  analysis of textual data. <em>International Journal of Qualitative Methods</em>, 23.
+                  Tie, Y. C., Birks, M., &amp; Francis, K. (2019). Grounded theory research: A design framework for novice
+                  researchers. <em>SAGE Open Medicine</em>, 7.{" "}
+                  <a href="https://doi.org/10.1177/2050312118822927" target="_blank" rel="noopener noreferrer">
+                    https://doi.org/10.1177/2050312118822927
+                  </a>
                 </li>
                 <li>
-                  Strauss, A. &amp; Corbin, J. (1990).{" "}
-                  <em>Basics of Qualitative Research: Grounded Theory Procedures and Techniques</em>. SAGE.
+                  Chapman, A. L., Hadfield, M., &amp; Chapman, C. J. (2015). Qualitative research in healthcare: An
+                  introduction to grounded theory using thematic analysis. <em>Journal of the Royal College of Physicians
+                  of Edinburgh</em>, 45(3), 201–205.{" "}
+                  <a href="https://doi.org/10.4997/jrcpe.2015.305" target="_blank" rel="noopener noreferrer">
+                    https://doi.org/10.4997/jrcpe.2015.305
+                  </a>
                 </li>
               </ol>
             </section>
