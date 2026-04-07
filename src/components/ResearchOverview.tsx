@@ -538,10 +538,10 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
         </section>
 
         <section className="research-slide research-slide--pipeline" aria-labelledby="research-slide-4-title">
-          <h2 id="research-slide-4-title" className="research-visually-hidden">
-            Pipeline in detail
-          </h2>
-          <PipelineView isDark={isDark} presentationEmbed />
+          <div className="research-slide-inner research-slide-inner--pipeline">
+            <DeckSectionTitle id="research-slide-4-title" title="Pipeline" />
+            <PipelineView isDark={isDark} presentationEmbed />
+          </div>
         </section>
 
         <section className="research-slide" aria-labelledby="research-slide-5-title">
