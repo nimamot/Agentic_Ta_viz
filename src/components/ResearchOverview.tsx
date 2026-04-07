@@ -685,25 +685,36 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 aria-label="Additional contributions"
               >
                 <p className="research-bm-kicker">Highlights</p>
-                <ul className="research-bm-list research-bm-list--loose research-contribution-more">
+                <ul className="research-bm-list research-bm-list--loose research-contribution-more research-contribution-highlights">
                   <li>
-                    <strong>Skill-based agent design</strong> — Separates reusable stage skills from run-specific prompts
-                    and inputs.
+                    <strong>Traceable visualization dashboard</strong>
+                    <span className="research-contribution-detail">
+                      Lets researchers follow themes, codes, and reports back to source text.
+                    </span>
                   </li>
                   <li>
-                    <strong>Research-question-guided analysis</strong> — Keeps coding and theme construction aligned with
-                    the analytic goal.
+                    <strong>Agentic, staged workflow (grounded-theory-inspired)</strong>
+                    <span className="research-contribution-detail">
+                      Mirrors open, axial, and selective coding in a structured pipeline.
+                    </span>
                   </li>
                   <li>
-                    <strong>Traceable visualization dashboard</strong> — Lets users follow themes, codes, and reports back
-                    to source text.
+                    <strong>Research-question-guided analysis</strong>
+                    <span className="research-contribution-detail">
+                      Keeps all stages aligned with the analytic goal.
+                    </span>
                   </li>
                   <li>
-                    <strong>End-to-end system</strong> — Goes from corpus input to codebook, hierarchy, and final report.
+                    <strong>End-to-end system</strong>
+                    <span className="research-contribution-detail">
+                      Goes from raw corpus to codebook, hierarchy, and final report.
+                    </span>
                   </li>
                   <li>
-                    <strong>Grounded-theory-inspired structure</strong> — Translates qualitative coding stages into an
-                    inspectable agent workflow.
+                    <strong>Quantitative evaluation on held-out data</strong>
+                    <span className="research-contribution-detail">
+                      Shows the pipeline can recover gold themes with strong performance.
+                    </span>
                   </li>
                 </ul>
               </section>
