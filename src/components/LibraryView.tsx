@@ -165,6 +165,12 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   }, [configured]);
 
   useEffect(() => {
+    if (configured && rows.length === 0 && !loading && !fetchError) {
+      load();
+    }
+  }, [configured, rows.length, loading, fetchError, load]);
+
+  useEffect(() => {
     if (rows.length === 0) return;
     if (selectedRowId == null || !rows.some((r) => r.id === selectedRowId)) {
       onSelectRow(rows[0].id);
