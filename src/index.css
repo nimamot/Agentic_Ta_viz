@@ -2332,6 +2332,17 @@ body::after {
   color: var(--text);
 }
 
+.research-subtitle {
+  margin: 0.5rem auto 0;
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  max-width: 28ch;
+  text-align: center;
+}
+
 .research-author {
   margin: 0.75rem 0 1.35rem;
   font-size: clamp(1.08rem, 2vw, 1.28rem);
@@ -2894,6 +2905,33 @@ h3.research-bm-kicker--section {
 
 .research-bm-list--funnel li:last-child {
   margin-bottom: 0;
+}
+
+/* References */
+.research-references-panel {
+  padding: 1.2rem 1.4rem 1.3rem;
+}
+
+.research-references-list {
+  margin: 0;
+  padding-left: 1.6rem;
+  font-size: clamp(0.82rem, 1.1vw, 0.92rem);
+  line-height: 1.55;
+  color: var(--rs-body-color);
+  list-style-type: decimal;
+}
+
+.research-references-list li {
+  margin-bottom: 0.7rem;
+  padding-left: 0.25rem;
+}
+
+.research-references-list li:last-child {
+  margin-bottom: 0;
+}
+
+.research-references-list em {
+  font-style: italic;
 }
 
 @media (max-width: 768px) {

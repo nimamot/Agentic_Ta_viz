@@ -140,9 +140,9 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [selGlobal, setSelGlobal] = useState<number | null>(null);
   /** For global tree: which node ids have their children revealed (ancestors stay visible). */
   const [globalExpandedIds, setGlobalExpandedIds] = useState<Set<number>>(() => new Set());
-  const [cooccurrenceLayer, setCooccurrenceLayer] = useState<CooccurrenceLayer>("meta");
-  const [cooccurrenceMaxEdges, setCooccurrenceMaxEdges] = useState(80);
-  const [cooccurrenceMinCount, setCooccurrenceMinCount] = useState(1);
+  const [cooccurrenceLayer, setCooccurrenceLayer] = useState<CooccurrenceLayer>("theme");
+  const [cooccurrenceMaxEdges, setCooccurrenceMaxEdges] = useState(40);
+  const [cooccurrenceMinCount, setCooccurrenceMinCount] = useState(10);
 
   const configured = isSupabaseConfigured();
 

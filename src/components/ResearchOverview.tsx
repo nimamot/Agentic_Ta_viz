@@ -23,11 +23,12 @@ const EVAL_DATASET_HIGHLIGHT_IDS = new Set([
 
 /** Edit these for your defense / portfolio slide deck. */
 const PRESENTATION = {
-  title: "LLM-Guided Grounded Thematic Analysis at Scale",
+  title: "Agentic Workflows for Qualitative Research",
+  subtitle: "An LLM-guided pipeline for grounded thematic analysis",
   author: "Nima Motieifard",
 } as const;
 
-const SECTION_COUNT = 8;
+const SECTION_COUNT = 9;
 
 const SECTION_LABELS = [
   "Overview",
@@ -38,6 +39,7 @@ const SECTION_LABELS = [
   "Evaluation",
   "Contribution",
   "Future",
+  "References",
 ] as const;
 
 /** Section heading with accent bar (matches Background & motivation title style). */
@@ -341,6 +343,7 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 <h1 id="research-slide-0-title" className="research-title">
                   {PRESENTATION.title}
                 </h1>
+                <p className="research-subtitle">{PRESENTATION.subtitle}</p>
                 <p className="research-author">{PRESENTATION.author}</p>
               </div>
             </div>
@@ -624,6 +627,44 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                   full rerun.
                 </li>
               </ul>
+            </section>
+          </div>
+        </section>
+
+        <section className="research-slide" aria-labelledby="research-slide-8-title">
+          <div className="research-slide-inner research-slide-inner--deck">
+            <DeckSectionTitle id="research-slide-8-title" title="References" />
+            <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span research-references-panel">
+              <ol className="research-references-list">
+                <li>
+                  Braun, V. &amp; Clarke, V. (2006). Using thematic analysis in psychology.{" "}
+                  <em>Qualitative Research in Psychology</em>, 3(2), 77–101.
+                </li>
+                <li>
+                  Glaser, B. G. &amp; Strauss, A. L. (1967).{" "}
+                  <em>The Discovery of Grounded Theory: Strategies for Qualitative Research</em>. Aldine.
+                </li>
+                <li>
+                  Charmaz, K. (2006).{" "}
+                  <em>Constructing Grounded Theory: A Practical Guide through Qualitative Analysis</em>. SAGE.
+                </li>
+                <li>
+                  Dai, S., Dai, M., Zhong, Y. et al. (2025). LOGOS: LLM-driven end-to-end grounded theory development
+                  and schema induction for qualitative research. <em>Preprint</em>.
+                </li>
+                <li>
+                  Qiao, T., Walker, C., Cunningham, C. W. &amp; Koh, Y. S. (2025). Thematic-LM: a LLM-based
+                  multi-agent system for large-scale thematic analysis. <em>Proceedings of The Web Conference (WWW)</em>.
+                </li>
+                <li>
+                  Tai, R. H., Achilles, C. M. et al. (2024). An examination of the use of large language models to aid
+                  analysis of textual data. <em>International Journal of Qualitative Methods</em>, 23.
+                </li>
+                <li>
+                  Strauss, A. &amp; Corbin, J. (1990).{" "}
+                  <em>Basics of Qualitative Research: Grounded Theory Procedures and Techniques</em>. SAGE.
+                </li>
+              </ol>
             </section>
           </div>
         </section>
