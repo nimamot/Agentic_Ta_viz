@@ -2765,6 +2765,25 @@ body::after {
   margin-bottom: 0.35rem;
 }
 
+.research-supervisor {
+  margin: 0 0 0.35rem;
+  font-size: clamp(0.82rem, 1.35vw, 0.95rem);
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.research-supervisor a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  font-weight: 600;
+}
+
+.research-supervisor a:hover {
+  color: var(--text);
+}
+
 .research-deck-panel .research-gt-steps {
   margin-top: 0.65rem;
 }

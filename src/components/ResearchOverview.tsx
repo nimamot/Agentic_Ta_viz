@@ -51,6 +51,8 @@ const PRESENTATION = {
   title: "Agentic Workflows for Qualitative Research",
   subtitle: "An LLM-guided pipeline for grounded thematic analysis",
   author: "Nima Motieifard",
+  supervisorName: "Jian Zhu",
+  supervisorUrl: "https://linguistics.ubc.ca/profile/jian-zhu/",
 } as const;
 
 const SECTION_COUNT = 9;
@@ -428,6 +430,12 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                 </h1>
                 <p className="research-subtitle">{PRESENTATION.subtitle}</p>
                 <p className="research-author">{PRESENTATION.author}</p>
+                <p className="research-supervisor">
+                  Supervisor:{" "}
+                  <a href={PRESENTATION.supervisorUrl} target="_blank" rel="noopener noreferrer">
+                    {PRESENTATION.supervisorName}
+                  </a>
+                </p>
               </div>
             </div>
             <div className="research-hero-vis">
