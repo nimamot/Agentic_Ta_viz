@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import evalDatasetJson from "../data/schoolBurnoutEvalDataset.json";
 import { PipelineView } from "./PipelineView";
+import { ResearchValidatorAgentsSlide } from "./ResearchValidatorAgentsSlide";
 import evalHeatmap from "../../public/eval/heatmap.png";
 
 interface SchoolBurnoutEvalRow {
@@ -55,7 +56,7 @@ const PRESENTATION = {
   supervisorUrl: "https://linguistics.ubc.ca/profile/jian-zhu/",
 } as const;
 
-const SECTION_COUNT = 9;
+const SECTION_COUNT = 10;
 
 const SECTION_LABELS = [
   "Overview",
@@ -64,6 +65,7 @@ const SECTION_LABELS = [
   "This work",
   "Pipeline",
   "Evaluation",
+  "Validators",
   "Contribution",
   "Future",
   "References",
@@ -672,9 +674,16 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide" aria-labelledby="research-slide-6-title">
+        <section className="research-slide research-slide--bm" aria-labelledby="research-slide-6-title">
+          <div className="research-slide-inner research-slide-inner--deck research-slide-inner--validator-agents">
+            <DeckSectionTitle id="research-slide-6-title" title="Validator agent performance" />
+            <ResearchValidatorAgentsSlide />
+          </div>
+        </section>
+
+        <section className="research-slide" aria-labelledby="research-slide-7-title">
           <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-6-title" title="Contribution" />
+            <DeckSectionTitle id="research-slide-7-title" title="Contribution" />
             <div className="research-bm-grid">
               <section className="research-deck-panel research-deck-panel--lavender">
                 <h3 className="research-bm-panel-h">Built-in validation</h3>
@@ -730,9 +739,9 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide" aria-labelledby="research-slide-7-title">
+        <section className="research-slide" aria-labelledby="research-slide-8-title">
           <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-7-title" title="Future Work" />
+            <DeckSectionTitle id="research-slide-8-title" title="Future Work" />
             <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span">
               <ul className="research-bm-list research-bm-list--loose">
                 <li>
@@ -752,9 +761,9 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide" aria-labelledby="research-slide-8-title">
+        <section className="research-slide" aria-labelledby="research-slide-9-title">
           <div className="research-slide-inner research-slide-inner--deck">
-            <DeckSectionTitle id="research-slide-8-title" title="References" />
+            <DeckSectionTitle id="research-slide-9-title" title="References" />
             <section className="research-deck-panel research-deck-panel--neutral research-deck-panel--span research-references-panel">
               <ol className="research-references-list">
                 <li>

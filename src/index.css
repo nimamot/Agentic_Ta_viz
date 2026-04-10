@@ -1950,6 +1950,40 @@ body::after {
   color: var(--text-muted);
 }
 
+.pipeline-validator-trace-intro--example2 {
+  margin-bottom: 0.85rem;
+}
+
+.pipeline-validator-example-label {
+  margin: 0.65rem 0 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pipeline-validator-trace > .pipeline-validator-example-label:first-of-type {
+  margin-top: 0.15rem;
+}
+
+.pipeline-validator-example-divider {
+  height: 1px;
+  margin: 1rem 0 0.75rem;
+  border: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border-bright) 70%, transparent), transparent);
+}
+
+.pipeline-trace-separator-line {
+  margin: 0.35rem 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  text-align: center;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
 .pipeline-trace-event {
   margin-bottom: 0.65rem;
 }
@@ -2006,6 +2040,32 @@ body::after {
 
 .pipeline-trace-card--verdict {
   padding-top: 0.55rem;
+}
+
+.pipeline-trace-event-head--wrap .pipeline-trace-line-eq {
+  flex: 1 1 100%;
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.pipeline-trace-card--open-coding-sample {
+  padding: 0.5rem 0.65rem;
+}
+
+.pipeline-open-coding-sample-pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.pipeline-open-coding-example {
+  margin-top: 0.15rem;
 }
 
 .pipeline-trace-kv {
@@ -3224,6 +3284,132 @@ h3.research-bm-kicker--section {
   font-weight: 700;
   padding: 0 0.2rem;
   opacity: 0.95;
+}
+
+/* Validator agent performance slide (reuses pipeline trace components) */
+.research-slide-inner--validator-agents {
+  max-width: min(48rem, 94vw);
+  width: 100%;
+  padding-bottom: 1.25rem;
+}
+
+.research-validator-agents-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.research-validator-agents-header {
+  padding: 0 0.15rem;
+}
+
+.research-validator-agents-lead {
+  margin: 0;
+  max-width: 52ch;
+  font-size: clamp(0.92rem, 1.3vw, 1.03rem);
+  line-height: 1.58;
+  color: var(--rs-body-color);
+}
+
+.research-validator-agents-lead strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.research-validator-agents-lead em {
+  color: color-mix(in srgb, var(--accent) 85%, var(--text-muted));
+  font-style: normal;
+  font-weight: 600;
+}
+
+.research-validator-agents-panel {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-bright) 48%, var(--border));
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent) 7%, var(--surface-glass)) 0%,
+    var(--surface-glass) 42%,
+    var(--surface-2) 100%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--text) 5%, transparent),
+    0 12px 40px color-mix(in srgb, #000 22%, transparent);
+  overflow: hidden;
+}
+
+.research-overview[data-theme="light"] .research-validator-agents-panel {
+  background: linear-gradient(165deg, #f6fffc 0%, #ffffff 45%, #f8fafc 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 32px rgba(15, 23, 42, 0.08);
+}
+
+.research-validator-agents-panel::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #6366f1));
+  opacity: 0.95;
+}
+
+.research-validator-agents-panel-head {
+  padding: 1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-bright) 35%, transparent);
+}
+
+.research-validator-agents-eyebrow {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-mono);
+  font-size: clamp(0.58rem, 0.95vw, 0.64rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.research-validator-agents-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.05rem, 1.65vw, 1.22rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.research-validator-agents-panel-sub {
+  margin: 0;
+  font-size: clamp(0.84rem, 1.12vw, 0.93rem);
+  line-height: 1.52;
+  color: var(--rs-body-color);
+}
+
+.research-validator-agents-panel-sub strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.research-validator-agents-trace-wrap {
+  max-height: min(56vh, 640px);
+  overflow: auto;
+  padding: 0.85rem 1rem 1rem;
+  margin: 0;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  scrollbar-gutter: stable;
+}
+
+.research-validator-agents-trace-wrap .pipeline-validator-trace {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+@media (max-width: 640px) {
+  .research-validator-agents-trace-wrap {
+    max-height: min(48vh, 520px);
+    padding: 0.65rem 0.75rem 0.85rem;
+  }
 }
 
 .research-slide-inner.research-slide-inner--eval {

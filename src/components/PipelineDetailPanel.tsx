@@ -1,6 +1,7 @@
 import { Icon } from "@iconify/react";
 import type { PipelineNode } from "../lib/pipelineManifest";
 import { MODEL_KIND_COLORS, MODEL_KIND_LABELS } from "../lib/pipelineManifest";
+import { PipelineOpenCodingExampleOutput } from "./PipelineOpenCodingExampleOutput";
 import { PipelineValidatorExampleTrace } from "./PipelineValidatorExampleTrace";
 
 interface Props {
@@ -74,6 +75,8 @@ export function PipelineDetailPanel({ node, onClose }: Props) {
             </ul>
           </div>
         )}
+
+        {node.id === "open_coding" && <PipelineOpenCodingExampleOutput />}
 
         {node.id === "validate_open_codes" && <PipelineValidatorExampleTrace />}
       </div>
