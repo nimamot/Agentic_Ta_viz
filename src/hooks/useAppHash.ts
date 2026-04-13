@@ -1,33 +1,56 @@
 import { useEffect, useCallback } from "react";
 
+export type AppTab = "overview" | "library";
+
 interface UseAppHashArgs {
   libraryRowId: string | null;
   setLibraryRowId: (id: string | null) => void;
+  setActiveTab: (tab: AppTab) => void;
 }
 
 function parseHash(): URLSearchParams {
   return new URLSearchParams(window.location.hash.slice(1));
 }
 
-export function useAppHash({ libraryRowId, setLibraryRowId }: UseAppHashArgs) {
+/** Hash query for Library (same shape as `syncUrl`). */
+export function libraryHashQuery(rowId: string | null): string {
+  const params = new URLSearchParams();
+  params.set("page", "library");
+  if (rowId) params.set("row", rowId);
+  return params.toString();
+}
+
+/** Absolute URL to open Library with a given research row selected (for sharing). */
+export function buildLibraryShareUrl(rowId: string): string {
+  return `${window.location.origin}${window.location.pathname}#${libraryHashQuery(rowId)}`;
+}
+
+function applyHashToApp(
+  setLibraryRowId: (id: string | null) => void,
+  setActiveTab: (tab: AppTab) => void
+): void {
+  const params = parseHash();
+  const rowRaw = params.get("row");
+  const row = rowRaw?.trim() ?? "";
+  const openLibrary = params.get("page") === "library" || row.length > 0;
+  if (openLibrary) {
+    setActiveTab("library");
+  }
+  if (row.length > 0) {
+    setLibraryRowId(row);
+  }
+}
+
+export function useAppHash({ libraryRowId, setLibraryRowId, setActiveTab }: UseAppHashArgs) {
   useEffect(() => {
-    const params = parseHash();
-    const row = params.get("row");
-    if (row && row.length > 0) {
-      setLibraryRowId(row);
-      return;
-    }
-    if (params.get("page") === "library") {
-      const r2 = params.get("row");
-      if (r2 && r2.length > 0) setLibraryRowId(r2);
-    }
-  }, []);
+    const onHashChange = () => applyHashToApp(setLibraryRowId, setActiveTab);
+    applyHashToApp(setLibraryRowId, setActiveTab);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [setLibraryRowId, setActiveTab]);
 
   const syncUrl = useCallback(() => {
-    const params = new URLSearchParams();
-    params.set("page", "library");
-    if (libraryRowId) params.set("row", libraryRowId);
-    window.history.replaceState(null, "", `#${params.toString()}`);
+    window.history.replaceState(null, "", `#${libraryHashQuery(libraryRowId)}`);
   }, [libraryRowId]);
 
   useEffect(() => {

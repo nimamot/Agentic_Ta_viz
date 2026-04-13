@@ -39,8 +39,9 @@ export function HelpModal({ onClose }: HelpModalProps) {
           <section>
             <h3>URL</h3>
             <p>
-              The address hash keeps <code>page=library</code> and, when a card is selected, <code>row=&lt;id&gt;</code> so you can
-              bookmark a project.
+              The address hash keeps <code>page=library</code> and, when a project is selected, <code>row=&lt;id&gt;</code>. Use{" "}
+              <strong>Copy link to graph</strong> in the Library toolbar to share that URL; opening it switches to Library and
+              selects that project.
             </p>
           </section>
         </div>

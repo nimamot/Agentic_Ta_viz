@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useAppHash } from "./hooks/useAppHash";
+import { useAppHash, type AppTab } from "./hooks/useAppHash";
 import { HelpModal } from "./components/HelpModal";
 import { LibraryView } from "./components/LibraryView";
 import { ResearchOverview } from "./components/ResearchOverview";
-
-type AppTab = "overview" | "library";
 
 function AppContent() {
   const { isDark, toggleTheme } = useTheme();
@@ -14,7 +12,7 @@ function AppContent() {
   const [libraryRowId, setLibraryRowId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
 
-  useAppHash({ libraryRowId, setLibraryRowId });
+  useAppHash({ libraryRowId, setLibraryRowId, setActiveTab });
 
   useKeyboardShortcuts({
     onEscape: () => {

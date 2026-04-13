@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { buildLibraryShareUrl } from "../hooks/useAppHash";
 import { fetchResearchProjects } from "../lib/fetchResearchProjects";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import {
@@ -121,6 +122,70 @@ function rowOptionLabel(row: ResearchProjectRow): string {
   return s.length > 140 ? `${s.slice(0, 137)}…` : s;
 }
 
+/** Skip idle warm-up for huge trees to avoid long idle tasks on low-end devices. */
+const EXPAND_ALL_WARM_MAX_NODES = 12_000;
+
+type ExpandAllFlowerWarmCache = {
+  sourceGData: GraphData;
+  treeRootId: number;
+  visNodeCount: number;
+  visEdgeCount: number;
+  themeStripBoost: boolean;
+  positions: Map<number, { x: number; y: number }>;
+};
+
+function buildFullExpandParentIds(gData: GraphData, treeRootId: number): Set<number> {
+  const next = new Set<number>();
+  next.add(treeRootId);
+  for (const e of gData.edges) {
+    next.add(e.from);
+  }
+  return next;
+}
+
+/** Same slice + strip + flower path as fully expanded Library tree (for idle prefetch). */
+function computeExpandAllFlowerWarm(gData: GraphData, treeRootId: number): ExpandAllFlowerWarmCache | null {
+  if (gData.nodeCount > EXPAND_ALL_WARM_MAX_NODES) return null;
+  const fullIds = buildFullExpandParentIds(gData, treeRootId);
+  const gDataVisible = sliceExpandedTree(gData, treeRootId, fullIds);
+  const strippedTreePreview = stripTreeRootFromGraph(gDataVisible, treeRootId);
+  const treeStripApplied = strippedTreePreview.nodeCount > 0;
+  const gDataForVis = treeStripApplied ? strippedTreePreview : gDataVisible;
+  const themeStripBoost =
+    treeStripApplied && gDataForVis.edgeCount === 0 && gDataForVis.nodeCount > 0;
+  const positions = computeFlowerPositions(gDataForVis, { themeStripBoost });
+  return {
+    sourceGData: gData,
+    treeRootId,
+    visNodeCount: gDataForVis.nodeCount,
+    visEdgeCount: gDataForVis.edgeCount,
+    themeStripBoost,
+    positions,
+  };
+}
+
+function scheduleIdleTask(fn: () => void): number {
+  const ric = (
+    globalThis as typeof globalThis & {
+      requestIdleCallback?: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number;
+    }
+  ).requestIdleCallback;
+  if (typeof ric === "function") {
+    return ric(fn, { timeout: 4000 });
+  }
+  return window.setTimeout(fn, 1) as unknown as number;
+}
+
+function cancelIdleTask(id: number): void {
+  const cic = (globalThis as typeof globalThis & { cancelIdleCallback?: (h: number) => void })
+    .cancelIdleCallback;
+  if (typeof cic === "function") {
+    cic(id);
+    return;
+  }
+  clearTimeout(id);
+}
+
 /** Drops the pipeline-appended "## Graph structure" section (counts line); the graph UI shows structure already. */
 function stripGraphStructureSection(md: string): string {
   return md
@@ -143,6 +208,14 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   const [cooccurrenceLayer, setCooccurrenceLayer] = useState<CooccurrenceLayer>("theme");
   const [cooccurrenceMaxEdges, setCooccurrenceMaxEdges] = useState(40);
   const [cooccurrenceMinCount, setCooccurrenceMinCount] = useState(10);
+  const [copyLinkFeedback, setCopyLinkFeedback] = useState<string | null>(null);
+
+  /** Idle-computed flower layout for “expand all”; reused when the user expands to cut main-thread work. */
+  const expandAllFlowerWarmRef = useRef<ExpandAllFlowerWarmCache | null>(null);
+  const latestTreeWarmTargetRef = useRef<{ g: GraphData | null; root: number | null }>({
+    g: null,
+    root: null,
+  });
 
   const configured = isSupabaseConfigured();
 
@@ -201,10 +274,39 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     return findDirectedTreeRootId(gData);
   }, [gData, globalVizKind]);
 
+  latestTreeWarmTargetRef.current = { g: gData ?? null, root: treeRootId };
+
   useEffect(() => {
     if (treeRootId != null) setGlobalExpandedIds(new Set([treeRootId]));
     else setGlobalExpandedIds(new Set());
   }, [treeRootId, selectedRowId]);
+
+  useEffect(() => {
+    expandAllFlowerWarmRef.current = null;
+    if (globalVizKind !== "tree" || !gData || treeRootId == null) return;
+    if (gData.nodeCount > EXPAND_ALL_WARM_MAX_NODES) return;
+
+    let cancelled = false;
+    const scheduledGData = gData;
+    const scheduledRoot = treeRootId;
+
+    const idleId = scheduleIdleTask(() => {
+      if (cancelled) return;
+      const latest = latestTreeWarmTargetRef.current;
+      if (latest.g !== scheduledGData || latest.root !== scheduledRoot) return;
+      const payload = computeExpandAllFlowerWarm(scheduledGData, scheduledRoot);
+      if (!payload || cancelled) return;
+      if (latestTreeWarmTargetRef.current.g !== scheduledGData || latestTreeWarmTargetRef.current.root !== scheduledRoot) {
+        return;
+      }
+      expandAllFlowerWarmRef.current = payload;
+    });
+
+    return () => {
+      cancelled = true;
+      cancelIdleTask(idleId);
+    };
+  }, [gData, treeRootId, globalVizKind, selectedRowId]);
 
   const gDataVisible = useMemo(() => {
     if (!gData) return null;
@@ -263,12 +365,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
 
   const handleGlobalTreeExpandAll = useCallback(() => {
     if (!gData || treeRootId == null) return;
-    const next = new Set<number>();
-    next.add(treeRootId);
-    for (const e of gData.edges) {
-      next.add(e.from);
-    }
-    setGlobalExpandedIds(next);
+    setGlobalExpandedIds(buildFullExpandParentIds(gData, treeRootId));
   }, [gData, treeRootId]);
 
   const treeFullyExpanded = useMemo(() => {
@@ -363,8 +460,28 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     if (globalVizKind !== "tree" || !gDataForVis) return null;
     const themeStripBoost =
       treeStripApplied && gDataForVis.edgeCount === 0 && gDataForVis.nodeCount > 0;
+    if (treeFullyExpanded && gData && treeRootId != null) {
+      const w = expandAllFlowerWarmRef.current;
+      if (
+        w &&
+        w.sourceGData === gData &&
+        w.treeRootId === treeRootId &&
+        w.visNodeCount === gDataForVis.nodeCount &&
+        w.visEdgeCount === gDataForVis.edgeCount &&
+        w.themeStripBoost === themeStripBoost
+      ) {
+        return w.positions;
+      }
+    }
     return computeFlowerPositions(gDataForVis, { themeStripBoost });
-  }, [globalVizKind, gDataForVis, treeStripApplied]);
+  }, [
+    globalVizKind,
+    gDataForVis,
+    treeStripApplied,
+    treeFullyExpanded,
+    gData,
+    treeRootId,
+  ]);
 
   const gNodesForGraph = useMemo(() => {
     if (!flowerPositions?.size || !gNodes.length) return gNodes;
@@ -478,6 +595,19 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     });
   }, [cooccurrenceParsed, cooccurrenceLayer, cooccurrenceMaxEdges, cooccurrenceMinCount]);
 
+  const copyGraphShareLink = useCallback(async () => {
+    if (!selectedRowId) return;
+    const url = buildLibraryShareUrl(selectedRowId);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyLinkFeedback("Copied link");
+      window.setTimeout(() => setCopyLinkFeedback(null), 2000);
+    } catch {
+      setCopyLinkFeedback("Copy blocked — select the URL in the bar");
+      window.setTimeout(() => setCopyLinkFeedback(null), 3500);
+    }
+  }, [selectedRowId]);
+
   const exportPng = (key: string, filename: string) => {
     const fn = (window as unknown as Record<string, (() => string | null) | undefined>)[key];
     const dataUrl = fn?.();
@@ -521,6 +651,16 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
                     </option>
                   ))}
                 </select>
+                {selectedRowId ? (
+                  <button
+                    type="button"
+                    className="library-btn library-btn--sync"
+                    onClick={() => void copyGraphShareLink()}
+                    title="Copy a link that opens this project in Library"
+                  >
+                    {copyLinkFeedback ?? "Copy link to graph"}
+                  </button>
+                ) : null}
                 {selected ? (
                   <div className="library-toolbar-chips" aria-label="Project metadata">
                     <span className="library-chip" title="Row slug">
