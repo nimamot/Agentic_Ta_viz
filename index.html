@@ -3,12 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Favicons: Google Search expects a crawlable PNG/ICO (often 48×48+); SVG alone is frequently ignored in results. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="application-name" content="Qualitative research library" />
     <title>Agentic workflows for qualitative research — Research library</title>
     <meta
       name="description"
       content="Agentic workflows for qualitative research. An LLM-guided pipeline for grounded thematic analysis. Explore theme graphs, codebooks, and open-coding traces."
     />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="theme-color" content="#0f172a" />
     <!-- Open Graph / Twitter: absolute URLs help crawlers; if you use a custom domain, replace the origin below. -->
     <meta property="og:site_name" content="Qualitative research library" />
@@ -39,6 +46,15 @@
         "alternateName": "Agentic workflows for qualitative research",
         "url": "https://agentic-ta-viz.vercel.app/",
         "description": "An LLM-guided pipeline for grounded thematic analysis. Theme graphs, codebooks, and open-coding traces."
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Qualitative research library",
+        "url": "https://agentic-ta-viz.vercel.app/",
+        "logo": "https://agentic-ta-viz.vercel.app/favicon-192.png"
       }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
