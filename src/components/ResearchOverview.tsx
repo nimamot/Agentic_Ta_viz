@@ -674,7 +674,10 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
           </div>
         </section>
 
-        <section className="research-slide research-slide--bm" aria-labelledby="research-slide-6-title">
+        <section
+          className="research-slide research-slide--bm research-slide--validator-agents"
+          aria-labelledby="research-slide-6-title"
+        >
           <div className="research-slide-inner research-slide-inner--deck research-slide-inner--validator-agents">
             <DeckSectionTitle id="research-slide-6-title" title="Validator agent performance" />
             <ResearchValidatorAgentsSlide />

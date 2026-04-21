@@ -18,14 +18,9 @@ export function ResearchValidatorAgentsSlide() {
         <div className="research-validator-agents-panel-head">
           <p className="research-validator-agents-eyebrow">Sample tool logs</p>
           <h3 className="research-validator-agents-panel-title">Two end-to-end threads</h3>
-          <p className="research-validator-agents-panel-sub">
-            <strong>Example 1</strong> — short “very cool” review: validation fails until the code and evidence align.{" "}
-            <strong>Example 2</strong> — GPU temperature review: validator rejects an empty applicability, open coding
-            returns a concrete code, then <strong>PASS</strong>.
-          </p>
         </div>
         <div className="research-validator-agents-trace-wrap">
-          <PipelineValidatorExampleTrace />
+          <PipelineValidatorExampleTrace layout="researchDeck" />
         </div>
       </section>
     </div>

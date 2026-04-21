@@ -1,11 +1,17 @@
 /**
  * Static example of open_coding → validate_open_codes loop for the pipeline detail panel.
  */
-export function PipelineValidatorExampleTrace() {
-  return (
-    <div className="pipeline-detail-section pipeline-validator-trace">
-      <h4>Sample tool output</h4>
 
+export type PipelineValidatorExampleTraceLayout = "stack" | "researchDeck";
+
+export interface PipelineValidatorExampleTraceProps {
+  /** `researchDeck`: two columns + compact for Overview slide (no vertical scroll). */
+  layout?: PipelineValidatorExampleTraceLayout;
+}
+
+function ValidatorTraceExample1() {
+  return (
+    <>
       <h5 className="pipeline-validator-example-label">Example 1</h5>
       <p className="pipeline-validator-trace-intro">
         Example log from one review: the validator rejects weak grounding, then open coding retries and passes.
@@ -88,9 +94,13 @@ export function PipelineValidatorExampleTrace() {
           <p className="pipeline-trace-verdict pipeline-trace-verdict--pass">PASS</p>
         </div>
       </div>
+    </>
+  );
+}
 
-      <div className="pipeline-validator-example-divider" aria-hidden="true" />
-
+function ValidatorTraceExample2() {
+  return (
+    <>
       <h5 className="pipeline-validator-example-label">Example 2</h5>
       <p className="pipeline-validator-trace-intro pipeline-validator-trace-intro--example2">
         Same review thread as the <strong>Open coding</strong> card example (GPU temperature /{" "}
@@ -152,6 +162,36 @@ export function PipelineValidatorExampleTrace() {
           <p className="pipeline-trace-verdict pipeline-trace-verdict--pass">PASS</p>
         </div>
       </div>
+    </>
+  );
+}
+
+export function PipelineValidatorExampleTrace({ layout = "stack" }: PipelineValidatorExampleTraceProps) {
+  if (layout === "researchDeck") {
+    return (
+      <div className="pipeline-detail-section pipeline-validator-trace pipeline-validator-trace--research-deck">
+        <h4>Sample tool output</h4>
+        <div className="pipeline-validator-research-two-cols">
+          <div className="pipeline-validator-research-col">
+            <ValidatorTraceExample1 />
+          </div>
+          <div className="pipeline-validator-research-col">
+            <ValidatorTraceExample2 />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pipeline-detail-section pipeline-validator-trace">
+      <h4>Sample tool output</h4>
+
+      <ValidatorTraceExample1 />
+
+      <div className="pipeline-validator-example-divider" aria-hidden="true" />
+
+      <ValidatorTraceExample2 />
     </div>
   );
 }
