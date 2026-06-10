@@ -54,6 +54,8 @@ const PRESENTATION = {
   author: "Nima Motieifard",
   supervisorName: "Jian Zhu",
   supervisorUrl: "https://linguistics.ubc.ca/profile/jian-zhu/",
+  codeUrl: "https://github.com/nimamot/Thematic_Analysis_Main",
+  codeLabel: "Thematic_Analysis_Main",
 } as const;
 
 const SECTION_COUNT = 10;
@@ -436,6 +438,12 @@ export function ResearchOverview({ isDark }: ResearchOverviewProps) {
                   Supervisor:{" "}
                   <a href={PRESENTATION.supervisorUrl} target="_blank" rel="noopener noreferrer">
                     {PRESENTATION.supervisorName}
+                  </a>
+                </p>
+                <p className="research-supervisor">
+                  Code:{" "}
+                  <a href={PRESENTATION.codeUrl} target="_blank" rel="noopener noreferrer">
+                    {PRESENTATION.codeLabel}
                   </a>
                 </p>
               </div>
