@@ -37,6 +37,14 @@ export function HelpModal({ onClose }: HelpModalProps) {
             </p>
           </section>
           <section>
+            <h3>Codebook review</h3>
+            <p>
+              Shows all pending rows from <code>codebook_reviews</code>. Open one to edit clusters, then{" "}
+              <strong>Approve &amp; submit</strong> (requires Supabase sign-in). Hash:{" "}
+              <code>page=codebook&amp;review=&lt;id&gt;</code>.
+            </p>
+          </section>
+          <section>
             <h3>URL</h3>
             <p>
               The address hash keeps <code>page=library</code> and, when a project is selected, <code>row=&lt;id&gt;</code>. Use{" "}

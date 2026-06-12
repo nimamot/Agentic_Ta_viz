@@ -3947,3 +3947,970 @@ h3.research-bm-kicker--section {
   }
 }
 
+/* ═══════════════════════════════════════════════════════
+   Codebook review tab
+   ═══════════════════════════════════════════════════════ */
+.codebook-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.codebook-shell {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.65rem 0.85rem 2rem;
+  gap: 0.65rem;
+  min-height: min-content;
+}
+
+.codebook-toolbar {
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.codebook-queue {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.codebook-queue-empty {
+  margin: 0.5rem 0 0;
+  padding: 0 0.15rem;
+}
+
+.codebook-queue-list {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.codebook-queue-card {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.codebook-queue-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-bright));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.codebook-queue-card:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.codebook-queue-card-main {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.codebook-queue-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.codebook-queue-slug {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+
+.codebook-queue-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.codebook-auth {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  margin-left: auto;
+}
+
+.codebook-auth-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.codebook-auth-input {
+  width: auto;
+  min-width: 8rem;
+  max-width: 11rem;
+}
+
+.codebook-auth-error {
+  font-size: 0.72rem;
+  color: var(--error);
+}
+
+.codebook-header {
+  padding: 1rem 1.15rem;
+}
+
+.codebook-header-question {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.codebook-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* ── Dual view: 3D map + cluster board ── */
+.codebook-dual-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.codebook-3d-canvas-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  overscroll-behavior: contain;
+  max-height: min(52vh, 540px);
+}
+
+.codebook-3d-canvas-host {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  position: relative;
+  width: 100%;
+  height: min(42vh, 460px);
+  min-height: min(36vh, 380px);
+  max-height: min(42vh, 460px);
+  overflow: hidden;
+}
+
+.codebook-3d-canvas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.85rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.codebook-3d-canvas-head h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.codebook-3d-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.codebook-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.codebook-3d-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  min-height: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.codebook-3d-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.85rem 0.65rem;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.codebook-3d-selection-pill {
+  display: inline-block;
+  max-width: min(28rem, 70vw);
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--cluster-color) 22%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 55%, var(--border));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* drei Html wrapper — must not collapse to 0 width (causes vertical letter stacking) */
+.codebook-3d-html-wrap {
+  width: max-content !important;
+  max-width: min(18rem, 55vw) !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  pointer-events: none !important;
+}
+
+/* Fixed pixel size — transform={false} on drei Html; does not grow when zooming in */
+.codebook-3d-label {
+  display: block;
+  width: max-content;
+  max-width: min(11rem, 50vw);
+  padding: 0.22rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 50%, transparent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s;
+  text-align: center;
+}
+
+.codebook-3d-label--cluster .codebook-3d-label-name {
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.codebook-3d-label--dim {
+  opacity: 0.28;
+}
+
+.codebook-3d-label-name {
+  display: block;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(11rem, 50vw);
+}
+
+.codebook-3d-label-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: color-mix(in srgb, var(--cluster-color) 75%, #ccc);
+  opacity: 0.95;
+  white-space: nowrap;
+}
+
+.codebook-3d-code-label {
+  display: block;
+  width: max-content;
+  max-width: min(14rem, 55vw);
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1.5px solid color-mix(in srgb, var(--cluster-color) 70%, #fff);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 4px 20px color-mix(in srgb, var(--cluster-color) 35%, transparent);
+}
+
+.codebook-board-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.codebook-board-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  padding: 0 0.15rem;
+}
+
+.codebook-board-section-head h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.codebook-tile--highlighted {
+  border-color: color-mix(in srgb, var(--cluster-color) 70%, var(--accent));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--cluster-color) 35%, transparent),
+    0 0 28px color-mix(in srgb, var(--cluster-color) 22%, transparent);
+}
+
+.codebook-chip--highlighted {
+  border-color: #fff !important;
+  background: color-mix(in srgb, var(--cluster-color) 35%, var(--surface-2)) !important;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--cluster-color) 80%, #fff),
+    0 0 16px color-mix(in srgb, var(--cluster-color) 45%, transparent);
+  animation: codebook-chip-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes codebook-chip-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--cluster-color) 80%, #fff),
+      0 0 12px color-mix(in srgb, var(--cluster-color) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 22px color-mix(in srgb, var(--cluster-color) 55%, transparent);
+  }
+}
+
+.codebook-board-hint {
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.codebook-board-hint strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ── Merge confirm bar (drag cluster onto cluster) ── */
+.codebook-merge-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.codebook-merge-confirm-text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.codebook-merge-pill {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  background: color-mix(in srgb, var(--cluster-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 55%, transparent);
+}
+
+.codebook-merge-label {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+  max-width: 20rem;
+}
+
+/* ── Cluster board: colorful masonry-style grid of cluster tiles ── */
+.codebook-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.codebook-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 32%, var(--border));
+  background:
+    linear-gradient(
+      170deg,
+      color-mix(in srgb, var(--cluster-color) 9%, transparent),
+      color-mix(in srgb, var(--cluster-color) 3%, transparent) 45%,
+      transparent
+    ),
+    var(--surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+
+.codebook-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: linear-gradient(
+    180deg,
+    var(--cluster-color),
+    color-mix(in srgb, var(--cluster-color) 35%, transparent)
+  );
+  opacity: 0.9;
+}
+
+.codebook-tile--dragover {
+  border-color: var(--cluster-color);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--cluster-color) 55%, transparent),
+    0 0 32px color-mix(in srgb, var(--cluster-color) 25%, transparent);
+  transform: translateY(-2px);
+}
+
+.codebook-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.codebook-tile-head:active {
+  cursor: grabbing;
+}
+
+.codebook-tile-grip {
+  color: color-mix(in srgb, var(--cluster-color) 80%, var(--text-muted));
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.codebook-tile-id {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--cluster-color) 85%, var(--text));
+}
+
+.codebook-tile-source {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.14rem 0.4rem;
+  border-radius: 4px;
+  color: var(--text-muted);
+  border: 1px dashed color-mix(in srgb, var(--cluster-color) 45%, var(--border));
+}
+
+.codebook-tile-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  color: var(--text-muted);
+}
+
+.codebook-tile-label {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.codebook-tile-label:hover {
+  border-color: color-mix(in srgb, var(--cluster-color) 35%, var(--border));
+}
+
+.codebook-tile-label:focus {
+  outline: none;
+  border-color: var(--cluster-color);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+
+.codebook-tile-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.codebook-candidate-chip {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--cluster-color) 50%, var(--border));
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.codebook-candidate-chip:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--cluster-color) 14%, transparent);
+  border-style: solid;
+}
+
+.codebook-tile-desc {
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 18%, var(--border));
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.codebook-tile-desc:focus {
+  outline: none;
+  border-color: var(--cluster-color);
+  color: var(--text);
+}
+
+/* ── Code chips (draggable) ── */
+.codebook-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 1.8rem;
+}
+
+.codebook-chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--cluster-color) 12%, var(--surface-2));
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: grab;
+  user-select: none;
+  overflow-wrap: anywhere;
+  transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s;
+}
+
+.codebook-chip:hover {
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--cluster-color) 30%, transparent);
+  transform: translateY(-1px);
+}
+
+.codebook-chip:active {
+  cursor: grabbing;
+}
+
+.codebook-chip--dragging {
+  opacity: 0.35;
+}
+
+.codebook-chip--more {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.codebook-chip--more:hover {
+  color: var(--text);
+}
+
+.codebook-chips-empty {
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--text-dim);
+  padding: 0.3rem 0.2rem;
+}
+
+/* ── Tile footer ── */
+.codebook-tile-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--cluster-color) 16%, var(--border));
+}
+
+.codebook-tile-foot-spacer {
+  flex: 1;
+}
+
+.codebook-flag-btn {
+  padding: 0.28rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.codebook-flag-btn:hover {
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.codebook-flag-btn--active {
+  border-color: color-mix(in srgb, #fbbf24 60%, var(--border));
+  background: color-mix(in srgb, #fbbf24 14%, transparent);
+  color: #fbbf24;
+}
+
+.codebook-confidence {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.codebook-confidence--low {
+  color: #fb7185;
+  border-color: color-mix(in srgb, #fb7185 40%, var(--border));
+  background: color-mix(in srgb, #fb7185 12%, transparent);
+}
+
+.codebook-confidence--mid {
+  color: #fbbf24;
+  border-color: color-mix(in srgb, #fbbf24 40%, var(--border));
+  background: color-mix(in srgb, #fbbf24 10%, transparent);
+}
+
+.codebook-confidence--high {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.codebook-btn-danger:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* ── Split modal (drag codes into groups) ── */
+.codebook-split-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.codebook-split-modal {
+  width: min(880px, 100%);
+  max-height: min(86vh, 760px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 40%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cluster-color) 20%, transparent),
+    0 24px 64px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.codebook-split-head h4 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.codebook-split-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 0.65rem;
+  overflow-y: auto;
+  padding: 0.15rem;
+}
+
+.codebook-split-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem 0.65rem 0.7rem;
+  border-radius: 14px;
+  border: 1.5px dashed color-mix(in srgb, var(--cluster-color) 45%, var(--border-bright));
+  background: color-mix(in srgb, var(--cluster-color) 5%, transparent);
+  min-height: 7rem;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.codebook-split-col--dragover {
+  border-style: solid;
+  border-color: var(--cluster-color);
+  background: color-mix(in srgb, var(--cluster-color) 12%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cluster-color) 25%, transparent);
+}
+
+.codebook-split-col-label {
+  font-size: 0.82rem;
+}
+
+.codebook-chips--split {
+  align-content: flex-start;
+  flex: 1;
+}
+
+.codebook-split-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Live JSON payload panel ── */
+.codebook-json-panel {
+  overflow: hidden;
+}
+
+.codebook-json-panel-toggle {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.codebook-json-panel-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.codebook-json-panel-toggle-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.codebook-json-panel-body {
+  padding: 0 0.9rem 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.codebook-json-explainer {
+  margin: 0.65rem 0 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.codebook-json-explainer code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.codebook-json-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.codebook-json-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.codebook-json-tab:hover {
+  border-color: var(--border-bright);
+  color: var(--text);
+}
+
+.codebook-json-tab--active {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-bright));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  color: var(--text);
+}
+
+.codebook-json-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: codebook-json-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes codebook-json-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.codebook-json-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.codebook-json-filename {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.codebook-json-pre {
+  margin: 0;
+  max-height: min(42vh, 420px);
+  overflow: auto;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, #000 35%, var(--surface-2));
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  white-space: pre;
+  tab-size: 2;
+}
+
+[data-theme="light"] .codebook-json-pre {
+  background: #f4f6fa;
+  color: #1e293b;
+}
+
+.codebook-footer {
+  padding: 0.75rem 1rem;
+}
+
+.codebook-validation-errors {
+  margin: 0 0 0.65rem;
+  padding-left: 1.1rem;
+  font-size: 0.72rem;
+  color: var(--error);
+  line-height: 1.45;
+}
+
+.codebook-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .codebook-3d-canvas-wrap {
+    max-height: min(44vh, 400px);
+  }
+
+  .codebook-3d-canvas-host {
+    height: min(36vh, 340px);
+    min-height: min(32vh, 300px);
+    max-height: min(36vh, 340px);
+  }
+
+  .codebook-board {
+    grid-template-columns: 1fr;
+  }
+
+  .codebook-split-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .codebook-auth {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+

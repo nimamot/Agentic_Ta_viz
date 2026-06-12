@@ -1,10 +1,13 @@
 import { useEffect, useCallback } from "react";
 
-export type AppTab = "overview" | "library";
+export type AppTab = "overview" | "library" | "codebook";
 
 interface UseAppHashArgs {
+  activeTab: AppTab;
   libraryRowId: string | null;
+  codebookReviewId: string | null;
   setLibraryRowId: (id: string | null) => void;
+  setCodebookReviewId: (id: string | null) => void;
   setActiveTab: (tab: AppTab) => void;
 }
 
@@ -25,14 +28,32 @@ export function buildLibraryShareUrl(rowId: string): string {
   return `${window.location.origin}${window.location.pathname}#${libraryHashQuery(rowId)}`;
 }
 
+/** Hash query for Codebook Review tab. */
+export function codebookHashQuery(reviewId: string | null): string {
+  const params = new URLSearchParams();
+  params.set("page", "codebook");
+  if (reviewId?.trim()) params.set("review", reviewId.trim());
+  return params.toString();
+}
+
 function applyHashToApp(
   setLibraryRowId: (id: string | null) => void,
+  setCodebookReviewId: (id: string | null) => void,
   setActiveTab: (tab: AppTab) => void
 ): void {
   const params = parseHash();
+  const page = params.get("page");
   const rowRaw = params.get("row");
   const row = rowRaw?.trim() ?? "";
-  const openLibrary = params.get("page") === "library" || row.length > 0;
+  const review = params.get("review")?.trim() ?? "";
+
+  if (page === "codebook") {
+    setActiveTab("codebook");
+    if (review) setCodebookReviewId(review);
+    return;
+  }
+
+  const openLibrary = page === "library" || row.length > 0;
   if (openLibrary) {
     setActiveTab("library");
   }
@@ -41,17 +62,32 @@ function applyHashToApp(
   }
 }
 
-export function useAppHash({ libraryRowId, setLibraryRowId, setActiveTab }: UseAppHashArgs) {
+export function useAppHash({
+  activeTab,
+  libraryRowId,
+  codebookReviewId,
+  setLibraryRowId,
+  setCodebookReviewId,
+  setActiveTab,
+}: UseAppHashArgs) {
   useEffect(() => {
-    const onHashChange = () => applyHashToApp(setLibraryRowId, setActiveTab);
-    applyHashToApp(setLibraryRowId, setActiveTab);
+    const onHashChange = () => applyHashToApp(setLibraryRowId, setCodebookReviewId, setActiveTab);
+    applyHashToApp(setLibraryRowId, setCodebookReviewId, setActiveTab);
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [setLibraryRowId, setActiveTab]);
+  }, [setLibraryRowId, setCodebookReviewId, setActiveTab]);
 
   const syncUrl = useCallback(() => {
-    window.history.replaceState(null, "", `#${libraryHashQuery(libraryRowId)}`);
-  }, [libraryRowId]);
+    if (activeTab === "library") {
+      window.history.replaceState(null, "", `#${libraryHashQuery(libraryRowId)}`);
+      return;
+    }
+    if (activeTab === "codebook") {
+      window.history.replaceState(null, "", `#${codebookHashQuery(codebookReviewId)}`);
+      return;
+    }
+    window.history.replaceState(null, "", "#page=overview");
+  }, [activeTab, libraryRowId, codebookReviewId]);
 
   useEffect(() => {
     syncUrl();

@@ -3,6 +3,7 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAppHash, type AppTab } from "./hooks/useAppHash";
 import { HelpModal } from "./components/HelpModal";
+import { CodebookReviewView } from "./components/CodebookReviewView";
 import { LibraryView } from "./components/LibraryView";
 import { ResearchOverview } from "./components/ResearchOverview";
 
@@ -10,9 +11,17 @@ function AppContent() {
   const { isDark, toggleTheme } = useTheme();
   const [showHelp, setShowHelp] = useState(false);
   const [libraryRowId, setLibraryRowId] = useState<string | null>(null);
+  const [codebookReviewId, setCodebookReviewId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("overview");
 
-  useAppHash({ libraryRowId, setLibraryRowId, setActiveTab });
+  useAppHash({
+    activeTab,
+    libraryRowId,
+    codebookReviewId,
+    setLibraryRowId,
+    setCodebookReviewId,
+    setActiveTab,
+  });
 
   useKeyboardShortcuts({
     onEscape: () => {
@@ -43,6 +52,15 @@ function AppContent() {
           >
             Library
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "codebook"}
+            className={`header-tab ${activeTab === "codebook" ? "header-tab--active" : ""}`}
+            onClick={() => setActiveTab("codebook")}
+          >
+            Codebook review
+          </button>
         </nav>
         <div className="controls">
           <button type="button" className="icon-btn" onClick={() => setShowHelp(true)} title="Help (?)">
@@ -57,6 +75,13 @@ function AppContent() {
       {activeTab === "overview" && <ResearchOverview isDark={isDark} />}
       {activeTab === "library" && (
         <LibraryView selectedRowId={libraryRowId} onSelectRow={setLibraryRowId} isDark={isDark} />
+      )}
+      {activeTab === "codebook" && (
+        <CodebookReviewView
+          reviewId={codebookReviewId}
+          onReviewIdChange={setCodebookReviewId}
+          isDark={isDark}
+        />
       )}
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}

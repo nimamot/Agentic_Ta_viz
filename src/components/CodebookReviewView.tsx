@@ -1,0 +1,863 @@
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import { CodebookCluster3D, type HighlightedCode } from "./CodebookCluster3D";
+import { CodebookReviewJsonPanel } from "./CodebookReviewJsonPanel";
+import {
+  fetchAllPendingCodebookReviews,
+  fetchPendingCodebookReviewById,
+  type PendingCodebookReviewListItem,
+} from "../lib/fetchCodebookReview";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { GRAPH_CLUSTER_HEXES } from "../lib/graphBuilder";
+import {
+  buildWorkingCodebook,
+  dropCluster,
+  mergeClusters,
+  moveCode,
+  nextSplitClusterId,
+  renameCluster,
+  rewriteDescription,
+  sortClusterIdsByConfidence,
+  splitCluster,
+  toggleNeedsEvidence,
+  validateCodebook,
+  type WorkingCodebookState,
+} from "../lib/codebookReview";
+import { submitCodebookReview } from "../lib/submitCodebookReview";
+import { useSupabaseAuth } from "../hooks/useSupabaseAuth";
+
+interface CodebookReviewViewProps {
+  reviewId: string | null;
+  onReviewIdChange: (id: string | null) => void;
+  isDark: boolean;
+}
+
+const CHIPS_PREVIEW = 12;
+
+function formatWhen(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+function confidenceBadgeClass(confidence: number): string {
+  if (confidence <= 2) return "codebook-confidence--low";
+  if (confidence <= 3) return "codebook-confidence--mid";
+  return "codebook-confidence--high";
+}
+
+function reviewLabel(item: PendingCodebookReviewListItem): string {
+  return item.research_question?.trim() || item.slug;
+}
+
+interface DragCodeState {
+  code: string;
+  fromId: string;
+}
+
+interface MergeDraft {
+  fromId: string;
+  targetId: string;
+  label: string;
+}
+
+interface SplitGroup {
+  id: string;
+  label: string;
+  codes: string[];
+}
+
+export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: CodebookReviewViewProps) {
+  const { session, loading: authLoading, authError, signIn, signOut, isAuthenticated } = useSupabaseAuth();
+
+  const [pendingList, setPendingList] = useState<PendingCodebookReviewListItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [working, setWorking] = useState<WorkingCodebookState | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Drag & drop
+  const [dragCode, setDragCode] = useState<DragCodeState | null>(null);
+  const [dragClusterId, setDragClusterId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [mergeDraft, setMergeDraft] = useState<MergeDraft | null>(null);
+
+  // Split modal
+  const [splitFor, setSplitFor] = useState<string | null>(null);
+  const [splitGroups, setSplitGroups] = useState<SplitGroup[]>([]);
+  const [splitDragCode, setSplitDragCode] = useState<string | null>(null);
+  const [splitDragOver, setSplitDragOver] = useState<number | null>(null);
+
+  const [expandedChips, setExpandedChips] = useState<Set<string>>(new Set());
+  const [highlightedCode, setHighlightedCode] = useState<HighlightedCode | null>(null);
+
+  const refreshPendingList = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      setPendingList(await fetchAllPendingCodebookReviews());
+    } catch (e) {
+      setListError((e as Error).message);
+      setPendingList([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isSupabaseConfigured()) void refreshPendingList();
+  }, [refreshPendingList]);
+
+  const loadReviewById = useCallback(
+    async (targetReviewId: string) => {
+      const id = targetReviewId.trim();
+      if (!id) return;
+      setLoading(true);
+      setLoadError(null);
+      setSubmitMessage(null);
+      setMergeDraft(null);
+      setSplitFor(null);
+      setHighlightedCode(null);
+      try {
+        const result = await fetchPendingCodebookReviewById(id);
+        if (!result) {
+          setWorking(null);
+          setLoadError("This review is no longer pending. Refresh the queue.");
+          onReviewIdChange(null);
+          void refreshPendingList();
+          return;
+        }
+        setWorking(result);
+      } catch (e) {
+        setWorking(null);
+        setLoadError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onReviewIdChange, refreshPendingList]
+  );
+
+  const closeReview = useCallback(() => {
+    setWorking(null);
+    setLoadError(null);
+    setSubmitMessage(null);
+    setMergeDraft(null);
+    setSplitFor(null);
+    setHighlightedCode(null);
+    onReviewIdChange(null);
+    void refreshPendingList();
+  }, [onReviewIdChange, refreshPendingList]);
+
+  useEffect(() => {
+    const id = reviewId?.trim();
+    if (!id) {
+      setWorking(null);
+      return;
+    }
+    if (working?.review.id === id) return;
+    void loadReviewById(id);
+  }, [reviewId, loadReviewById, working?.review.id]);
+
+  const sortedClusterIds = useMemo(
+    () => (working ? sortClusterIdsByConfidence(working.codebook, true) : []),
+    [working]
+  );
+
+  /** Stable color per cluster id: indexed by insertion order in the clusters map. */
+  const clusterColor = useMemo(() => {
+    const map = new Map<string, string>();
+    if (working) {
+      Object.keys(working.codebook.clusters).forEach((cid, i) => {
+        map.set(cid, GRAPH_CLUSTER_HEXES[i % GRAPH_CLUSTER_HEXES.length]);
+      });
+    }
+    return map;
+  }, [working]);
+
+  const selectCode = useCallback((code: string, clusterId: string) => {
+    setHighlightedCode({ code, clusterId });
+    setExpandedChips((prev) => new Set(prev).add(clusterId));
+  }, []);
+
+  const totalCodes = useMemo(() => {
+    if (!working) return 0;
+    return sortedClusterIds.reduce(
+      (sum, cid) => sum + (working.codebook.cluster_to_codes[cid]?.length ?? 0),
+      0
+    );
+  }, [working, sortedClusterIds]);
+
+  const validation = useMemo(
+    () => (working ? validateCodebook(working.codebook) : { ok: false, errors: [] }),
+    [working]
+  );
+
+  // ── Drag & drop: codes between clusters, cluster-onto-cluster merge ──
+
+  const handleTileDragOver = (e: DragEvent, cid: string) => {
+    if (!dragCode && !dragClusterId) return;
+    if (dragCode?.fromId === cid) return;
+    if (dragClusterId === cid) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverId(cid);
+  };
+
+  const handleTileDrop = (e: DragEvent, cid: string) => {
+    e.preventDefault();
+    setDragOverId(null);
+    if (dragCode && dragCode.fromId !== cid) {
+      setWorking((w) => (w ? moveCode(w, dragCode.code, dragCode.fromId, cid) : w));
+      setDragCode(null);
+      return;
+    }
+    if (dragClusterId && dragClusterId !== cid && working) {
+      setMergeDraft({
+        fromId: dragClusterId,
+        targetId: cid,
+        label: working.codebook.clusters[cid]?.label ?? "",
+      });
+      setDragClusterId(null);
+    }
+  };
+
+  const clearDrag = () => {
+    setDragCode(null);
+    setDragClusterId(null);
+    setDragOverId(null);
+  };
+
+  const confirmMerge = useCallback(() => {
+    if (!working || !mergeDraft) return;
+    const label = mergeDraft.label.trim() || working.codebook.clusters[mergeDraft.targetId]?.label || "Merged cluster";
+    const result = mergeClusters(working, [mergeDraft.fromId, mergeDraft.targetId], mergeDraft.targetId, label);
+    if ("error" in result) {
+      setSubmitMessage(result.error);
+    } else {
+      setWorking(result);
+      setSubmitMessage(null);
+    }
+    setMergeDraft(null);
+  }, [working, mergeDraft]);
+
+  // ── Split modal ──
+
+  const beginSplit = useCallback(
+    (cid: string) => {
+      if (!working) return;
+      const codes = working.codebook.cluster_to_codes[cid] ?? [];
+      const existing = new Set(Object.keys(working.codebook.clusters));
+      const idA = nextSplitClusterId(cid, existing, "a");
+      const idB = nextSplitClusterId(cid, existing, "b");
+      const baseLabel = working.codebook.clusters[cid]?.label ?? cid;
+      const half = Math.ceil(codes.length / 2);
+      setSplitGroups([
+        { id: idA, label: `${baseLabel} (A)`, codes: codes.slice(0, half) },
+        { id: idB, label: `${baseLabel} (B)`, codes: codes.slice(half) },
+      ]);
+      setSplitFor(cid);
+    },
+    [working]
+  );
+
+  const addSplitGroup = useCallback(() => {
+    if (!working || !splitFor) return;
+    const existing = new Set([
+      ...Object.keys(working.codebook.clusters),
+      ...splitGroups.map((g) => g.id),
+    ]);
+    const suffix = String.fromCharCode(97 + splitGroups.length); // a, b, c…
+    const id = nextSplitClusterId(splitFor, existing, suffix);
+    const baseLabel = working.codebook.clusters[splitFor]?.label ?? splitFor;
+    setSplitGroups((gs) => [
+      ...gs,
+      { id, label: `${baseLabel} (${suffix.toUpperCase()})`, codes: [] },
+    ]);
+  }, [working, splitFor, splitGroups]);
+
+  const moveSplitCode = (code: string, toIndex: number) => {
+    setSplitGroups((groups) =>
+      groups.map((g, i) => ({
+        ...g,
+        codes:
+          i === toIndex
+            ? g.codes.includes(code)
+              ? g.codes
+              : [...g.codes, code]
+            : g.codes.filter((c) => c !== code),
+      }))
+    );
+  };
+
+  const applySplit = useCallback(() => {
+    if (!splitFor || !working) return;
+    const groups = splitGroups.filter((g) => g.codes.length > 0);
+    const result = splitCluster(
+      working,
+      splitFor,
+      groups.map((g) => ({ new_cluster_id: g.id, label: g.label, code_ids: g.codes }))
+    );
+    if ("error" in result) {
+      setSubmitMessage(result.error);
+      return;
+    }
+    setWorking(result);
+    setSplitFor(null);
+    setSubmitMessage(null);
+  }, [splitFor, working, splitGroups]);
+
+  // ── Submit / cancel ──
+
+  const handleApprove = useCallback(async () => {
+    if (!working || !validation.ok) return;
+    if (!isAuthenticated) {
+      setSubmitMessage("Sign in to submit an approved codebook.");
+      return;
+    }
+    setSubmitting(true);
+    setSubmitMessage(null);
+    try {
+      const result = await submitCodebookReview(
+        working.review.id,
+        working.codebook,
+        working.review.updated_at,
+        "approved"
+      );
+      if (result.ok) {
+        setSubmitMessage("Approved and submitted. The pipeline can continue refinement.");
+        closeReview();
+      } else if (result.alreadySubmitted) {
+        setSubmitMessage("This review was already submitted.");
+      } else if (result.conflict) {
+        setSubmitMessage("Another session changed this review. Reload to get the latest version.");
+      } else {
+        setSubmitMessage(result.error ?? "Submit failed.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [working, validation.ok, isAuthenticated, closeReview]);
+
+  const handleCancel = useCallback(async () => {
+    if (!working) return;
+    if (!isAuthenticated) {
+      setSubmitMessage("Sign in to cancel a review.");
+      return;
+    }
+    if (!window.confirm("Cancel this review? The pipeline wait loop will time out.")) return;
+    setSubmitting(true);
+    setSubmitMessage(null);
+    try {
+      const result = await submitCodebookReview(working.review.id, null, working.review.updated_at, "cancelled");
+      if (result.ok) {
+        setSubmitMessage("Review cancelled.");
+        closeReview();
+      } else if (result.conflict) {
+        setSubmitMessage("Concurrent edit detected. Reload and try again.");
+      } else {
+        setSubmitMessage(result.error ?? "Cancel failed.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [working, isAuthenticated, closeReview]);
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="codebook-page" data-theme={isDark ? "dark" : "light"}>
+        <div className="library-config-hint">
+          Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to load codebook reviews.
+        </div>
+      </div>
+    );
+  }
+
+  const splitSourceColor = splitFor ? clusterColor.get(splitFor) ?? GRAPH_CLUSTER_HEXES[0] : GRAPH_CLUSTER_HEXES[0];
+
+  return (
+    <div className="codebook-page" data-theme={isDark ? "dark" : "light"}>
+      <div className="codebook-shell">
+        <div className="library-toolbar-min codebook-toolbar">
+          <div className="library-toolbar-min-row">
+            {working ? (
+              <button type="button" className="library-mini-btn" onClick={closeReview}>
+                ← Back to queue
+              </button>
+            ) : (
+              <>
+                <span className="library-toolbar-label">Pending reviews</span>
+                <button
+                  type="button"
+                  className="library-btn library-btn--primary"
+                  onClick={() => void refreshPendingList()}
+                  disabled={listLoading}
+                >
+                  {listLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </>
+            )}
+            {working && loading && <span className="library-chip library-chip--muted">Loading…</span>}
+          </div>
+
+          <div className="codebook-auth">
+            {authLoading ? (
+              <span className="library-chip library-chip--muted">Checking auth…</span>
+            ) : isAuthenticated ? (
+              <>
+                <span className="library-chip" title={session?.user.email ?? ""}>
+                  {session?.user.email}
+                </span>
+                <button type="button" className="library-mini-btn" onClick={() => void signOut()}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <form
+                className="codebook-auth-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void signIn(email, password);
+                }}
+              >
+                <input
+                  type="email"
+                  className="library-select codebook-auth-input"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username"
+                />
+                <input
+                  type="password"
+                  className="library-select codebook-auth-input"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+                <button type="submit" className="library-mini-btn">
+                  Sign in
+                </button>
+              </form>
+            )}
+            {authError && <span className="codebook-auth-error">{authError}</span>}
+          </div>
+        </div>
+
+        {loadError && <div className="library-banner library-banner--error">{loadError}</div>}
+        {submitMessage && (
+          <div className={`library-banner ${submitMessage.includes("Approved") ? "" : "library-banner--error"}`}>
+            {submitMessage}
+          </div>
+        )}
+
+        {!working && !loadError && (
+          <div className="codebook-queue glass-panel">
+            <div className="library-panel-head">
+              <div className="library-panel-head-text">
+                <h4>Waiting for review</h4>
+                <span className="library-panel-sub">
+                  {listLoading
+                    ? "Loading queue…"
+                    : `${pendingList.length} pending ${pendingList.length === 1 ? "job" : "jobs"}`}
+                </span>
+              </div>
+            </div>
+            {listError && <div className="library-banner library-banner--error">{listError}</div>}
+            {!listLoading && pendingList.length === 0 && !listError && (
+              <p className="library-empty-body codebook-queue-empty">
+                No pending reviews right now. When the pipeline uploads a codebook, it will appear here.
+              </p>
+            )}
+            <ul className="codebook-queue-list">
+              {pendingList.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="codebook-queue-card"
+                    onClick={() => onReviewIdChange(item.id)}
+                    disabled={loading}
+                  >
+                    <div className="codebook-queue-card-main">
+                      <span className="codebook-queue-title">{reviewLabel(item)}</span>
+                      <span className="codebook-queue-slug">{item.slug}</span>
+                    </div>
+                    <div className="codebook-queue-card-meta">
+                      <span className="library-chip">{item.cluster_count} clusters</span>
+                      <span className="library-chip library-chip--muted">{formatWhen(item.created_at)}</span>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {working && (
+          <>
+            <header className="glass-panel codebook-header">
+              <h2 className="codebook-header-question">
+                {working.review.research_question?.trim() || "Research question not set"}
+              </h2>
+              <div className="codebook-header-meta">
+                <span className="library-chip">{working.review.slug}</span>
+                <span className="library-chip library-chip--muted">ID {working.review.id.slice(0, 8)}…</span>
+                <span className="library-chip library-chip--muted">{formatWhen(working.review.created_at)}</span>
+                <span className="library-chip">{sortedClusterIds.length} clusters</span>
+                <span className="library-chip library-chip--muted">{totalCodes} codes</span>
+              </div>
+            </header>
+
+            <p className="codebook-board-hint">
+              <strong>3D map</strong> above — orbit with drag, click a node to highlight it in the board.
+              In the board: drag a <strong>code chip</strong> to move it, or drag a <strong>cluster header</strong>{" "}
+              to merge. Low-confidence clusters first.
+            </p>
+
+            {mergeDraft && working.codebook.clusters[mergeDraft.fromId] && working.codebook.clusters[mergeDraft.targetId] && (
+              <div className="glass-panel codebook-merge-confirm">
+                <span className="codebook-merge-confirm-text">
+                  Merge{" "}
+                  <span
+                    className="codebook-merge-pill"
+                    style={{ ["--cluster-color" as string]: clusterColor.get(mergeDraft.fromId) }}
+                  >
+                    {working.codebook.clusters[mergeDraft.fromId].label || `#${mergeDraft.fromId}`}
+                  </span>{" "}
+                  into{" "}
+                  <span
+                    className="codebook-merge-pill"
+                    style={{ ["--cluster-color" as string]: clusterColor.get(mergeDraft.targetId) }}
+                  >
+                    {working.codebook.clusters[mergeDraft.targetId].label || `#${mergeDraft.targetId}`}
+                  </span>
+                </span>
+                <input
+                  className="library-select codebook-merge-label"
+                  placeholder="Label for the merged cluster"
+                  value={mergeDraft.label}
+                  onChange={(e) => setMergeDraft((d) => (d ? { ...d, label: e.target.value } : d))}
+                  autoFocus
+                />
+                <button type="button" className="library-btn library-btn--primary" onClick={confirmMerge}>
+                  Merge
+                </button>
+                <button type="button" className="library-mini-btn" onClick={() => setMergeDraft(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            <div className="codebook-dual-view">
+              <CodebookCluster3D
+                key={working.review.id}
+                sortedClusterIds={sortedClusterIds}
+                clusterToCodes={working.codebook.cluster_to_codes}
+                clusterColor={clusterColor}
+                clusters={working.codebook.clusters}
+                highlighted={highlightedCode}
+                onSelectCode={selectCode}
+                isDark={isDark}
+              />
+
+            <div className="codebook-board-section">
+              <div className="codebook-board-section-head">
+                <h4>Cluster board</h4>
+                <span className="library-panel-sub">Drag & drop editing</span>
+              </div>
+            <div className="codebook-board">
+              {sortedClusterIds.map((cid) => {
+                const c = working.codebook.clusters[cid];
+                const codes = working.codebook.cluster_to_codes[cid] ?? [];
+                const conf = working.confidence[cid];
+                const color = clusterColor.get(cid) ?? GRAPH_CLUSTER_HEXES[0];
+                const isDropTarget = dragOverId === cid;
+                const isHighlightCluster = highlightedCode?.clusterId === cid;
+                const showAll = expandedChips.has(cid) || isHighlightCluster;
+                const visibleCodes = showAll ? codes : codes.slice(0, CHIPS_PREVIEW);
+                return (
+                  <section
+                    key={cid}
+                    className={`codebook-tile ${isDropTarget ? "codebook-tile--dragover" : ""} ${
+                      isHighlightCluster ? "codebook-tile--highlighted" : ""
+                    }`}
+                    style={{ ["--cluster-color" as string]: color }}
+                    onDragOver={(e) => handleTileDragOver(e, cid)}
+                    onDragLeave={() => setDragOverId((prev) => (prev === cid ? null : prev))}
+                    onDrop={(e) => handleTileDrop(e, cid)}
+                  >
+                    <div
+                      className="codebook-tile-head"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", `cluster:${cid}`);
+                        setDragClusterId(cid);
+                      }}
+                      onDragEnd={clearDrag}
+                      title="Drag onto another cluster to merge"
+                    >
+                      <span className="codebook-tile-grip" aria-hidden>
+                        ⠿
+                      </span>
+                      <span className="codebook-tile-id">#{cid}</span>
+                      <span className={`codebook-confidence ${confidenceBadgeClass(c.confidence)}`}>
+                        {c.confidence}/5
+                      </span>
+                      {c.source !== "llm" && <span className="codebook-tile-source">{c.source}</span>}
+                      <span className="codebook-tile-count">{codes.length} codes</span>
+                    </div>
+
+                    <input
+                      className="codebook-tile-label"
+                      value={c.label}
+                      placeholder="Cluster label…"
+                      onChange={(e) => setWorking((w) => (w ? renameCluster(w, cid, e.target.value) : w))}
+                    />
+
+                    {conf?.candidate_labels && conf.candidate_labels.length > 0 && (
+                      <div className="codebook-tile-candidates">
+                        {conf.candidate_labels.map((lbl) => (
+                          <button
+                            key={lbl}
+                            type="button"
+                            className="codebook-candidate-chip"
+                            title="Use this label"
+                            onClick={() => setWorking((w) => (w ? renameCluster(w, cid, lbl) : w))}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <textarea
+                      className="codebook-tile-desc"
+                      rows={2}
+                      placeholder="Description / rationale…"
+                      value={c.description}
+                      onChange={(e) => setWorking((w) => (w ? rewriteDescription(w, cid, e.target.value) : w))}
+                    />
+
+                    <div className="codebook-chips">
+                      {visibleCodes.map((code) => {
+                        const isHighlighted =
+                          highlightedCode?.code === code && highlightedCode.clusterId === cid;
+                        return (
+                        <span
+                          key={code}
+                          className={`codebook-chip ${
+                            dragCode?.code === code && dragCode.fromId === cid ? "codebook-chip--dragging" : ""
+                          } ${isHighlighted ? "codebook-chip--highlighted" : ""}`}
+                          draggable
+                          onClick={() => selectCode(code, cid)}
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", code);
+                            setDragCode({ code, fromId: cid });
+                            selectCode(code, cid);
+                          }}
+                          onDragEnd={clearDrag}
+                          title="Click to highlight in 3D · drag onto another cluster to move"
+                        >
+                          {code}
+                        </span>
+                        );
+                      })}
+                      {codes.length > CHIPS_PREVIEW && (
+                        <button
+                          type="button"
+                          className="codebook-chip codebook-chip--more"
+                          onClick={() =>
+                            setExpandedChips((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(cid)) next.delete(cid);
+                              else next.add(cid);
+                              return next;
+                            })
+                          }
+                        >
+                          {showAll ? "Show fewer" : `+${codes.length - CHIPS_PREVIEW} more`}
+                        </button>
+                      )}
+                      {codes.length === 0 && <span className="codebook-chips-empty">No codes — drop some here</span>}
+                    </div>
+
+                    <div className="codebook-tile-foot">
+                      <button
+                        type="button"
+                        className={`codebook-flag-btn ${c.needs_more_evidence ? "codebook-flag-btn--active" : ""}`}
+                        onClick={() => setWorking((w) => (w ? toggleNeedsEvidence(w, cid, !c.needs_more_evidence) : w))}
+                        title="Flag: pipeline will skip LLM refinement moves for this cluster"
+                      >
+                        ⚑ {c.needs_more_evidence ? "Needs evidence" : "Flag evidence"}
+                      </button>
+                      <div className="codebook-tile-foot-spacer" />
+                      <button
+                        type="button"
+                        className="library-mini-btn"
+                        onClick={() => beginSplit(cid)}
+                        disabled={codes.length < 2}
+                      >
+                        Split
+                      </button>
+                      <button
+                        type="button"
+                        className="library-mini-btn codebook-btn-danger"
+                        onClick={() => {
+                          if (!window.confirm(`Drop cluster "${c.label || cid}"? Its codes will be removed.`)) return;
+                          setWorking((w) => (w ? dropCluster(w, cid) : w));
+                        }}
+                      >
+                        Drop
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+            </div>
+            </div>
+
+            <CodebookReviewJsonPanel review={working.review} codebook={working.codebook} />
+
+            <footer className="glass-panel codebook-footer">
+              {!validation.ok && validation.errors.length > 0 && (
+                <ul className="codebook-validation-errors">
+                  {validation.errors.map((err) => (
+                    <li key={err}>{err}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="codebook-footer-actions">
+                <button
+                  type="button"
+                  className="library-btn library-btn--primary"
+                  disabled={!validation.ok || submitting || !isAuthenticated}
+                  onClick={() => void handleApprove()}
+                >
+                  {submitting ? "Submitting…" : "Approve & submit"}
+                </button>
+                <button
+                  type="button"
+                  className="library-mini-btn"
+                  disabled={submitting || !isAuthenticated}
+                  onClick={() => void handleCancel()}
+                >
+                  Cancel review
+                </button>
+                <button
+                  type="button"
+                  className="library-mini-btn"
+                  onClick={() => working && setWorking(buildWorkingCodebook(working.review))}
+                >
+                  Reset edits
+                </button>
+                {!isAuthenticated && <span className="library-panel-sub">Sign in to submit or cancel.</span>}
+              </div>
+            </footer>
+          </>
+        )}
+
+        {splitFor && working && (
+          <div className="codebook-split-overlay" onClick={() => setSplitFor(null)} role="dialog" aria-modal="true">
+            <div
+              className="codebook-split-modal glass-panel"
+              style={{ ["--cluster-color" as string]: splitSourceColor }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="codebook-split-head">
+                <h4>
+                  Split “{working.codebook.clusters[splitFor]?.label || `#${splitFor}`}”
+                </h4>
+                <p className="library-panel-sub">
+                  Drag each code into a group. Every code must land in exactly one group.
+                </p>
+              </div>
+              <div className="codebook-split-cols">
+                {splitGroups.map((group, gi) => (
+                  <div
+                    key={group.id}
+                    className={`codebook-split-col ${splitDragOver === gi ? "codebook-split-col--dragover" : ""}`}
+                    style={{
+                      ["--cluster-color" as string]:
+                        GRAPH_CLUSTER_HEXES[(gi + 1) % GRAPH_CLUSTER_HEXES.length],
+                    }}
+                    onDragOver={(e) => {
+                      if (!splitDragCode) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setSplitDragOver(gi);
+                    }}
+                    onDragLeave={() => setSplitDragOver((prev) => (prev === gi ? null : prev))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setSplitDragOver(null);
+                      if (splitDragCode) {
+                        moveSplitCode(splitDragCode, gi);
+                        setSplitDragCode(null);
+                      }
+                    }}
+                  >
+                    <input
+                      className="codebook-tile-label codebook-split-col-label"
+                      value={group.label}
+                      onChange={(e) =>
+                        setSplitGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, label: e.target.value } : g)))
+                      }
+                    />
+                    <div className="codebook-chips codebook-chips--split">
+                      {group.codes.map((code) => (
+                        <span
+                          key={code}
+                          className={`codebook-chip ${splitDragCode === code ? "codebook-chip--dragging" : ""}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", code);
+                            setSplitDragCode(code);
+                          }}
+                          onDragEnd={() => {
+                            setSplitDragCode(null);
+                            setSplitDragOver(null);
+                          }}
+                        >
+                          {code}
+                        </span>
+                      ))}
+                      {group.codes.length === 0 && <span className="codebook-chips-empty">Drop codes here</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="codebook-split-actions">
+                <button type="button" className="library-mini-btn" onClick={addSplitGroup}>
+                  + Add group
+                </button>
+                <div className="codebook-tile-foot-spacer" />
+                <button
+                  type="button"
+                  className="library-btn library-btn--primary"
+                  onClick={applySplit}
+                  disabled={splitGroups.filter((g) => g.codes.length > 0).length < 2}
+                >
+                  Apply split
+                </button>
+                <button type="button" className="library-mini-btn" onClick={() => setSplitFor(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
