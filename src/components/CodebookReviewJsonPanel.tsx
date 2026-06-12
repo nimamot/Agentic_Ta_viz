@@ -4,41 +4,42 @@ import {
   type CodebookPayload,
   type CodebookReviewRow,
 } from "../lib/codebookReview";
+import { formatJsonStable } from "../lib/jsonLineDiff";
+import { CodebookJsonDiff, getDiffCopyText } from "./CodebookJsonDiff";
 
-type JsonTab = "v2" | "submit" | "v1" | "inputs";
+type JsonTab = "diff" | "v2" | "submit" | "inputs";
 
 interface CodebookReviewJsonPanelProps {
   review: CodebookReviewRow;
   codebook: CodebookPayload;
+  /** Snapshot of the draft right after this review was opened — diff baseline for edits. */
+  baselineCodebook: CodebookPayload;
 }
 
-function formatJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-export function CodebookReviewJsonPanel({ review, codebook }: CodebookReviewJsonPanelProps) {
+export function CodebookReviewJsonPanel({
+  review,
+  codebook,
+  baselineCodebook,
+}: CodebookReviewJsonPanelProps) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<JsonTab>("v2");
+  const [tab, setTab] = useState<JsonTab>("diff");
   const [copyMsg, setCopyMsg] = useState<string | null>(null);
 
   const submitPreview = useMemo(() => buildApproveSubmitPayload(codebook), [codebook]);
 
   const tabContent = useMemo(() => {
     switch (tab) {
+      case "diff":
+        return { label: "Your edits (baseline → current v2)", live: true, isDiff: true as const };
       case "v2":
-        return { label: "codebook_v2 (draft)", data: codebook, live: true };
+        return { label: "codebook_v2 (draft)", data: codebook, live: true, isDiff: false as const };
       case "submit":
         return {
           label: "Submit payload (PATCH body)",
           data: submitPreview,
           live: true,
+          isDiff: false as const,
         };
-      case "v1":
-        return { label: "codebook_v1 (original, read-only)", data: review.codebook_v1, live: false };
       case "inputs":
         return {
           label: "Pipeline inputs (read-only)",
@@ -47,11 +48,15 @@ export function CodebookReviewJsonPanel({ review, codebook }: CodebookReviewJson
             codebook_confidence: review.codebook_confidence,
           },
           live: false,
+          isDiff: false as const,
         };
     }
   }, [tab, codebook, submitPreview, review]);
 
-  const jsonText = useMemo(() => formatJson(tabContent.data), [tabContent.data]);
+  const jsonText = useMemo(() => {
+    if (tabContent.isDiff) return getDiffCopyText(baselineCodebook, codebook);
+    return formatJsonStable(tabContent.data);
+  }, [tabContent, baselineCodebook, codebook]);
 
   const copyJson = useCallback(async () => {
     try {
@@ -73,26 +78,26 @@ export function CodebookReviewJsonPanel({ review, codebook }: CodebookReviewJson
       >
         <span className="codebook-json-panel-toggle-title">JSON payload</span>
         <span className="library-panel-sub">
-          1 DB row · edits update <code>codebook_v2</code> live · {open ? "hide" : "show"}
+          1 DB row · compare v1 vs your draft · {open ? "hide" : "show"}
         </span>
       </button>
 
       {open && (
         <div className="codebook-json-panel-body">
           <p className="codebook-json-explainer">
-            The pipeline uploads <strong>one row</strong> in <code>codebook_reviews</code> with separate JSON
-            columns on load. Your edits build a single draft object —{" "}
-            <code>codebook_v2</code> — which is the only JSON written back on Approve.{" "}
-            <code>codebook_v1</code>, <code>clustered_codes</code>, and <code>codebook_confidence</code> stay
-            unchanged.
+            Compares your <strong>starting draft</strong> (built from <code>codebook_v1</code> when you opened this
+            review) with your <strong>current draft</strong> (<code>codebook_v2</code>). Removals are{" "}
+            <span className="codebook-json-diff-legend-remove">red</span>, additions{" "}
+            <span className="codebook-json-diff-legend-add">green</span> — like git. Unchanged on load means no false
+            highlights from JSON key order. Approve writes only <code>codebook_v2</code>.
           </p>
 
           <div className="codebook-json-tabs" role="tablist">
             {(
               [
+                ["diff", "Compare (v1 → v2)"],
                 ["v2", "Draft (v2)"],
                 ["submit", "Submit preview"],
-                ["v1", "Original (v1)"],
                 ["inputs", "Pipeline inputs"],
               ] as const
             ).map(([id, label]) => (
@@ -105,7 +110,9 @@ export function CodebookReviewJsonPanel({ review, codebook }: CodebookReviewJson
                 onClick={() => setTab(id)}
               >
                 {label}
-                {(id === "v2" || id === "submit") && <span className="codebook-json-live-dot" title="Live" />}
+                {(id === "diff" || id === "v2" || id === "submit") && (
+                  <span className="codebook-json-live-dot" title="Live" />
+                )}
               </button>
             ))}
           </div>
@@ -114,13 +121,17 @@ export function CodebookReviewJsonPanel({ review, codebook }: CodebookReviewJson
             <span className="codebook-json-filename">{tabContent.label}</span>
             {tabContent.live && <span className="library-chip">updates as you edit</span>}
             <button type="button" className="library-mini-btn" onClick={() => void copyJson()}>
-              {copyMsg ?? "Copy JSON"}
+              {copyMsg ?? (tab === "diff" ? "Copy patch" : "Copy JSON")}
             </button>
           </div>
 
-          <pre className="codebook-json-pre" key={`${tab}-${jsonText.length}`}>
-            {jsonText}
-          </pre>
+          {tab === "diff" ? (
+            <CodebookJsonDiff original={baselineCodebook} draft={codebook} />
+          ) : (
+            <pre className="codebook-json-pre" key={`${tab}-${jsonText.length}`}>
+              {jsonText}
+            </pre>
+          )}
         </div>
       )}
     </div>

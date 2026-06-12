@@ -20,6 +20,7 @@ import {
   splitCluster,
   toggleNeedsEvidence,
   validateCodebook,
+  type CodebookPayload,
   type WorkingCodebookState,
 } from "../lib/codebookReview";
 import { submitCodebookReview } from "../lib/submitCodebookReview";
@@ -77,6 +78,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [working, setWorking] = useState<WorkingCodebookState | null>(null);
+  const [baselineCodebook, setBaselineCodebook] = useState<CodebookPayload | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -128,14 +130,17 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
         const result = await fetchPendingCodebookReviewById(id);
         if (!result) {
           setWorking(null);
+          setBaselineCodebook(null);
           setLoadError("This review is no longer pending. Refresh the queue.");
           onReviewIdChange(null);
           void refreshPendingList();
           return;
         }
         setWorking(result);
+        setBaselineCodebook(structuredClone(result.codebook));
       } catch (e) {
         setWorking(null);
+        setBaselineCodebook(null);
         setLoadError((e as Error).message);
       } finally {
         setLoading(false);
@@ -146,6 +151,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const closeReview = useCallback(() => {
     setWorking(null);
+    setBaselineCodebook(null);
     setLoadError(null);
     setSubmitMessage(null);
     setMergeDraft(null);
@@ -159,6 +165,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     const id = reviewId?.trim();
     if (!id) {
       setWorking(null);
+      setBaselineCodebook(null);
       return;
     }
     if (working?.review.id === id) return;
@@ -184,6 +191,10 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   const selectCode = useCallback((code: string, clusterId: string) => {
     setHighlightedCode({ code, clusterId });
     setExpandedChips((prev) => new Set(prev).add(clusterId));
+  }, []);
+
+  const clearCodeSelection = useCallback(() => {
+    setHighlightedCode(null);
   }, []);
 
   const totalCodes = useMemo(() => {
@@ -564,6 +575,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 clusters={working.codebook.clusters}
                 highlighted={highlightedCode}
                 onSelectCode={selectCode}
+                onClearSelection={clearCodeSelection}
                 isDark={isDark}
               />
 
@@ -726,7 +738,13 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
             </div>
             </div>
 
-            <CodebookReviewJsonPanel review={working.review} codebook={working.codebook} />
+            {baselineCodebook && (
+              <CodebookReviewJsonPanel
+                review={working.review}
+                codebook={working.codebook}
+                baselineCodebook={baselineCodebook}
+              />
+            )}
 
             <footer className="glass-panel codebook-footer">
               {!validation.ok && validation.errors.length > 0 && (

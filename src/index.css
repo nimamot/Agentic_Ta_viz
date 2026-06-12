@@ -4144,12 +4144,7 @@ h3.research-bm-kicker--section {
   height: 100% !important;
   max-height: 100% !important;
   display: block;
-  cursor: grab;
   touch-action: none;
-}
-
-.codebook-3d-canvas:active {
-  cursor: grabbing;
 }
 
 .codebook-3d-empty {
@@ -4851,8 +4846,12 @@ h3.research-bm-kicker--section {
 
 .codebook-json-pre {
   margin: 0;
-  max-height: min(42vh, 420px);
-  overflow: auto;
+  max-height: min(48vh, 480px);
+  min-height: 10rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0.75rem 0.85rem;
   border-radius: 10px;
   border: 1px solid var(--border);
@@ -4868,6 +4867,261 @@ h3.research-bm-kicker--section {
 [data-theme="light"] .codebook-json-pre {
   background: #f4f6fa;
   color: #1e293b;
+}
+
+/* ── JSON v1/v2 git-style diff ── */
+.codebook-json-diff-legend-add {
+  color: #3ecf8e;
+  font-weight: 700;
+}
+
+.codebook-json-diff-legend-remove {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.codebook-json-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.codebook-json-diff-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
+}
+
+.codebook-json-diff-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.codebook-json-diff-stat--add {
+  color: #3ecf8e;
+}
+
+.codebook-json-diff-stat--remove {
+  color: #f87171;
+}
+
+.codebook-json-diff-unchanged {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.codebook-json-diff-views {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+}
+
+.codebook-json-diff-view-btn {
+  padding: 0.22rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.codebook-json-diff-view-btn:hover {
+  color: var(--text);
+}
+
+.codebook-json-diff-view-btn--active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  color: var(--text);
+}
+
+.codebook-json-diff-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  height: min(48vh, 480px);
+  max-height: min(48vh, 480px);
+  min-height: 14rem;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.codebook-json-diff-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.codebook-json-diff-pane-head {
+  flex-shrink: 0;
+  padding: 0.4rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.codebook-json-diff-pane-head--v1 {
+  background: color-mix(in srgb, #f87171 10%, var(--surface-2));
+  color: color-mix(in srgb, #f87171 80%, var(--text));
+}
+
+.codebook-json-diff-pane-head--v2 {
+  background: color-mix(in srgb, #3ecf8e 10%, var(--surface-2));
+  color: color-mix(in srgb, #3ecf8e 80%, var(--text));
+}
+
+.codebook-json-diff-pane-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1.45;
+  tab-size: 2;
+  background: color-mix(in srgb, #000 35%, var(--surface-2));
+}
+
+[data-theme="light"] .codebook-json-diff-pane-body {
+  background: #f4f6fa;
+}
+
+.codebook-json-diff-cell {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 0.45rem;
+  min-height: 1.45em;
+  white-space: pre;
+}
+
+.codebook-json-diff-cell--ctx {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text));
+}
+
+.codebook-json-diff-cell--remove {
+  background: color-mix(in srgb, #f87171 18%, transparent);
+  color: #fecaca;
+}
+
+.codebook-json-diff-cell--add {
+  background: color-mix(in srgb, #3ecf8e 18%, transparent);
+  color: #bbf7d0;
+}
+
+.codebook-json-diff-cell--gap {
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+  min-height: 1.45em;
+}
+
+[data-theme="light"] .codebook-json-diff-cell--ctx {
+  color: #334155;
+}
+
+[data-theme="light"] .codebook-json-diff-cell--remove {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+[data-theme="light"] .codebook-json-diff-cell--add {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.codebook-json-diff-unified {
+  height: min(48vh, 480px);
+  max-height: min(48vh, 480px);
+  min-height: 14rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, #000 35%, var(--surface-2));
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1.45;
+  tab-size: 2;
+}
+
+[data-theme="light"] .codebook-json-diff-unified {
+  background: #f4f6fa;
+}
+
+.codebook-json-diff-line {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 0.45rem;
+  min-height: 1.45em;
+  white-space: pre;
+}
+
+.codebook-json-diff-line--ctx {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text));
+}
+
+.codebook-json-diff-line--remove {
+  background: color-mix(in srgb, #f87171 18%, transparent);
+  color: #fecaca;
+}
+
+.codebook-json-diff-line--add {
+  background: color-mix(in srgb, #3ecf8e 18%, transparent);
+  color: #bbf7d0;
+}
+
+[data-theme="light"] .codebook-json-diff-line--ctx {
+  color: #334155;
+}
+
+[data-theme="light"] .codebook-json-diff-line--remove {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+[data-theme="light"] .codebook-json-diff-line--add {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.codebook-json-diff-gutter {
+  flex: 0 0 0.85rem;
+  text-align: center;
+  font-weight: 800;
+  user-select: none;
+  opacity: 0.75;
+}
+
+.codebook-json-diff-code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+@media (max-width: 768px) {
+  .codebook-json-diff-split {
+    grid-template-columns: 1fr;
+    max-height: min(56vh, 520px);
+  }
 }
 
 .codebook-footer {
