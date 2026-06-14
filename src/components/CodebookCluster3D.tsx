@@ -24,8 +24,9 @@ import type { ClusterEntry } from "../lib/codebookReview";
 interface Codebook3DCursorContextValue {
   setMode: (mode: Codebook3DCursorMode) => void;
   dragging: MutableRefObject<boolean>;
-  controlsActive: MutableRefObject<boolean>;
 }
+
+const CLICK_DRAG_THRESHOLD_PX = 6;
 
 const Codebook3DCursorContext = createContext<Codebook3DCursorContextValue | null>(null);
 
@@ -131,6 +132,7 @@ function CodeSphere({
 
       <mesh
         ref={meshRef}
+        userData={{ codebookNode: true }}
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -248,7 +250,6 @@ const INITIAL_CAMERA_DISTANCE = 32;
 function SceneControls({ zoomEnabled }: { zoomEnabled: boolean }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
-  const { controlsActive } = useCodebook3DCursor();
   const didInit = useRef(false);
 
   useFrame(() => {
@@ -276,15 +277,91 @@ function SceneControls({ zoomEnabled }: { zoomEnabled: boolean }) {
       maxDistance={55}
       dampingFactor={0.08}
       enableDamping
-      onStart={() => {
-        controlsActive.current = true;
-      }}
-      onEnd={() => {
-        window.setTimeout(() => {
-          controlsActive.current = false;
-        }, 0);
-      }}
     />
+  );
+}
+
+/** Clear selection on click-release over empty map space (not after orbit drags). */
+function BackgroundDeselect({
+  highlighted,
+  onClear,
+}: {
+  highlighted: HighlightedCode | null;
+  onClear: () => void;
+}) {
+  const { camera, gl, scene } = useThree();
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const onPointerDown = (e: PointerEvent) => {
+      pointerDown.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const start = pointerDown.current;
+      pointerDown.current = null;
+      if (!highlighted || !start) return;
+
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.hypot(dx, dy) > CLICK_DRAG_THRESHOLD_PX) return;
+
+      const rect = canvas.getBoundingClientRect();
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const hitNode = hits.some((hit) => hit.object.userData?.codebookNode === true);
+      if (!hitNode) onClear();
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointerup", onPointerUp);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [highlighted, onClear, camera, gl, scene, raycaster, ndc]);
+
+  return null;
+}
+
+function ClusterEdge({
+  a,
+  b,
+  color,
+  opacity,
+  lineWidth,
+}: {
+  a: [number, number, number];
+  b: [number, number, number];
+  color: string;
+  opacity: number;
+  lineWidth: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useLayoutEffect(() => {
+    groupRef.current?.traverse((obj) => {
+      obj.raycast = () => undefined;
+    });
+  }, []);
+
+  return (
+    <group ref={groupRef}>
+      <Line
+        points={[a, b]}
+        color={color}
+        transparent
+        opacity={opacity}
+        lineWidth={lineWidth}
+      />
+    </group>
   );
 }
 
@@ -323,21 +400,6 @@ function ClusterHub({ hub, active }: { hub: ClusterHub3D; active: boolean }) {
   );
 }
 
-function SceneBackdrop({ onClear }: { onClear: () => void }) {
-  return (
-    <mesh
-      scale={90}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClear();
-      }}
-    >
-      <sphereGeometry args={[1, 16, 16]} />
-      <meshBasicMaterial visible={false} side={THREE.BackSide} depthWrite={false} />
-    </mesh>
-  );
-}
-
 function Scene({
   layout,
   highlighted,
@@ -354,18 +416,12 @@ function Scene({
   zoomEnabled: boolean;
 }) {
   const { nodes, hubs, edges } = layout;
-  const { dragging, controlsActive } = useCodebook3DCursor();
   const highlightCluster = highlighted?.clusterId ?? null;
   const hasFocus = highlightCluster != null;
 
-  const clearIfSelected = useCallback(() => {
-    if (dragging.current || controlsActive.current || !highlighted) return;
-    onClearSelection();
-  }, [dragging, controlsActive, highlighted, onClearSelection]);
-
   return (
     <>
-      <SceneBackdrop onClear={clearIfSelected} />
+      <BackgroundDeselect highlighted={highlighted} onClear={onClearSelection} />
       <color attach="background" args={[isDark ? "#0a0c12" : "#e8ecf4"]} />
       <fog attach="fog" args={[isDark ? "#0a0c12" : "#e8ecf4", 30, 58]} />
       <hemisphereLight
@@ -381,11 +437,11 @@ function Scene({
         const clusterId = nodes[a].clusterId;
         const edgeActive = !hasFocus || clusterId === highlightCluster;
         return (
-          <Line
+          <ClusterEdge
             key={`e-${i}`}
-            points={[nodes[a].position, nodes[b].position]}
+            a={nodes[a].position}
+            b={nodes[b].position}
             color={nodes[a].color}
-            transparent
             opacity={edgeActive ? (highlighted ? 0.5 : 0.32) : 0.08}
             lineWidth={edgeActive ? 1.5 : 1}
           />
@@ -446,7 +502,6 @@ export function CodebookCluster3D({
   const [zoomEnabled, setZoomEnabled] = useState(false);
   const [cursorMode, setCursorMode] = useState<Codebook3DCursorMode>("orbit");
   const dragging = useRef(false);
-  const controlsActive = useRef(false);
   const cursors = useMemo(() => codebook3dCursors(isDark), [isDark]);
   const activeCursor = cursors[cursorMode];
 
@@ -477,10 +532,10 @@ export function CodebookCluster3D({
       <div className="codebook-3d-canvas-head">
         <h4>3D cluster map</h4>
         <span className="library-panel-sub">
-          Scroll over the map to zoom · drag to orbit · click a node to sync
+          Scroll over the map to zoom · drag to orbit · click a node · click empty space to deselect
         </span>
       </div>
-      <Codebook3DCursorContext.Provider value={{ setMode, dragging, controlsActive }}>
+      <Codebook3DCursorContext.Provider value={{ setMode, dragging }}>
         <div
           className="codebook-3d-canvas-host"
           style={{ cursor: activeCursor }}
@@ -507,10 +562,6 @@ export function CodebookCluster3D({
             }}
             style={{ width: "100%", height: "100%", touchAction: "none", cursor: activeCursor }}
             onPointerDown={(e) => e.stopPropagation()}
-            onPointerMissed={() => {
-              if (dragging.current || controlsActive.current || !highlighted) return;
-              onClearSelection();
-            }}
           >
             <Scene
               layout={layout}
