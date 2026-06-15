@@ -16,6 +16,9 @@ import {
   nextSplitClusterId,
   renameCluster,
   rewriteDescription,
+  filterClusterIdsNeedingReview,
+  isSmallCodebook,
+  NEEDS_REVIEW_CONFIDENCE_THRESHOLD,
   sortClusterIdsByConfidence,
   splitCluster,
   toggleNeedsEvidence,
@@ -98,6 +101,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const [expandedChips, setExpandedChips] = useState<Set<string>>(new Set());
   const [highlightedCode, setHighlightedCode] = useState<HighlightedCode | null>(null);
+  const [showAllClusters, setShowAllClusters] = useState(false);
 
   const refreshPendingList = useCallback(async () => {
     setListLoading(true);
@@ -126,6 +130,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
       setMergeDraft(null);
       setSplitFor(null);
       setHighlightedCode(null);
+      setShowAllClusters(false);
       try {
         const result = await fetchPendingCodebookReviewById(id);
         if (!result) {
@@ -157,6 +162,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     setMergeDraft(null);
     setSplitFor(null);
     setHighlightedCode(null);
+    setShowAllClusters(false);
     onReviewIdChange(null);
     void refreshPendingList();
   }, [onReviewIdChange, refreshPendingList]);
@@ -177,6 +183,44 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     [working]
   );
 
+  const smallCodebook = isSmallCodebook(sortedClusterIds.length);
+
+  const attentionClusterIds = useMemo(
+    () => (working ? filterClusterIdsNeedingReview(working.codebook, sortedClusterIds) : []),
+    [working, sortedClusterIds]
+  );
+
+  const visibleClusterIds =
+    smallCodebook || showAllClusters ? sortedClusterIds : attentionClusterIds;
+
+  /** Few visible clusters → full 3D detail (all codes, no overview dots), even when the codebook is large. */
+  const fullDetailView = isSmallCodebook(visibleClusterIds.length);
+
+  const visibleCodeCount = useMemo(() => {
+    if (!working) return 0;
+    return visibleClusterIds.reduce(
+      (sum, cid) => sum + (working.codebook.cluster_to_codes[cid]?.length ?? 0),
+      0
+    );
+  }, [working, visibleClusterIds]);
+
+  useEffect(() => {
+    if (smallCodebook || showAllClusters || !working || !highlightedCode) return;
+    if (!attentionClusterIds.includes(highlightedCode.clusterId)) {
+      setHighlightedCode(null);
+    }
+  }, [smallCodebook, showAllClusters, working, highlightedCode, attentionClusterIds]);
+
+  useEffect(() => {
+    if (!working || !fullDetailView) return;
+    setExpandedChips(new Set(visibleClusterIds));
+  }, [working?.review.id, fullDetailView, visibleClusterIds]);
+
+  useEffect(() => {
+    if (!working || !smallCodebook) return;
+    setShowAllClusters(true);
+  }, [working?.review.id, smallCodebook]);
+
   /** Stable color per cluster id: indexed by insertion order in the clusters map. */
   const clusterColor = useMemo(() => {
     const map = new Map<string, string>();
@@ -195,6 +239,10 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const clearCodeSelection = useCallback(() => {
     setHighlightedCode(null);
+  }, []);
+
+  const syncExpandedClustersFrom3D = useCallback((clusterIds: string[]) => {
+    setExpandedChips(new Set(clusterIds));
   }, []);
 
   const totalCodes = useMemo(() => {
@@ -523,13 +571,63 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 <span className="library-chip library-chip--muted">{formatWhen(working.review.created_at)}</span>
                 <span className="library-chip">{sortedClusterIds.length} clusters</span>
                 <span className="library-chip library-chip--muted">{totalCodes} codes</span>
+                {!smallCodebook && !showAllClusters && attentionClusterIds.length < sortedClusterIds.length && (
+                  <span className="library-chip library-chip--accent">
+                    {attentionClusterIds.length} need review
+                  </span>
+                )}
               </div>
             </header>
 
+            {!smallCodebook && (
+            <div className="glass-panel codebook-attention-banner" role="status">
+              <div className="codebook-attention-banner-text">
+                {showAllClusters ? (
+                  <>
+                    <strong>Showing all clusters.</strong> You are viewing every cluster in this codebook,
+                    including high-confidence ones that may not need changes.
+                  </>
+                ) : attentionClusterIds.length === 0 ? (
+                  <>
+                    <strong>Nothing flagged for review.</strong> Every cluster is confidence{" "}
+                    {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} or higher. You can still open all clusters to spot-check
+                    or approve as-is.
+                  </>
+                ) : (
+                  <>
+                    <strong>Clusters that need your attention.</strong> We are only showing{" "}
+                    {attentionClusterIds.length} of {sortedClusterIds.length} clusters — those with confidence below{" "}
+                    {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} (scores 0–{NEEDS_REVIEW_CONFIDENCE_THRESHOLD - 1} on the 0–5
+                    scale). High-confidence clusters are hidden so you can focus on the uncertain ones first.
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                className="library-mini-btn codebook-attention-toggle"
+                onClick={() => setShowAllClusters((v) => !v)}
+              >
+                {showAllClusters
+                  ? `Show only needs review (${attentionClusterIds.length})`
+                  : `Show all clusters (${sortedClusterIds.length})`}
+              </button>
+            </div>
+            )}
+
             <p className="codebook-board-hint">
-              <strong>3D map</strong> above — orbit with drag, click a node to highlight it in the board.
-              In the board: drag a <strong>code chip</strong> to move it, or drag a <strong>cluster header</strong>{" "}
-              to merge. Low-confidence clusters first.
+              {fullDetailView ? (
+                <>
+                  <strong>3D map</strong> — {visibleClusterIds.length} cluster
+                  {visibleClusterIds.length === 1 ? "" : "s"} shown with full code detail. Orbit with drag, click a
+                  code node to highlight it in the board. Drag chips or cluster headers on the board to reorganize.
+                </>
+              ) : (
+                <>
+                  <strong>3D map</strong> — orbit with drag; click cluster spheres to expand codes (multiple at once),
+                  or click a code node to highlight it in the board below. On the board: drag a <strong>code chip</strong>{" "}
+                  to move it, or drag a <strong>cluster header</strong> to merge. Lowest confidence first.
+                </>
+              )}
             </p>
 
             {mergeDraft && working.codebook.clusters[mergeDraft.fromId] && working.codebook.clusters[mergeDraft.targetId] && (
@@ -568,24 +666,39 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
             <div className="codebook-dual-view">
               <CodebookCluster3D
-                key={working.review.id}
-                sortedClusterIds={sortedClusterIds}
+                key={`${working.review.id}-${showAllClusters ? "all" : "attention"}-${fullDetailView ? "full" : "overview"}`}
+                sortedClusterIds={visibleClusterIds}
                 clusterToCodes={working.codebook.cluster_to_codes}
                 clusterColor={clusterColor}
                 clusters={working.codebook.clusters}
                 highlighted={highlightedCode}
                 onSelectCode={selectCode}
                 onClearSelection={clearCodeSelection}
+                onExpandedClustersChange={syncExpandedClustersFrom3D}
+                isSmallCodebook={fullDetailView}
+                totalClusterCount={sortedClusterIds.length}
                 isDark={isDark}
               />
 
             <div className="codebook-board-section">
               <div className="codebook-board-section-head">
                 <h4>Cluster board</h4>
-                <span className="library-panel-sub">Drag & drop editing</span>
+                <span className="library-panel-sub">
+                  {fullDetailView
+                    ? `${visibleClusterIds.length} clusters · all codes shown · drag & drop editing`
+                    : showAllClusters
+                      ? `${visibleClusterIds.length} clusters · ${visibleCodeCount} codes · drag & drop editing`
+                      : `${visibleClusterIds.length} of ${sortedClusterIds.length} clusters · ${visibleCodeCount} codes · needs review only`}
+                </span>
               </div>
             <div className="codebook-board">
-              {sortedClusterIds.map((cid) => {
+              {visibleClusterIds.length === 0 && (
+                <p className="library-empty-body codebook-board-empty">
+                  No clusters match the needs-review filter. Use &ldquo;Show all clusters&rdquo; above to browse the
+                  full codebook.
+                </p>
+              )}
+              {visibleClusterIds.map((cid) => {
                 const c = working.codebook.clusters[cid];
                 const codes = working.codebook.cluster_to_codes[cid] ?? [];
                 const conf = working.confidence[cid];

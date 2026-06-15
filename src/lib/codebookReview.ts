@@ -464,6 +464,28 @@ export function sortClusterIdsByConfidence(
   });
 }
 
+/** Below this cluster count, show every cluster fully (no confidence filter, no 3D overview). */
+export const SMALL_CODEBOOK_MAX_CLUSTERS = 8;
+
+export function isSmallCodebook(clusterCount: number): boolean {
+  return clusterCount < SMALL_CODEBOOK_MAX_CLUSTERS;
+}
+
+/** Clusters with confidence strictly below this value are shown by default in review. */
+export const NEEDS_REVIEW_CONFIDENCE_THRESHOLD = 5;
+
+export function clusterNeedsReview(codebook: CodebookPayload, clusterId: string): boolean {
+  const confidence = codebook.clusters[clusterId]?.confidence ?? 0;
+  return confidence < NEEDS_REVIEW_CONFIDENCE_THRESHOLD;
+}
+
+export function filterClusterIdsNeedingReview(
+  codebook: CodebookPayload,
+  sortedIds: string[]
+): string[] {
+  return sortedIds.filter((id) => clusterNeedsReview(codebook, id));
+}
+
 /** Payload PATCHed to Supabase on Approve (one row, `codebook_v2` column). */
 export function buildApproveSubmitPayload(codebook: CodebookPayload): {
   status: "approved";

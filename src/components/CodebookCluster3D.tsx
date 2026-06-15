@@ -49,6 +49,9 @@ interface CodebookCluster3DProps {
   highlighted: HighlightedCode | null;
   onSelectCode: (code: string, clusterId: string) => void;
   onClearSelection: () => void;
+  onExpandedClustersChange?: (clusterIds: string[]) => void;
+  isSmallCodebook?: boolean;
+  totalClusterCount?: number;
   isDark: boolean;
 }
 
@@ -210,10 +213,12 @@ function ClusterLabel({
   hub,
   dimmed,
   hidden,
+  showMeta = true,
 }: {
   hub: ClusterHub3D;
   dimmed: boolean;
   hidden: boolean;
+  showMeta?: boolean;
 }) {
   if (hidden) return null;
 
@@ -236,29 +241,111 @@ function ClusterLabel({
         className={`codebook-3d-label codebook-3d-label--cluster ${dimmed ? "codebook-3d-label--dim" : ""}`}
         style={{ ["--cluster-color" as string]: hub.color }}
       >
-        <span className="codebook-3d-label-name">{truncateLabel(hub.label)}</span>
-        <span className="codebook-3d-label-meta">
-          #{hub.clusterId} · {hub.confidence}/5
-        </span>
+        <span className="codebook-3d-label-name">{truncateLabel(hub.label, 42)}</span>
+        {showMeta && (
+          <span className="codebook-3d-label-meta">
+            #{hub.clusterId} · {hub.confidence}/5 · {hub.codeCount} codes
+          </span>
+        )}
       </div>
     </Html>
   );
 }
 
 const INITIAL_CAMERA_DISTANCE = 32;
+/** Below this ratio of base camera distance, overview labels appear near the orbit target. */
+const ZOOM_LABEL_THRESHOLD = 0.82;
 
-function SceneControls({ zoomEnabled }: { zoomEnabled: boolean }) {
+const _hubPos = new THREE.Vector3();
+const _orbitTarget = new THREE.Vector3();
+const _ndc = new THREE.Vector3();
+
+/** Tracks which cluster hubs are near the orbit focus while zoomed in (overview mode). */
+function ZoomLabelProbe({
+  hubs,
+  layoutRadius,
+  baseCameraDistance,
+  enabled,
+  onVisibleHubsChange,
+}: {
+  hubs: ClusterHub3D[];
+  layoutRadius: number;
+  baseCameraDistance: number;
+  enabled: boolean;
+  onVisibleHubsChange: (ids: Set<string>) => void;
+}) {
+  const { camera } = useThree();
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
+  const lastKey = useRef("");
+
+  useFrame(() => {
+    if (!enabled) {
+      if (lastKey.current !== "off") {
+        lastKey.current = "off";
+        onVisibleHubsChange(new Set());
+      }
+      return;
+    }
+
+    const target = controls?.target ?? _orbitTarget.set(0, 0, 0);
+    const camDist = camera.position.distanceTo(target);
+    const zoomRatio = camDist / baseCameraDistance;
+
+    if (zoomRatio > ZOOM_LABEL_THRESHOLD) {
+      if (lastKey.current !== "far") {
+        lastKey.current = "far";
+        onVisibleHubsChange(new Set());
+      }
+      return;
+    }
+
+    const revealRadius = layoutRadius * Math.max(0.22, zoomRatio * 0.95);
+    const visible = new Set<string>();
+
+    for (const hub of hubs) {
+      _hubPos.set(hub.position[0], hub.position[1], hub.position[2]);
+      if (_hubPos.distanceTo(target) > revealRadius) continue;
+
+      _ndc.copy(_hubPos).project(camera);
+      if (_ndc.x < -1.05 || _ndc.x > 1.05 || _ndc.y < -1.05 || _ndc.y > 1.05 || _ndc.z > 1) continue;
+
+      visible.add(hub.clusterId);
+    }
+
+    const key = [...visible].sort().join(",");
+    if (key !== lastKey.current) {
+      lastKey.current = key;
+      onVisibleHubsChange(visible);
+    }
+  });
+
+  return null;
+}
+
+function SceneControls({
+  zoomEnabled,
+  cameraDistance,
+}: {
+  zoomEnabled: boolean;
+  cameraDistance: number;
+}) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
   const didInit = useRef(false);
+  const lastDistance = useRef(cameraDistance);
 
   useFrame(() => {
     const controls = controlsRef.current;
-    if (!controls || didInit.current) return;
-    camera.position.set(0, 0, INITIAL_CAMERA_DISTANCE);
-    controls.target.set(0, 0, 0);
-    controls.update();
-    didInit.current = true;
+    if (!controls) return;
+    if (!didInit.current || lastDistance.current !== cameraDistance) {
+      camera.position.set(0, 0, cameraDistance);
+      controls.target.set(0, 0, 0);
+      controls.minDistance = Math.max(4, cameraDistance * 0.15);
+      controls.maxDistance = Math.max(55, cameraDistance * 2.2);
+      controls.update();
+      didInit.current = true;
+      lastDistance.current = cameraDistance;
+    }
   });
 
   useLayoutEffect(() => {
@@ -281,13 +368,17 @@ function SceneControls({ zoomEnabled }: { zoomEnabled: boolean }) {
   );
 }
 
-/** Clear selection on click-release over empty map space (not after orbit drags). */
+/** Clear selection / exit expanded clusters on click-release over empty map space. */
 function BackgroundDeselect({
   highlighted,
+  expandedClusterIds,
   onClear,
+  onExitExpanded,
 }: {
   highlighted: HighlightedCode | null;
+  expandedClusterIds: Set<string>;
   onClear: () => void;
+  onExitExpanded: () => void;
 }) {
   const { camera, gl, scene } = useThree();
   const pointerDown = useRef<{ x: number; y: number } | null>(null);
@@ -304,7 +395,7 @@ function BackgroundDeselect({
     const onPointerUp = (e: PointerEvent) => {
       const start = pointerDown.current;
       pointerDown.current = null;
-      if (!highlighted || !start) return;
+      if (!start) return;
 
       const dx = e.clientX - start.x;
       const dy = e.clientY - start.y;
@@ -316,8 +407,17 @@ function BackgroundDeselect({
       raycaster.setFromCamera(ndc, camera);
 
       const hits = raycaster.intersectObjects(scene.children, true);
-      const hitNode = hits.some((hit) => hit.object.userData?.codebookNode === true);
-      if (!hitNode) onClear();
+      const hitInteractive = hits.some(
+        (hit) => hit.object.userData?.codebookNode === true || hit.object.userData?.codebookHub === true
+      );
+      if (hitInteractive) return;
+
+      if (expandedClusterIds.size > 0) {
+        onExitExpanded();
+        onClear();
+      } else if (highlighted) {
+        onClear();
+      }
     };
 
     canvas.addEventListener("pointerdown", onPointerDown);
@@ -326,7 +426,7 @@ function BackgroundDeselect({
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointerup", onPointerUp);
     };
-  }, [highlighted, onClear, camera, gl, scene, raycaster, ndc]);
+  }, [highlighted, expandedClusterIds, onClear, onExitExpanded, camera, gl, scene, raycaster, ndc]);
 
   return null;
 }
@@ -365,15 +465,30 @@ function ClusterEdge({
   );
 }
 
-function ClusterHub({ hub, active }: { hub: ClusterHub3D; active: boolean }) {
+function ClusterHub({
+  hub,
+  active,
+  pickable,
+  onFocus,
+  onHoverChange,
+}: {
+  hub: ClusterHub3D;
+  active: boolean;
+  pickable?: boolean;
+  onFocus?: () => void;
+  onHoverChange?: (hovered: boolean) => void;
+}) {
   const color = useMemo(() => hexToThree(hub.color), [hub.color]);
   const coreRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
+  const { setMode, dragging } = useCodebook3DCursor();
+  const hubRadius = pickable ? Math.min(0.95, 0.42 + Math.sqrt(hub.codeCount) * 0.06) : 0.1;
 
   useLayoutEffect(() => {
+    if (pickable) return;
     disableRaycast(coreRef.current);
     disableRaycast(ringRef.current);
-  }, []);
+  }, [pickable]);
 
   useFrame((state) => {
     if (!ringRef.current) return;
@@ -382,16 +497,53 @@ function ClusterHub({ hub, active }: { hub: ClusterHub3D; active: boolean }) {
 
   return (
     <group position={hub.position}>
-      <mesh ref={coreRef}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={active ? 0.95 : 0.45} />
+      <mesh
+        ref={coreRef}
+        userData={pickable ? { codebookHub: true } : undefined}
+        onClick={
+          pickable
+            ? (e) => {
+                e.stopPropagation();
+                onFocus?.();
+              }
+            : undefined
+        }
+        onPointerOver={
+          pickable
+            ? (e) => {
+                e.stopPropagation();
+                onHoverChange?.(true);
+                if (!dragging.current) setMode("node");
+              }
+            : undefined
+        }
+        onPointerOut={
+          pickable
+            ? () => {
+                onHoverChange?.(false);
+                if (!dragging.current) setMode("orbit");
+              }
+            : undefined
+        }
+      >
+        <sphereGeometry args={[hubRadius, pickable ? 28 : 16, pickable ? 28 : 16]} />
+        <meshPhysicalMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={active ? 0.85 : pickable ? 0.5 : 0.2}
+          roughness={0.25}
+          metalness={0.45}
+          clearcoat={0.75}
+          transparent={!pickable}
+          opacity={pickable ? 1 : active ? 0.95 : 0.45}
+        />
       </mesh>
       <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.55, 0.028, 10, 32]} />
+        <torusGeometry args={[hubRadius * 1.35, pickable ? 0.045 : 0.028, 10, 32]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={active ? 0.55 : 0.22}
+          opacity={active ? 0.65 : pickable ? 0.35 : 0.22}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
@@ -403,27 +555,58 @@ function ClusterHub({ hub, active }: { hub: ClusterHub3D; active: boolean }) {
 function Scene({
   layout,
   highlighted,
+  expandedClusterIds,
+  hoveredHubId,
+  forceShowAllCodes,
   onSelectCode,
   onClearSelection,
+  onToggleCluster,
+  onHoverHub,
   isDark,
   zoomEnabled,
 }: {
   layout: ReturnType<typeof buildCodebook3DLayout>;
   highlighted: HighlightedCode | null;
+  expandedClusterIds: Set<string>;
+  hoveredHubId: string | null;
+  forceShowAllCodes: boolean;
   onSelectCode: (code: string, clusterId: string) => void;
   onClearSelection: () => void;
+  onToggleCluster: (clusterId: string) => void;
+  onHoverHub: (clusterId: string | null) => void;
   isDark: boolean;
   zoomEnabled: boolean;
 }) {
-  const { nodes, hubs, edges } = layout;
+  const { nodes, hubs, edges, isLargeDataset, suggestedCameraDistance: camDist } = layout;
   const highlightCluster = highlighted?.clusterId ?? null;
-  const hasFocus = highlightCluster != null;
+  const hasCodeFocus = highlighted != null;
+  const overviewMode = isLargeDataset && !forceShowAllCodes && expandedClusterIds.size === 0;
+  const fogFar = Math.max(58, layout.layoutRadius * 2.8);
+  const [zoomLabelHubIds, setZoomLabelHubIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (!overviewMode) setZoomLabelHubIds(new Set());
+  }, [overviewMode]);
 
   return (
     <>
-      <BackgroundDeselect highlighted={highlighted} onClear={onClearSelection} />
+      {overviewMode && (
+        <ZoomLabelProbe
+          hubs={hubs}
+          layoutRadius={layout.layoutRadius}
+          baseCameraDistance={camDist}
+          enabled={overviewMode}
+          onVisibleHubsChange={setZoomLabelHubIds}
+        />
+      )}
+      <BackgroundDeselect
+        highlighted={highlighted}
+        expandedClusterIds={expandedClusterIds}
+        onClear={onClearSelection}
+        onExitExpanded={() => onToggleCluster("")}
+      />
       <color attach="background" args={[isDark ? "#0a0c12" : "#e8ecf4"]} />
-      <fog attach="fog" args={[isDark ? "#0a0c12" : "#e8ecf4", 30, 58]} />
+      <fog attach="fog" args={[isDark ? "#0a0c12" : "#e8ecf4", fogFar * 0.45, fogFar]} />
       <hemisphereLight
         args={[isDark ? "#7cf0d0" : "#ffffff", isDark ? "#12081e" : "#c5d0e8", isDark ? 0.55 : 0.75]}
       />
@@ -431,56 +614,74 @@ function Scene({
       <directionalLight position={[14, 18, 12]} intensity={isDark ? 0.85 : 0.65} color="#f0f4ff" />
       <pointLight position={[12, 14, 10]} intensity={isDark ? 1.35 : 0.85} color="#7cf0d0" />
       <pointLight position={[-14, -8, -12]} intensity={isDark ? 0.75 : 0.45} color="#a78bfa" />
-      <Stars radius={80} depth={40} count={isDark ? 1200 : 400} factor={3} fade speed={0.4} />
+      <Stars radius={fogFar * 1.4} depth={50} count={isDark ? 900 : 300} factor={3} fade speed={0.4} />
 
-      {edges.map(([a, b], i) => {
-        const clusterId = nodes[a].clusterId;
-        const edgeActive = !hasFocus || clusterId === highlightCluster;
+      {!overviewMode &&
+        edges.map(([a, b], i) => {
+          const clusterId = nodes[a].clusterId;
+          const edgeActive = !hasCodeFocus || clusterId === highlightCluster;
+          return (
+            <ClusterEdge
+              key={`e-${i}`}
+              a={nodes[a].position}
+              b={nodes[b].position}
+              color={nodes[a].color}
+              opacity={edgeActive ? (highlighted ? 0.5 : 0.32) : 0.08}
+              lineWidth={edgeActive ? 1.5 : 1}
+            />
+          );
+        })}
+
+      {hubs.map((hub) => {
+        const isExpanded = expandedClusterIds.has(hub.clusterId);
+        const showPickable = !forceShowAllCodes && (overviewMode || (isLargeDataset && !isExpanded));
         return (
-          <ClusterEdge
-            key={`e-${i}`}
-            a={nodes[a].position}
-            b={nodes[b].position}
-            color={nodes[a].color}
-            opacity={edgeActive ? (highlighted ? 0.5 : 0.32) : 0.08}
-            lineWidth={edgeActive ? 1.5 : 1}
+          <ClusterHub
+            key={`hub-${hub.clusterId}`}
+            hub={hub}
+            active={isExpanded || (hasCodeFocus && highlightCluster === hub.clusterId)}
+            pickable={showPickable || (isLargeDataset && isExpanded)}
+            onFocus={() => onToggleCluster(hub.clusterId)}
+            onHoverChange={(hovered) => onHoverHub(hovered ? hub.clusterId : null)}
           />
         );
       })}
 
-      {hubs.map((hub) => (
-        <ClusterHub
-          key={`hub-${hub.clusterId}`}
-          hub={hub}
-          active={highlightCluster === hub.clusterId}
-        />
-      ))}
+      {!overviewMode &&
+        nodes.map((node) => {
+          const isHighlighted =
+            highlighted?.code === node.code && highlighted.clusterId === node.clusterId;
+          const dimmed = hasCodeFocus && node.clusterId !== highlightCluster && !isHighlighted;
+          return (
+            <CodeSphere
+              key={`${node.clusterId}:${node.code}`}
+              node={node}
+              highlighted={isHighlighted}
+              dimmed={dimmed}
+              onSelect={() => onSelectCode(node.code, node.clusterId)}
+            />
+          );
+        })}
 
-      {nodes.map((node) => {
-        const isHighlighted =
-          highlighted?.code === node.code && highlighted.clusterId === node.clusterId;
-        const dimmed = hasFocus && node.clusterId !== highlightCluster && !isHighlighted;
+      {hubs.map((hub) => {
+        const isExpanded = expandedClusterIds.has(hub.clusterId);
+        const isHovered = hoveredHubId === hub.clusterId;
+        const zoomFocused = zoomLabelHubIds.has(hub.clusterId);
+        const showLabel = overviewMode
+          ? isHovered || zoomFocused
+          : isExpanded || isHovered || (hasCodeFocus && highlightCluster === hub.clusterId);
         return (
-          <CodeSphere
-            key={`${node.clusterId}:${node.code}`}
-            node={node}
-            highlighted={isHighlighted}
-            dimmed={dimmed}
-            onSelect={() => onSelectCode(node.code, node.clusterId)}
+          <ClusterLabel
+            key={`lbl-${hub.clusterId}`}
+            hub={hub}
+            dimmed={overviewMode ? !isHovered && !zoomFocused : !showLabel && expandedClusterIds.size > 0 && !isExpanded}
+            hidden={!showLabel}
+            showMeta={overviewMode || isExpanded}
           />
         );
       })}
 
-      {hubs.map((hub) => (
-        <ClusterLabel
-          key={`lbl-${hub.clusterId}`}
-          hub={hub}
-          dimmed={highlightCluster != null && highlightCluster !== hub.clusterId}
-          hidden={highlightCluster === hub.clusterId}
-        />
-      ))}
-
-      <SceneControls zoomEnabled={zoomEnabled} />
+      <SceneControls zoomEnabled={zoomEnabled} cameraDistance={camDist} />
     </>
   );
 }
@@ -493,12 +694,67 @@ export function CodebookCluster3D({
   highlighted,
   onSelectCode,
   onClearSelection,
+  onExpandedClustersChange,
+  isSmallCodebook = false,
+  totalClusterCount,
   isDark,
 }: CodebookCluster3DProps) {
+  const [expandedClusterIds, setExpandedClusterIds] = useState<Set<string>>(new Set());
+  const [hoveredHubId, setHoveredHubId] = useState<string | null>(null);
+
   const layout = useMemo(
-    () => buildCodebook3DLayout(sortedClusterIds, clusterToCodes, clusterColor, clusters),
-    [sortedClusterIds, clusterToCodes, clusterColor, clusters]
+    () =>
+      buildCodebook3DLayout(sortedClusterIds, clusterToCodes, clusterColor, clusters, {
+        expandedClusterIds: isSmallCodebook ? undefined : Array.from(expandedClusterIds),
+        forceShowAllCodes: isSmallCodebook,
+        totalClusterCount,
+      }),
+    [sortedClusterIds, clusterToCodes, clusterColor, clusters, expandedClusterIds, isSmallCodebook, totalClusterCount]
   );
+
+  const overviewMode = layout.isLargeDataset && !isSmallCodebook && expandedClusterIds.size === 0;
+
+  const syncExpanded = useCallback(
+    (next: Set<string>) => {
+      setExpandedClusterIds(next);
+      onExpandedClustersChange?.([...next]);
+    },
+    [onExpandedClustersChange]
+  );
+
+  const handleToggleCluster = useCallback(
+    (clusterId: string) => {
+      if (!clusterId) {
+        syncExpanded(new Set());
+        onClearSelection();
+        return;
+      }
+      setExpandedClusterIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(clusterId)) next.delete(clusterId);
+        else next.add(clusterId);
+        onExpandedClustersChange?.([...next]);
+        return next;
+      });
+    },
+    [onClearSelection, onExpandedClustersChange, syncExpanded]
+  );
+
+  useEffect(() => {
+    if (isSmallCodebook || !layout.isLargeDataset || !highlighted) return;
+    setExpandedClusterIds((prev) => {
+      if (prev.has(highlighted.clusterId)) return prev;
+      const next = new Set(prev).add(highlighted.clusterId);
+      onExpandedClustersChange?.([...next]);
+      return next;
+    });
+  }, [isSmallCodebook, layout.isLargeDataset, highlighted, onExpandedClustersChange]);
+
+  useEffect(() => {
+    setExpandedClusterIds(new Set());
+    setHoveredHubId(null);
+  }, [sortedClusterIds.join("|"), isSmallCodebook]);
+
   const [zoomEnabled, setZoomEnabled] = useState(false);
   const [cursorMode, setCursorMode] = useState<Codebook3DCursorMode>("orbit");
   const dragging = useRef(false);
@@ -519,7 +775,7 @@ export function CodebookCluster3D({
     return () => window.removeEventListener("pointerup", onPointerUp);
   }, []);
 
-  if (layout.nodes.length === 0) {
+  if (layout.hubs.length === 0) {
     return (
       <div className="codebook-3d-empty glass-panel">
         <p className="library-empty-body">No codes to visualize in 3D yet.</p>
@@ -531,9 +787,29 @@ export function CodebookCluster3D({
     <div className="codebook-3d-canvas-wrap glass-panel">
       <div className="codebook-3d-canvas-head">
         <h4>3D cluster map</h4>
-        <span className="library-panel-sub">
-          Scroll over the map to zoom · drag to orbit · click a node · click empty space to deselect
-        </span>
+        {overviewMode ? (
+          <span className="library-panel-sub">
+            {layout.clusterCount} clusters · hover to preview · scroll to zoom in for labels · click to expand codes
+          </span>
+        ) : expandedClusterIds.size > 0 && !isSmallCodebook ? (
+          <div className="codebook-3d-canvas-head-row">
+            <button
+              type="button"
+              className="library-mini-btn codebook-3d-back-btn"
+              onClick={() => handleToggleCluster("")}
+            >
+              ← Overview
+            </button>
+            <span className="library-panel-sub">
+              {expandedClusterIds.size} cluster{expandedClusterIds.size === 1 ? "" : "s"} expanded · click
+              another sphere to add more · click an expanded sphere again to collapse
+            </span>
+          </div>
+        ) : (
+          <span className="library-panel-sub">
+            Scroll over the map to zoom · drag to orbit · click a node · click empty space to deselect
+          </span>
+        )}
       </div>
       <Codebook3DCursorContext.Provider value={{ setMode, dragging }}>
         <div
@@ -566,8 +842,13 @@ export function CodebookCluster3D({
             <Scene
               layout={layout}
               highlighted={highlighted}
+              expandedClusterIds={expandedClusterIds}
+              hoveredHubId={hoveredHubId}
+              forceShowAllCodes={isSmallCodebook}
               onSelectCode={onSelectCode}
               onClearSelection={onClearSelection}
+              onToggleCluster={handleToggleCluster}
+              onHoverHub={setHoveredHubId}
               isDark={isDark}
               zoomEnabled={zoomEnabled}
             />

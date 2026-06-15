@@ -735,6 +735,11 @@ body::after {
   font-weight: 500;
 }
 
+.library-chip--accent {
+  color: var(--accent, #7cf0d0);
+  border-color: color-mix(in srgb, var(--accent, #7cf0d0) 35%, var(--chip-border));
+}
+
 .library-empty {
   padding: 1.75rem 1.5rem;
   text-align: center;
@@ -4091,6 +4096,39 @@ h3.research-bm-kicker--section {
   gap: 0.4rem;
 }
 
+.codebook-attention-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.15rem;
+  border-left: 3px solid var(--accent, #7cf0d0);
+}
+
+.codebook-attention-banner-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted, var(--text));
+}
+
+.codebook-attention-banner-text strong {
+  color: var(--text);
+}
+
+.codebook-attention-toggle {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.codebook-board-empty {
+  padding: 1.25rem 0.5rem;
+  text-align: center;
+}
+
 /* ── Dual view: 3D map + cluster board ── */
 .codebook-dual-view {
   display: flex;
@@ -4135,6 +4173,17 @@ h3.research-bm-kicker--section {
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.codebook-3d-canvas-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.codebook-3d-back-btn {
+  flex-shrink: 0;
 }
 
 .codebook-3d-canvas {

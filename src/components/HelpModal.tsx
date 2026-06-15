@@ -40,8 +40,9 @@ export function HelpModal({ onClose }: HelpModalProps) {
             <h3>Codebook review</h3>
             <p>
               Shows all pending rows from <code>codebook_reviews</code>. Open one to edit clusters, then{" "}
-              <strong>Approve &amp; submit</strong> (requires Supabase sign-in). Hash:{" "}
-              <code>page=codebook&amp;review=&lt;id&gt;</code>.
+              <strong>Approve &amp; submit</strong> (requires Supabase sign-in). Codebooks with{" "}
+              <strong>8+ clusters</strong> default to needs-review filtering and a 3D overview — smaller codebooks
+              show every cluster fully expanded. Hash: <code>page=codebook&amp;review=&lt;id&gt;</code>.
             </p>
           </section>
           <section>
