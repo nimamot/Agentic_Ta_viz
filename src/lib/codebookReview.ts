@@ -59,6 +59,8 @@ export interface WorkingCodebookState {
   review: CodebookReviewRow;
   codebook: CodebookPayload;
   confidence: Record<string, CodebookConfidenceEntry>;
+  /** How many duplicate code assignments were dropped when loading (kept lowest-confidence cluster). */
+  dedupedCodeCount?: number;
 }
 
 function unwrapJsonField<T>(raw: unknown): T | null {
@@ -106,6 +108,45 @@ export function parseCodebookReviewRow(row: Record<string, unknown>): CodebookRe
   };
 }
 
+function clusterSortKey(
+  clusters: Record<string, ClusterEntry>,
+  a: string,
+  b: string
+): number {
+  const ca = clusters[a]?.confidence ?? 0;
+  const cb = clusters[b]?.confidence ?? 0;
+  return ca - cb || a.localeCompare(b);
+}
+
+/**
+ * Ensure each code appears in at most one cluster. When the pipeline assigns a code
+ * to multiple clusters, keep it in the lowest-confidence cluster (needs review first).
+ */
+export function dedupeClusterToCodes(
+  cluster_to_codes: Record<string, string[]>,
+  clusters: Record<string, ClusterEntry>
+): { cluster_to_codes: Record<string, string[]>; dedupedCodeCount: number } {
+  const order = Object.keys(cluster_to_codes).sort((a, b) => clusterSortKey(clusters, a, b));
+  const seen = new Set<string>();
+  const out: Record<string, string[]> = {};
+  let dedupedCodeCount = 0;
+
+  for (const cid of order) {
+    const kept: string[] = [];
+    for (const code of cluster_to_codes[cid] ?? []) {
+      if (seen.has(code)) {
+        dedupedCodeCount += 1;
+        continue;
+      }
+      seen.add(code);
+      kept.push(code);
+    }
+    out[cid] = kept;
+  }
+
+  return { cluster_to_codes: out, dedupedCodeCount };
+}
+
 export function buildWorkingCodebook(review: CodebookReviewRow): WorkingCodebookState {
   const v1 = asRecord(review.codebook_v1);
   const clustered = unwrapJsonField<ClusteredCodesPayload>(review.clustered_codes) ?? {};
@@ -148,14 +189,20 @@ export function buildWorkingCodebook(review: CodebookReviewRow): WorkingCodebook
     ? (operationsRaw as CodebookOperation[])
     : [];
 
+  const { cluster_to_codes: dedupedCodes, dedupedCodeCount } = dedupeClusterToCodes(
+    cluster_to_codes,
+    clusters
+  );
+
   return {
     review,
     confidence,
+    dedupedCodeCount: dedupedCodeCount > 0 ? dedupedCodeCount : undefined,
     codebook: {
       version: typeof v1?.version === "number" ? v1.version : 1,
       clusters,
       operations: [...operations],
-      cluster_to_codes,
+      cluster_to_codes: dedupedCodes,
     },
   };
 }
@@ -474,6 +521,19 @@ export function isSmallCodebook(clusterCount: number): boolean {
 /** Clusters with confidence strictly below this value are shown by default in review. */
 export const NEEDS_REVIEW_CONFIDENCE_THRESHOLD = 5;
 
+/** User-selectable “below” thresholds on the 0–5 confidence scale. */
+export const CONFIDENCE_FILTER_OPTIONS = [1, 2, 3, 4, 5] as const;
+
+export function filterClusterIdsBelowConfidence(
+  codebook: CodebookPayload,
+  sortedIds: string[],
+  belowThreshold: number
+): string[] {
+  return sortedIds.filter(
+    (id) => (codebook.clusters[id]?.confidence ?? 0) < belowThreshold
+  );
+}
+
 export function clusterNeedsReview(codebook: CodebookPayload, clusterId: string): boolean {
   const confidence = codebook.clusters[clusterId]?.confidence ?? 0;
   return confidence < NEEDS_REVIEW_CONFIDENCE_THRESHOLD;
@@ -483,7 +543,11 @@ export function filterClusterIdsNeedingReview(
   codebook: CodebookPayload,
   sortedIds: string[]
 ): string[] {
-  return sortedIds.filter((id) => clusterNeedsReview(codebook, id));
+  return filterClusterIdsBelowConfidence(
+    codebook,
+    sortedIds,
+    NEEDS_REVIEW_CONFIDENCE_THRESHOLD
+  );
 }
 
 /** Payload PATCHed to Supabase on Approve (one row, `codebook_v2` column). */

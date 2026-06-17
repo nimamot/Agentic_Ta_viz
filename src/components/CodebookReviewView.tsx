@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { CodebookCluster3D, type HighlightedCode } from "./CodebookCluster3D";
 import { CodebookReviewJsonPanel } from "./CodebookReviewJsonPanel";
 import {
@@ -10,13 +10,15 @@ import { isSupabaseConfigured } from "../lib/supabaseClient";
 import { GRAPH_CLUSTER_HEXES } from "../lib/graphBuilder";
 import {
   buildWorkingCodebook,
+  dedupeClusterToCodes,
   dropCluster,
   mergeClusters,
   moveCode,
   nextSplitClusterId,
   renameCluster,
   rewriteDescription,
-  filterClusterIdsNeedingReview,
+  filterClusterIdsBelowConfidence,
+  CONFIDENCE_FILTER_OPTIONS,
   isSmallCodebook,
   NEEDS_REVIEW_CONFIDENCE_THRESHOLD,
   sortClusterIdsByConfidence,
@@ -101,7 +103,10 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const [expandedChips, setExpandedChips] = useState<Set<string>>(new Set());
   const [highlightedCode, setHighlightedCode] = useState<HighlightedCode | null>(null);
-  const [showAllClusters, setShowAllClusters] = useState(false);
+  /** `null` = show all clusters; number = show clusters with confidence strictly below this value. */
+  const [confidenceFilterBelow, setConfidenceFilterBelow] = useState<number | null>(
+    NEEDS_REVIEW_CONFIDENCE_THRESHOLD
+  );
 
   const refreshPendingList = useCallback(async () => {
     setListLoading(true);
@@ -130,7 +135,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
       setMergeDraft(null);
       setSplitFor(null);
       setHighlightedCode(null);
-      setShowAllClusters(false);
+      setConfidenceFilterBelow(NEEDS_REVIEW_CONFIDENCE_THRESHOLD);
       try {
         const result = await fetchPendingCodebookReviewById(id);
         if (!result) {
@@ -162,7 +167,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     setMergeDraft(null);
     setSplitFor(null);
     setHighlightedCode(null);
-    setShowAllClusters(false);
+    setConfidenceFilterBelow(NEEDS_REVIEW_CONFIDENCE_THRESHOLD);
     onReviewIdChange(null);
     void refreshPendingList();
   }, [onReviewIdChange, refreshPendingList]);
@@ -183,15 +188,42 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     [working]
   );
 
-  const smallCodebook = isSmallCodebook(sortedClusterIds.length);
-
   const attentionClusterIds = useMemo(
-    () => (working ? filterClusterIdsNeedingReview(working.codebook, sortedClusterIds) : []),
+    () =>
+      working
+        ? filterClusterIdsBelowConfidence(
+            working.codebook,
+            sortedClusterIds,
+            NEEDS_REVIEW_CONFIDENCE_THRESHOLD
+          )
+        : [],
     [working, sortedClusterIds]
   );
 
-  const visibleClusterIds =
-    smallCodebook || showAllClusters ? sortedClusterIds : attentionClusterIds;
+  const confidenceFilterCounts = useMemo(() => {
+    if (!working) return new Map<number, number>();
+    const counts = new Map<number, number>();
+    for (const n of CONFIDENCE_FILTER_OPTIONS) {
+      counts.set(
+        n,
+        filterClusterIdsBelowConfidence(working.codebook, sortedClusterIds, n).length
+      );
+    }
+    return counts;
+  }, [working, sortedClusterIds]);
+
+  const filteredClusterIds = useMemo(() => {
+    if (!working || confidenceFilterBelow === null) return sortedClusterIds;
+    return filterClusterIdsBelowConfidence(
+      working.codebook,
+      sortedClusterIds,
+      confidenceFilterBelow
+    );
+  }, [working, sortedClusterIds, confidenceFilterBelow]);
+
+  const showingAllClusters = confidenceFilterBelow === null;
+
+  const visibleClusterIds = filteredClusterIds;
 
   /** Few visible clusters → full 3D detail (all codes, no overview dots), even when the codebook is large. */
   const fullDetailView = isSmallCodebook(visibleClusterIds.length);
@@ -205,21 +237,42 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   }, [working, visibleClusterIds]);
 
   useEffect(() => {
-    if (smallCodebook || showAllClusters || !working || !highlightedCode) return;
-    if (!attentionClusterIds.includes(highlightedCode.clusterId)) {
+    if (showingAllClusters || !working || !highlightedCode) return;
+    if (!filteredClusterIds.includes(highlightedCode.clusterId)) {
       setHighlightedCode(null);
     }
-  }, [smallCodebook, showAllClusters, working, highlightedCode, attentionClusterIds]);
+  }, [showingAllClusters, working, highlightedCode, filteredClusterIds]);
 
   useEffect(() => {
     if (!working || !fullDetailView) return;
     setExpandedChips(new Set(visibleClusterIds));
   }, [working?.review.id, fullDetailView, visibleClusterIds]);
 
+  const normalizedReviewId = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!working || !smallCodebook) return;
-    setShowAllClusters(true);
-  }, [working?.review.id, smallCodebook]);
+    normalizedReviewId.current = null;
+  }, [reviewId]);
+
+  useEffect(() => {
+    if (!working) return;
+    if (normalizedReviewId.current === working.review.id) return;
+    const { cluster_to_codes, dedupedCodeCount } = dedupeClusterToCodes(
+      working.codebook.cluster_to_codes,
+      working.codebook.clusters
+    );
+    normalizedReviewId.current = working.review.id;
+    if (dedupedCodeCount === 0) return;
+    setWorking((w) =>
+      !w
+        ? w
+        : {
+            ...w,
+            dedupedCodeCount,
+            codebook: { ...w.codebook, cluster_to_codes },
+          }
+    );
+  }, [working]);
 
   /** Stable color per cluster id: indexed by insertion order in the clusters map. */
   const clusterColor = useMemo(() => {
@@ -380,12 +433,17 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
       setSubmitMessage("Sign in to submit an approved codebook.");
       return;
     }
+    const { cluster_to_codes } = dedupeClusterToCodes(
+      working.codebook.cluster_to_codes,
+      working.codebook.clusters
+    );
+    const codebookToSubmit = { ...working.codebook, cluster_to_codes };
     setSubmitting(true);
     setSubmitMessage(null);
     try {
       const result = await submitCodebookReview(
         working.review.id,
-        working.codebook,
+        codebookToSubmit,
         working.review.updated_at,
         "approved"
       );
@@ -516,6 +574,13 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
             {submitMessage}
           </div>
         )}
+        {working?.dedupedCodeCount != null && working.dedupedCodeCount > 0 && (
+          <div className="library-banner codebook-dedupe-banner" role="status">
+            Resolved {working.dedupedCodeCount} duplicate code
+            {working.dedupedCodeCount === 1 ? "" : "s"} from the pipeline data — each code is now in one
+            cluster only (kept in the lowest-confidence cluster). You can approve when ready.
+          </div>
+        )}
 
         {!working && !loadError && (
           <div className="codebook-queue glass-panel">
@@ -571,48 +636,69 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 <span className="library-chip library-chip--muted">{formatWhen(working.review.created_at)}</span>
                 <span className="library-chip">{sortedClusterIds.length} clusters</span>
                 <span className="library-chip library-chip--muted">{totalCodes} codes</span>
-                {!smallCodebook && !showAllClusters && attentionClusterIds.length < sortedClusterIds.length && (
+                {!showingAllClusters && filteredClusterIds.length < sortedClusterIds.length && (
                   <span className="library-chip library-chip--accent">
-                    {attentionClusterIds.length} need review
+                    {filteredClusterIds.length} shown
                   </span>
                 )}
               </div>
             </header>
 
-            {!smallCodebook && (
             <div className="glass-panel codebook-attention-banner" role="status">
               <div className="codebook-attention-banner-text">
-                {showAllClusters ? (
+                {showingAllClusters ? (
                   <>
-                    <strong>Showing all clusters.</strong> You are viewing every cluster in this codebook,
-                    including high-confidence ones that may not need changes.
+                    <strong>Showing all clusters.</strong> You are viewing every cluster in this codebook.
+                    Use the confidence filter to narrow the list, or approve as-is if everything looks good.
                   </>
-                ) : attentionClusterIds.length === 0 ? (
+                ) : filteredClusterIds.length === 0 ? (
                   <>
-                    <strong>Nothing flagged for review.</strong> Every cluster is confidence{" "}
-                    {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} or higher. You can still open all clusters to spot-check
-                    or approve as-is.
+                    <strong>No clusters need your attention.</strong> Every cluster is at confidence{" "}
+                    {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} or higher on the 0–5 scale. You can spot-check with
+                    &ldquo;Show all clusters&rdquo; or tighten the filter to review lower-confidence groups.
+                  </>
+                ) : confidenceFilterBelow === NEEDS_REVIEW_CONFIDENCE_THRESHOLD ? (
+                  <>
+                    <strong>Clusters that need your attention.</strong> Showing {filteredClusterIds.length} of{" "}
+                    {sortedClusterIds.length} clusters with confidence below {NEEDS_REVIEW_CONFIDENCE_THRESHOLD}.
+                    High-confidence clusters are hidden by default.
                   </>
                 ) : (
                   <>
-                    <strong>Clusters that need your attention.</strong> We are only showing{" "}
-                    {attentionClusterIds.length} of {sortedClusterIds.length} clusters — those with confidence below{" "}
-                    {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} (scores 0–{NEEDS_REVIEW_CONFIDENCE_THRESHOLD - 1} on the 0–5
-                    scale). High-confidence clusters are hidden so you can focus on the uncertain ones first.
+                    <strong>Filtered by confidence.</strong> Showing {filteredClusterIds.length} of{" "}
+                    {sortedClusterIds.length} clusters with confidence below {confidenceFilterBelow}.
                   </>
                 )}
               </div>
-              <button
-                type="button"
-                className="library-mini-btn codebook-attention-toggle"
-                onClick={() => setShowAllClusters((v) => !v)}
-              >
-                {showAllClusters
-                  ? `Show only needs review (${attentionClusterIds.length})`
-                  : `Show all clusters (${sortedClusterIds.length})`}
-              </button>
+              <div className="codebook-attention-banner-actions">
+                <label className="codebook-confidence-filter">
+                  <span className="codebook-confidence-filter-label">Show clusters</span>
+                  <select
+                    className="library-select codebook-confidence-filter-select"
+                    value={confidenceFilterBelow === null ? "all" : String(confidenceFilterBelow)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setConfidenceFilterBelow(
+                        v === "all" ? null : Number.parseInt(v, 10)
+                      );
+                    }}
+                  >
+                    <option value="all">All clusters ({sortedClusterIds.length})</option>
+                    <option value={String(NEEDS_REVIEW_CONFIDENCE_THRESHOLD)}>
+                      Needs review — below {NEEDS_REVIEW_CONFIDENCE_THRESHOLD} (
+                      {attentionClusterIds.length})
+                    </option>
+                    {[4, 3, 2, 1]
+                      .filter((n) => n < NEEDS_REVIEW_CONFIDENCE_THRESHOLD)
+                      .map((n) => (
+                        <option key={n} value={String(n)}>
+                          Confidence below {n} ({confidenceFilterCounts.get(n) ?? 0})
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
             </div>
-            )}
 
             <p className="codebook-board-hint">
               {fullDetailView ? (
@@ -666,7 +752,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
             <div className="codebook-dual-view">
               <CodebookCluster3D
-                key={`${working.review.id}-${showAllClusters ? "all" : "attention"}-${fullDetailView ? "full" : "overview"}`}
+                key={`${working.review.id}-${showingAllClusters ? "all" : `below-${confidenceFilterBelow}`}-${fullDetailView ? "full" : "overview"}`}
                 sortedClusterIds={visibleClusterIds}
                 clusterToCodes={working.codebook.cluster_to_codes}
                 clusterColor={clusterColor}
@@ -686,16 +772,18 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 <span className="library-panel-sub">
                   {fullDetailView
                     ? `${visibleClusterIds.length} clusters · all codes shown · drag & drop editing`
-                    : showAllClusters
+                    : showingAllClusters
                       ? `${visibleClusterIds.length} clusters · ${visibleCodeCount} codes · drag & drop editing`
-                      : `${visibleClusterIds.length} of ${sortedClusterIds.length} clusters · ${visibleCodeCount} codes · needs review only`}
+                      : filteredClusterIds.length === 0
+                        ? `0 clusters match filter · ${sortedClusterIds.length} total`
+                        : `${filteredClusterIds.length} of ${sortedClusterIds.length} clusters · ${visibleCodeCount} codes · confidence below ${confidenceFilterBelow}`}
                 </span>
               </div>
             <div className="codebook-board">
-              {visibleClusterIds.length === 0 && (
+              {visibleClusterIds.length === 0 && !showingAllClusters && (
                 <p className="library-empty-body codebook-board-empty">
-                  No clusters match the needs-review filter. Use &ldquo;Show all clusters&rdquo; above to browse the
-                  full codebook.
+                  No clusters match this confidence filter. Try a higher threshold, or use &ldquo;Show all
+                  clusters&rdquo; above to browse the full codebook.
                 </p>
               )}
               {visibleClusterIds.map((cid) => {
@@ -872,6 +960,13 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                   type="button"
                   className="library-btn library-btn--primary"
                   disabled={!validation.ok || submitting || !isAuthenticated}
+                  title={
+                    !isAuthenticated
+                      ? "Sign in to submit"
+                      : !validation.ok
+                        ? "Fix validation errors below before submitting"
+                        : undefined
+                  }
                   onClick={() => void handleApprove()}
                 >
                   {submitting ? "Submitting…" : "Approve & submit"}
@@ -892,6 +987,11 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                   Reset edits
                 </button>
                 {!isAuthenticated && <span className="library-panel-sub">Sign in to submit or cancel.</span>}
+                {isAuthenticated && !validation.ok && (
+                  <span className="library-panel-sub codebook-footer-hint">
+                    Fix the issues above to enable Approve &amp; submit.
+                  </span>
+                )}
               </div>
             </footer>
           </>
