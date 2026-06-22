@@ -1,0 +1,18 @@
+{
+  "cluster_to_codes": {
+    "0": ["Heavy homework load", "Exam stress", "Deadline pressure", "Fear of failure"],
+    "1": ["Social isolation", "Bullying experiences", "Lack of teacher support"],
+    "2": ["Sleep deprivation", "Constant tiredness"]
+  },
+  "all_codes": [
+    "Heavy homework load",
+    "Exam stress",
+    "Deadline pressure",
+    "Fear of failure",
+    "Social isolation",
+    "Bullying experiences",
+    "Lack of teacher support",
+    "Sleep deprivation",
+    "Constant tiredness"
+  ]
+}

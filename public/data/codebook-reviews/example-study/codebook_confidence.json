@@ -1,0 +1,17 @@
+{
+  "0": {
+    "label": "Academic pressure",
+    "confidence": 4,
+    "rationale": "Clear thematic grouping around school workload and performance."
+  },
+  "1": {
+    "label": "Social strain",
+    "confidence": 3,
+    "rationale": "Some overlap with support-system codes; may need merge."
+  },
+  "2": {
+    "label": "Physical exhaustion",
+    "confidence": 2,
+    "rationale": "Only two codes; consider merging with academic pressure."
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "tree": {
+    "name": "School burnout study",
+    "type": "root",
+    "children": [
+      {
+        "name": "Academic pressure",
+        "type": "meta_theme",
+        "children": [
+          {
+            "name": "Workload",
+            "type": "theme",
+            "children": [
+              { "name": "Heavy homework load", "type": "code" },
+              { "name": "Exam stress", "type": "code" },
+              { "name": "Deadline pressure", "type": "code" }
+            ]
+          },
+          {
+            "name": "Performance anxiety",
+            "type": "theme",
+            "children": [
+              { "name": "Fear of failure", "type": "code" },
+              { "name": "Grade obsession", "type": "code" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Social factors",
+        "type": "meta_theme",
+        "children": [
+          {
+            "name": "Peer relationships",
+            "type": "theme",
+            "children": [
+              { "name": "Bullying experiences", "type": "code" },
+              { "name": "Social isolation", "type": "code" }
+            ]
+          },
+          {
+            "name": "Support systems",
+            "type": "theme",
+            "children": [
+              { "name": "Lack of teacher support", "type": "code" },
+              { "name": "Family pressure", "type": "code" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

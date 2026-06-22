@@ -6,13 +6,15 @@ import { HelpModal } from "./components/HelpModal";
 import { CodebookReviewView } from "./components/CodebookReviewView";
 import { LibraryView } from "./components/LibraryView";
 import { ResearchOverview } from "./components/ResearchOverview";
+import { isLocalMode } from "./lib/dataSource";
 
 function AppContent() {
+  const localMode = isLocalMode();
   const { isDark, toggleTheme } = useTheme();
   const [showHelp, setShowHelp] = useState(false);
   const [libraryRowId, setLibraryRowId] = useState<string | null>(null);
   const [codebookReviewId, setCodebookReviewId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AppTab>("overview");
+  const [activeTab, setActiveTab] = useState<AppTab>(localMode ? "library" : "overview");
 
   useAppHash({
     activeTab,
@@ -34,15 +36,17 @@ function AppContent() {
     <div className="app" data-theme={isDark ? "dark" : "light"}>
       <header className="header">
         <nav className="header-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "overview"}
-            className={`header-tab ${activeTab === "overview" ? "header-tab--active" : ""}`}
-            onClick={() => setActiveTab("overview")}
-          >
-            Overview
-          </button>
+          {!localMode && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "overview"}
+              className={`header-tab ${activeTab === "overview" ? "header-tab--active" : ""}`}
+              onClick={() => setActiveTab("overview")}
+            >
+              Overview
+            </button>
+          )}
           <button
             type="button"
             role="tab"
@@ -72,7 +76,7 @@ function AppContent() {
         </div>
       </header>
 
-      {activeTab === "overview" && <ResearchOverview isDark={isDark} />}
+      {!localMode && activeTab === "overview" && <ResearchOverview isDark={isDark} />}
       {activeTab === "library" && (
         <LibraryView selectedRowId={libraryRowId} onSelectRow={setLibraryRowId} isDark={isDark} />
       )}

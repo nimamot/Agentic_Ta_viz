@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "clusters": {
+    "0": {
+      "label": "Academic pressure",
+      "description": "Codes related to workload, exams, and performance anxiety.",
+      "confidence": 4,
+      "source": "llm",
+      "needs_more_evidence": false,
+      "status": "keep"
+    },
+    "1": {
+      "label": "Social strain",
+      "description": "Peer conflict, isolation, and lack of support.",
+      "confidence": 3,
+      "source": "llm",
+      "needs_more_evidence": true,
+      "status": "keep"
+    },
+    "2": {
+      "label": "Physical exhaustion",
+      "description": "Sleep loss and fatigue from school demands.",
+      "confidence": 2,
+      "source": "llm",
+      "needs_more_evidence": true,
+      "status": "keep"
+    }
+  },
+  "operations": [],
+  "cluster_to_codes": {
+    "0": ["Heavy homework load", "Exam stress", "Deadline pressure", "Fear of failure"],
+    "1": ["Social isolation", "Bullying experiences", "Lack of teacher support"],
+    "2": ["Sleep deprivation", "Constant tiredness"]
+  }
+}

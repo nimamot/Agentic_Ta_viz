@@ -5,6 +5,11 @@ import {
   type CodebookReviewRow,
   type WorkingCodebookState,
 } from "./codebookReview";
+import { isLocalMode } from "./dataSource";
+import {
+  fetchAllPendingLocalCodebookReviews,
+  fetchPendingLocalCodebookReviewById,
+} from "./local/loadCodebookReviews";
 import { getSupabase } from "./supabaseClient";
 
 const TABLE = "codebook_reviews";
@@ -32,6 +37,9 @@ function toListItem(row: CodebookReviewRow): PendingCodebookReviewListItem {
 }
 
 export async function fetchAllPendingCodebookReviews(): Promise<PendingCodebookReviewListItem[]> {
+  if (isLocalMode()) {
+    return fetchAllPendingLocalCodebookReviews();
+  }
   const sb = getSupabase();
   const { data, error } = await sb
     .from(TABLE)
@@ -48,6 +56,10 @@ export async function fetchPendingCodebookReviewById(
 ): Promise<WorkingCodebookState | null> {
   const id = reviewId.trim();
   if (!id) return null;
+
+  if (isLocalMode()) {
+    return fetchPendingLocalCodebookReviewById(id);
+  }
 
   const sb = getSupabase();
   const { data, error } = await sb

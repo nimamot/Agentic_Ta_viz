@@ -1,4 +1,6 @@
 import type { CodebookPayload } from "./codebookReview";
+import { isLocalMode } from "./dataSource";
+import { submitLocalCodebookReview } from "./local/submitCodebookReview";
 import { getSupabase } from "./supabaseClient";
 
 const TABLE = "codebook_reviews";
@@ -18,6 +20,10 @@ export async function submitCodebookReview(
   loadedUpdatedAt: string | null | undefined,
   status: SubmitStatus
 ): Promise<SubmitCodebookResult> {
+  if (isLocalMode()) {
+    return submitLocalCodebookReview(reviewId, codebookV2, loadedUpdatedAt, status);
+  }
+
   const sb = getSupabase();
   const now = new Date().toISOString();
 

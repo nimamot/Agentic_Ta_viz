@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from "react";
+import { isLocalMode } from "../lib/dataSource";
 
 export type AppTab = "overview" | "library" | "codebook";
 
@@ -53,7 +54,12 @@ function applyHashToApp(
     return;
   }
 
-  const openLibrary = page === "library" || row.length > 0;
+  if (page === "overview" && !isLocalMode()) {
+    setActiveTab("overview");
+    return;
+  }
+
+  const openLibrary = page === "library" || row.length > 0 || isLocalMode();
   if (openLibrary) {
     setActiveTab("library");
   }
@@ -86,7 +92,11 @@ export function useAppHash({
       window.history.replaceState(null, "", `#${codebookHashQuery(codebookReviewId)}`);
       return;
     }
-    window.history.replaceState(null, "", "#page=overview");
+    if (!isLocalMode()) {
+      window.history.replaceState(null, "", "#page=overview");
+    } else {
+      window.history.replaceState(null, "", `#${libraryHashQuery(libraryRowId)}`);
+    }
   }, [activeTab, libraryRowId, codebookReviewId]);
 
   useEffect(() => {

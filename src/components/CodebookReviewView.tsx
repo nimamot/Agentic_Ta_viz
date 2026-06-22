@@ -6,7 +6,7 @@ import {
   fetchPendingCodebookReviewById,
   type PendingCodebookReviewListItem,
 } from "../lib/fetchCodebookReview";
-import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { isDataSourceConfigured, isLocalMode } from "../lib/dataSource";
 import { GRAPH_CLUSTER_HEXES } from "../lib/graphBuilder";
 import {
   buildWorkingCodebook,
@@ -37,7 +37,7 @@ interface CodebookReviewViewProps {
   isDark: boolean;
 }
 
-const CHIPS_PREVIEW = 12;
+const COLLAPSE_CLUSTERS_BY_DEFAULT_ABOVE = 5;
 
 function formatWhen(iso: string): string {
   try {
@@ -75,7 +75,9 @@ interface SplitGroup {
 }
 
 export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: CodebookReviewViewProps) {
+  const localMode = isLocalMode();
   const { session, loading: authLoading, authError, signIn, signOut, isAuthenticated } = useSupabaseAuth();
+  const canSubmit = localMode || isAuthenticated;
 
   const [pendingList, setPendingList] = useState<PendingCodebookReviewListItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -101,7 +103,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   const [splitDragCode, setSplitDragCode] = useState<string | null>(null);
   const [splitDragOver, setSplitDragOver] = useState<number | null>(null);
 
-  const [expandedChips, setExpandedChips] = useState<Set<string>>(new Set());
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
   const [highlightedCode, setHighlightedCode] = useState<HighlightedCode | null>(null);
   /** `null` = show all clusters; number = show clusters with confidence strictly below this value. */
   const [confidenceFilterBelow, setConfidenceFilterBelow] = useState<number | null>(
@@ -122,7 +124,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   }, []);
 
   useEffect(() => {
-    if (isSupabaseConfigured()) void refreshPendingList();
+    if (isDataSourceConfigured()) void refreshPendingList();
   }, [refreshPendingList]);
 
   const loadReviewById = useCallback(
@@ -244,9 +246,30 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   }, [showingAllClusters, working, highlightedCode, filteredClusterIds]);
 
   useEffect(() => {
-    if (!working || !fullDetailView) return;
-    setExpandedChips(new Set(visibleClusterIds));
-  }, [working?.review.id, fullDetailView, visibleClusterIds]);
+    if (!working) return;
+    if (visibleClusterIds.length <= COLLAPSE_CLUSTERS_BY_DEFAULT_ABOVE) {
+      setExpandedClusters(new Set(visibleClusterIds));
+    } else {
+      setExpandedClusters(new Set());
+    }
+  }, [working?.review.id, visibleClusterIds]);
+
+  const expandAllClusters = useCallback(() => {
+    setExpandedClusters(new Set(visibleClusterIds));
+  }, [visibleClusterIds]);
+
+  const collapseAllClusters = useCallback(() => {
+    setExpandedClusters(new Set());
+  }, []);
+
+  const toggleClusterExpanded = useCallback((clusterId: string) => {
+    setExpandedClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(clusterId)) next.delete(clusterId);
+      else next.add(clusterId);
+      return next;
+    });
+  }, []);
 
   const normalizedReviewId = useRef<string | null>(null);
 
@@ -287,7 +310,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const selectCode = useCallback((code: string, clusterId: string) => {
     setHighlightedCode({ code, clusterId });
-    setExpandedChips((prev) => new Set(prev).add(clusterId));
+    setExpandedClusters((prev) => new Set(prev).add(clusterId));
   }, []);
 
   const clearCodeSelection = useCallback(() => {
@@ -295,7 +318,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   }, []);
 
   const syncExpandedClustersFrom3D = useCallback((clusterIds: string[]) => {
-    setExpandedChips(new Set(clusterIds));
+    setExpandedClusters(new Set(clusterIds));
   }, []);
 
   const totalCodes = useMemo(() => {
@@ -429,7 +452,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
   const handleApprove = useCallback(async () => {
     if (!working || !validation.ok) return;
-    if (!isAuthenticated) {
+    if (!canSubmit) {
       setSubmitMessage("Sign in to submit an approved codebook.");
       return;
     }
@@ -448,7 +471,11 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
         "approved"
       );
       if (result.ok) {
-        setSubmitMessage("Approved and submitted. The pipeline can continue refinement.");
+        setSubmitMessage(
+          localMode
+            ? "Approved. Your codebook_v2.json file was downloaded — place it back in your pipeline output folder."
+            : "Approved and submitted. The pipeline can continue refinement."
+        );
         closeReview();
       } else if (result.alreadySubmitted) {
         setSubmitMessage("This review was already submitted.");
@@ -460,11 +487,11 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     } finally {
       setSubmitting(false);
     }
-  }, [working, validation.ok, isAuthenticated, closeReview]);
+  }, [working, validation.ok, canSubmit, localMode, closeReview]);
 
   const handleCancel = useCallback(async () => {
     if (!working) return;
-    if (!isAuthenticated) {
+    if (!canSubmit) {
       setSubmitMessage("Sign in to cancel a review.");
       return;
     }
@@ -484,13 +511,22 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     } finally {
       setSubmitting(false);
     }
-  }, [working, isAuthenticated, closeReview]);
+  }, [working, canSubmit, closeReview]);
 
-  if (!isSupabaseConfigured()) {
+  if (!isDataSourceConfigured()) {
     return (
       <div className="codebook-page" data-theme={isDark ? "dark" : "light"}>
         <div className="library-config-hint">
-          Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to load codebook reviews.
+          {localMode ? (
+            <>
+              Place codebook review files under <code>public/data/codebook-reviews/</code> (see{" "}
+              <code>LOCAL.md</code>).
+            </>
+          ) : (
+            <>
+              Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to load codebook reviews.
+            </>
+          )}
         </div>
       </div>
     );
@@ -523,49 +559,56 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
             {working && loading && <span className="library-chip library-chip--muted">Loading…</span>}
           </div>
 
-          <div className="codebook-auth">
-            {authLoading ? (
-              <span className="library-chip library-chip--muted">Checking auth…</span>
-            ) : isAuthenticated ? (
-              <>
-                <span className="library-chip" title={session?.user.email ?? ""}>
-                  {session?.user.email}
-                </span>
-                <button type="button" className="library-mini-btn" onClick={() => void signOut()}>
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <form
-                className="codebook-auth-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void signIn(email, password);
-                }}
-              >
-                <input
-                  type="email"
-                  className="library-select codebook-auth-input"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="username"
-                />
-                <input
-                  type="password"
-                  className="library-select codebook-auth-input"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                />
-                <button type="submit" className="library-mini-btn">
-                  Sign in
-                </button>
-              </form>
-            )}
-            {authError && <span className="codebook-auth-error">{authError}</span>}
-          </div>
+          {!localMode && (
+            <div className="codebook-auth">
+              {authLoading ? (
+                <span className="library-chip library-chip--muted">Checking auth…</span>
+              ) : isAuthenticated ? (
+                <>
+                  <span className="library-chip" title={session?.user.email ?? ""}>
+                    {session?.user.email}
+                  </span>
+                  <button type="button" className="library-mini-btn" onClick={() => void signOut()}>
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <form
+                  className="codebook-auth-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void signIn(email, password);
+                  }}
+                >
+                  <input
+                    type="email"
+                    className="library-select codebook-auth-input"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="username"
+                  />
+                  <input
+                    type="password"
+                    className="library-select codebook-auth-input"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <button type="submit" className="library-mini-btn">
+                    Sign in
+                  </button>
+                </form>
+              )}
+              {authError && <span className="codebook-auth-error">{authError}</span>}
+            </div>
+          )}
+          {localMode && (
+            <span className="library-chip library-chip--muted" title="Local file mode">
+              Local mode — no sign-in required
+            </span>
+          )}
         </div>
 
         {loadError && <div className="library-banner library-banner--error">{loadError}</div>}
@@ -778,6 +821,16 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                         ? `0 clusters match filter · ${sortedClusterIds.length} total`
                         : `${filteredClusterIds.length} of ${sortedClusterIds.length} clusters · ${visibleCodeCount} codes · confidence below ${confidenceFilterBelow}`}
                 </span>
+                {visibleClusterIds.length > COLLAPSE_CLUSTERS_BY_DEFAULT_ABOVE && (
+                  <div className="codebook-board-section-actions">
+                    <button type="button" className="library-mini-btn" onClick={expandAllClusters}>
+                      Expand all
+                    </button>
+                    <button type="button" className="library-mini-btn" onClick={collapseAllClusters}>
+                      Collapse all
+                    </button>
+                  </div>
+                )}
               </div>
             <div className="codebook-board">
               {visibleClusterIds.length === 0 && !showingAllClusters && (
@@ -793,41 +846,63 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 const color = clusterColor.get(cid) ?? GRAPH_CLUSTER_HEXES[0];
                 const isDropTarget = dragOverId === cid;
                 const isHighlightCluster = highlightedCode?.clusterId === cid;
-                const showAll = expandedChips.has(cid) || isHighlightCluster;
-                const visibleCodes = showAll ? codes : codes.slice(0, CHIPS_PREVIEW);
+                const isClusterExpanded = expandedClusters.has(cid) || isHighlightCluster;
                 return (
                   <section
                     key={cid}
                     className={`codebook-tile ${isDropTarget ? "codebook-tile--dragover" : ""} ${
                       isHighlightCluster ? "codebook-tile--highlighted" : ""
-                    }`}
+                    } ${isClusterExpanded ? "" : "codebook-tile--collapsed"}`}
                     style={{ ["--cluster-color" as string]: color }}
                     onDragOver={(e) => handleTileDragOver(e, cid)}
                     onDragLeave={() => setDragOverId((prev) => (prev === cid ? null : prev))}
                     onDrop={(e) => handleTileDrop(e, cid)}
                   >
-                    <div
-                      className="codebook-tile-head"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", `cluster:${cid}`);
-                        setDragClusterId(cid);
-                      }}
-                      onDragEnd={clearDrag}
-                      title="Drag onto another cluster to merge"
-                    >
-                      <span className="codebook-tile-grip" aria-hidden>
+                    <div className="codebook-tile-head">
+                      <span
+                        className="codebook-tile-grip"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", `cluster:${cid}`);
+                          setDragClusterId(cid);
+                        }}
+                        onDragEnd={clearDrag}
+                        title="Drag onto another cluster to merge"
+                        aria-hidden
+                      >
                         ⠿
                       </span>
+                      <button
+                        type="button"
+                        className="codebook-tile-toggle"
+                        onClick={() => toggleClusterExpanded(cid)}
+                        aria-expanded={isClusterExpanded}
+                        aria-label={isClusterExpanded ? "Collapse cluster" : "Expand cluster"}
+                      >
+                        <span className="codebook-tile-chevron" aria-hidden>
+                          {isClusterExpanded ? "▾" : "▸"}
+                        </span>
+                      </button>
                       <span className="codebook-tile-id">#{cid}</span>
                       <span className={`codebook-confidence ${confidenceBadgeClass(c.confidence)}`}>
                         {c.confidence}/5
                       </span>
                       {c.source !== "llm" && <span className="codebook-tile-source">{c.source}</span>}
                       <span className="codebook-tile-count">{codes.length} codes</span>
+                      {!isClusterExpanded && (
+                        <button
+                          type="button"
+                          className="codebook-tile-label-preview"
+                          onClick={() => toggleClusterExpanded(cid)}
+                        >
+                          {c.label?.trim() || "Untitled cluster"}
+                        </button>
+                      )}
                     </div>
 
+                    {isClusterExpanded && (
+                      <>
                     <input
                       className="codebook-tile-label"
                       value={c.label}
@@ -860,7 +935,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                     />
 
                     <div className="codebook-chips">
-                      {visibleCodes.map((code) => {
+                      {codes.map((code) => {
                         const isHighlighted =
                           highlightedCode?.code === code && highlightedCode.clusterId === cid;
                         return (
@@ -884,22 +959,6 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                         </span>
                         );
                       })}
-                      {codes.length > CHIPS_PREVIEW && (
-                        <button
-                          type="button"
-                          className="codebook-chip codebook-chip--more"
-                          onClick={() =>
-                            setExpandedChips((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(cid)) next.delete(cid);
-                              else next.add(cid);
-                              return next;
-                            })
-                          }
-                        >
-                          {showAll ? "Show fewer" : `+${codes.length - CHIPS_PREVIEW} more`}
-                        </button>
-                      )}
                       {codes.length === 0 && <span className="codebook-chips-empty">No codes — drop some here</span>}
                     </div>
 
@@ -932,6 +991,8 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                         Drop
                       </button>
                     </div>
+                      </>
+                    )}
                   </section>
                 );
               })}
@@ -959,9 +1020,9 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 <button
                   type="button"
                   className="library-btn library-btn--primary"
-                  disabled={!validation.ok || submitting || !isAuthenticated}
+                  disabled={!validation.ok || submitting || !canSubmit}
                   title={
-                    !isAuthenticated
+                    !canSubmit
                       ? "Sign in to submit"
                       : !validation.ok
                         ? "Fix validation errors below before submitting"
@@ -969,12 +1030,16 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                   }
                   onClick={() => void handleApprove()}
                 >
-                  {submitting ? "Submitting…" : "Approve & submit"}
+                  {submitting
+                    ? "Submitting…"
+                    : localMode
+                      ? "Approve & export"
+                      : "Approve & submit"}
                 </button>
                 <button
                   type="button"
                   className="library-mini-btn"
-                  disabled={submitting || !isAuthenticated}
+                  disabled={submitting || !canSubmit}
                   onClick={() => void handleCancel()}
                 >
                   Cancel review
@@ -986,8 +1051,10 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 >
                   Reset edits
                 </button>
-                {!isAuthenticated && <span className="library-panel-sub">Sign in to submit or cancel.</span>}
-                {isAuthenticated && !validation.ok && (
+                {!canSubmit && (
+                  <span className="library-panel-sub">Sign in to submit or cancel.</span>
+                )}
+                {canSubmit && !validation.ok && (
                   <span className="library-panel-sub codebook-footer-hint">
                     Fix the issues above to enable Approve &amp; submit.
                   </span>

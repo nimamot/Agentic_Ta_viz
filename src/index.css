@@ -4124,6 +4124,32 @@ h3.research-bm-kicker--section {
   align-self: center;
 }
 
+.codebook-attention-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  flex-shrink: 0;
+}
+
+.codebook-confidence-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.codebook-confidence-filter-label {
+  font-size: 0.72rem;
+  color: var(--text-muted, var(--text));
+  white-space: nowrap;
+}
+
+.codebook-confidence-filter-select {
+  min-width: 8.5rem;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.45rem;
+}
+
 .codebook-board-empty {
   padding: 1.25rem 0.5rem;
   text-align: center;
@@ -4324,6 +4350,67 @@ h3.research-bm-kicker--section {
   font-weight: 800;
 }
 
+.codebook-board-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.codebook-tile--collapsed {
+  gap: 0;
+  padding-bottom: 0.65rem;
+}
+
+.codebook-tile-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.codebook-tile-toggle:hover {
+  background: color-mix(in srgb, var(--cluster-color) 12%, transparent);
+  color: var(--text);
+}
+
+.codebook-tile-chevron {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.codebook-tile-label-preview {
+  flex: 1 1 8rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.1rem 0.25rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.codebook-tile-label-preview:hover {
+  background: color-mix(in srgb, var(--cluster-color) 10%, transparent);
+}
+
 .codebook-tile--highlighted {
   border-color: color-mix(in srgb, var(--cluster-color) 70%, var(--accent));
   box-shadow:
@@ -4458,20 +4545,21 @@ h3.research-bm-kicker--section {
 
 .codebook-tile-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
-  cursor: grab;
   user-select: none;
-}
-
-.codebook-tile-head:active {
-  cursor: grabbing;
 }
 
 .codebook-tile-grip {
   color: color-mix(in srgb, var(--cluster-color) 80%, var(--text-muted));
   font-size: 0.8rem;
   line-height: 1;
+  cursor: grab;
+}
+
+.codebook-tile-grip:active {
+  cursor: grabbing;
 }
 
 .codebook-tile-id {
