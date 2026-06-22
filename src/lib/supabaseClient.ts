@@ -10,7 +10,9 @@ export function isSupabaseConfigured(): boolean {
 
 export function getSupabaseTableName(): string {
   const t = import.meta.env.VITE_SUPABASE_TABLE;
-  return (typeof t === "string" && t.trim() ? t.trim() : "research_projects");
+  if (typeof t !== "string") return "pipeline_runs";
+  const trimmed = t.trim().replace(/^["']|["']$/g, "");
+  return trimmed || "pipeline_runs";
 }
 
 export function getSupabase(): SupabaseClient {

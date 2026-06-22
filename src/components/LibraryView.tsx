@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { buildLibraryShareUrl } from "../hooks/useAppHash";
 import { fetchResearchProjects } from "../lib/fetchResearchProjects";
-import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { isDataSourceConfigured, isLocalMode } from "../lib/dataSource";
 import {
   buildGraphData,
   buildOverviewEdges,
@@ -216,12 +216,16 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
     g: null,
     root: null,
   });
-
-  const configured = isSupabaseConfigured();
+  const configured = isDataSourceConfigured();
+  const localMode = isLocalMode();
 
   const load = useCallback(async () => {
     if (!configured) {
-      setFetchError("Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment.");
+      setFetchError(
+        localMode
+          ? "Add pipeline output files under public/data/ (see LOCAL.md)."
+          : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment."
+      );
       return;
     }
     setLoading(true);
@@ -238,10 +242,10 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
   }, [configured]);
 
   useEffect(() => {
-    if (configured && rows.length === 0 && !loading && !fetchError) {
-      load();
-    }
-  }, [configured, rows.length, loading, fetchError, load]);
+    if (configured) void load();
+    // Auto-sync once when Library opens; manual Sync button calls load() again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
 
   useEffect(() => {
     if (rows.length === 0) return;
@@ -631,7 +635,7 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
               onClick={load}
               disabled={loading || !configured}
             >
-              {loading ? "Loading…" : "Sync from database"}
+              {loading ? "Loading…" : localMode ? "Load projects" : "Sync from database"}
             </button>
             {rows.length > 0 && (
               <>
@@ -675,7 +679,16 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
             )}
             {!configured && (
               <p className="library-config-hint library-config-hint--inline">
-                Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>.
+                {localMode ? (
+                  <>
+                    Place pipeline outputs in <code>public/data/</code> — see <code>LOCAL.md</code>.
+                  </>
+                ) : (
+                  <>
+                    Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in{" "}
+                    <code>.env.local</code>.
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -997,7 +1010,8 @@ export function LibraryView({ selectedRowId, onSelectRow, isDark }: LibraryViewP
         <div className="library-empty library-empty--cta glass-panel">
           <p className="library-empty-title">No rows in memory</p>
           <p className="library-empty-body">
-            Use <strong>Sync from database</strong> above to load projects from Supabase, then choose one to open the
+            Use <strong>{localMode ? "Load projects" : "Sync from database"}</strong> above to load
+            {localMode ? " projects from your local data folder" : " projects from Supabase"}, then choose one to open the
             graph.
           </p>
         </div>
