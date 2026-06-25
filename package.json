@@ -8,7 +8,8 @@
     "dev:local": "VITE_DATA_SOURCE=local vite",
     "build": "tsc -b && vite build",
     "build:local": "VITE_DATA_SOURCE=local tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "package:viewer": "bash scripts/package-viewer.sh"
   },
   "dependencies": {
     "@iconify/react": "^5.2.0",

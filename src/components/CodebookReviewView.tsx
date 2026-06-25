@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { CodebookCluster3D, type HighlightedCode } from "./CodebookCluster3D";
+import { CodebookClusterGraph } from "./CodebookClusterGraph";
+import type { HighlightedCode } from "./codebookClusterTypes";
 import { CodebookReviewJsonPanel } from "./CodebookReviewJsonPanel";
 import {
   fetchAllPendingCodebookReviews,
@@ -316,6 +317,15 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
   const clearCodeSelection = useCallback(() => {
     setHighlightedCode(null);
   }, []);
+
+  const handleMoveCodeFrom3D = useCallback(
+    (code: string, fromClusterId: string, toClusterId: string) => {
+      setWorking((w) => (w ? moveCode(w, code, fromClusterId, toClusterId) : w));
+      setHighlightedCode({ code, clusterId: toClusterId });
+      setExpandedClusters((prev) => new Set(prev).add(toClusterId));
+    },
+    []
+  );
 
   const syncExpandedClustersFrom3D = useCallback((clusterIds: string[]) => {
     setExpandedClusters(new Set(clusterIds));
@@ -746,15 +756,17 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
             <p className="codebook-board-hint">
               {fullDetailView ? (
                 <>
-                  <strong>3D map</strong> — {visibleClusterIds.length} cluster
-                  {visibleClusterIds.length === 1 ? "" : "s"} shown with full code detail. Orbit with drag, click a
-                  code node to highlight it in the board. Drag chips or cluster headers on the board to reorganize.
+                  <strong>Cluster map</strong> — toggle 2D / 3D above the map. {visibleClusterIds.length} cluster
+                  {visibleClusterIds.length === 1 ? "" : "s"} shown with full code detail. Click a code node to
+                  highlight it in the board. Drag a code onto another cluster to move it.
                 </>
               ) : (
                 <>
-                  <strong>3D map</strong> — orbit with drag; click cluster spheres to expand codes (multiple at once),
-                  or click a code node to highlight it in the board below. On the board: drag a <strong>code chip</strong>{" "}
-                  to move it, or drag a <strong>cluster header</strong> to merge. Lowest confidence first.
+                  <strong>Cluster map</strong> — toggle 2D / 3D above the map. Click cluster nodes to expand codes
+                  (multiple at once), or click a code node to highlight it in the board below. Drag a{" "}
+                  <strong>code node</strong> onto another cluster to move it. On the board: drag a{" "}
+                  <strong>code chip</strong> to move it, or drag a <strong>cluster header</strong> to merge. Lowest
+                  confidence first.
                 </>
               )}
             </p>
@@ -794,7 +806,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
             )}
 
             <div className="codebook-dual-view">
-              <CodebookCluster3D
+              <CodebookClusterGraph
                 key={`${working.review.id}-${showingAllClusters ? "all" : `below-${confidenceFilterBelow}`}-${fullDetailView ? "full" : "overview"}`}
                 sortedClusterIds={visibleClusterIds}
                 clusterToCodes={working.codebook.cluster_to_codes}
@@ -803,6 +815,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 highlighted={highlightedCode}
                 onSelectCode={selectCode}
                 onClearSelection={clearCodeSelection}
+                onMoveCode={handleMoveCodeFrom3D}
                 onExpandedClustersChange={syncExpandedClustersFrom3D}
                 isSmallCodebook={fullDetailView}
                 totalClusterCount={sortedClusterIds.length}
