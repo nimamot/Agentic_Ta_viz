@@ -1,0 +1,240 @@
+import { useCallback, useEffect, useState } from "react";
+import { ClusterFocusDashboard } from "./ClusterFocusDashboard";
+import { CodebookCluster2D } from "./CodebookCluster2D";
+import { CodebookCluster3D } from "./CodebookCluster3D";
+import type { HighlightedCode } from "./codebookClusterTypes";
+import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
+import type { ClusterEntry } from "../lib/codebookReview";
+
+export type CodebookGraphDimension = "2d" | "3d";
+
+interface CodebookClusterGraphProps {
+  sortedClusterIds: string[];
+  clusterToCodes: Record<string, string[]>;
+  clusterColor: Map<string, string>;
+  clusters: Record<string, ClusterEntry>;
+  highlighted: HighlightedCode | null;
+  onSelectCode: (code: string, clusterId: string) => void;
+  onClearSelection: () => void;
+  onMoveCode?: (code: string, fromClusterId: string, toClusterId: string) => void;
+  onExpandedClustersChange?: (clusterIds: string[]) => void;
+  isSmallCodebook?: boolean;
+  totalClusterCount?: number;
+  isDark: boolean;
+}
+
+export function CodebookClusterGraph({
+  sortedClusterIds,
+  clusterToCodes,
+  clusterColor,
+  clusters,
+  highlighted,
+  onSelectCode,
+  onClearSelection,
+  onMoveCode,
+  onExpandedClustersChange,
+  isSmallCodebook = false,
+  totalClusterCount,
+  isDark,
+}: CodebookClusterGraphProps) {
+  const [dimension, setDimension] = useState<CodebookGraphDimension>("3d");
+  const [expandedClusterIds, setExpandedClusterIds] = useState<Set<string>>(new Set());
+  const [clusterFocusId, setClusterFocusId] = useState<string | null>(null);
+  const [focusTransitioning, setFocusTransitioning] = useState(false);
+
+  const showFocusChrome = clusterFocusId != null || focusTransitioning;
+  const showDashboard = clusterFocusId != null;
+
+  const syncExpanded = useCallback(
+    (ids: string[]) => {
+      setExpandedClusterIds(new Set(ids));
+      onExpandedClustersChange?.(ids);
+    },
+    [onExpandedClustersChange]
+  );
+
+  const handleToggleCluster = useCallback(
+    (clusterId: string) => {
+      if (!clusterId) {
+        setExpandedClusterIds(new Set());
+        onExpandedClustersChange?.([]);
+        onClearSelection();
+        return;
+      }
+      setExpandedClusterIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(clusterId)) next.delete(clusterId);
+        else next.add(clusterId);
+        onExpandedClustersChange?.([...next]);
+        return next;
+      });
+    },
+    [onClearSelection, onExpandedClustersChange]
+  );
+
+  useEffect(() => {
+    setExpandedClusterIds(new Set());
+    setClusterFocusId(null);
+    setFocusTransitioning(false);
+  }, [sortedClusterIds.join("|"), isSmallCodebook]);
+
+  useEffect(() => {
+    if (dimension !== "3d") {
+      setClusterFocusId(null);
+      setFocusTransitioning(false);
+    }
+  }, [dimension]);
+
+  const handleFocusTransitionPhase = useCallback((phase: "idle" | "running") => {
+    setFocusTransitioning(phase === "running");
+  }, []);
+
+  const handleSelectCode = useCallback(
+    (code: string, clusterId: string) => {
+      onSelectCode(code, clusterId);
+    },
+    [onSelectCode]
+  );
+
+  const handleFocusCluster = useCallback(
+    (code: string, clusterId: string) => {
+      onSelectCode(code, clusterId);
+      if (dimension === "3d") setClusterFocusId(clusterId);
+    },
+    [dimension, onSelectCode]
+  );
+
+  const exitClusterFocus = useCallback(() => {
+    setClusterFocusId(null);
+    onClearSelection();
+  }, [onClearSelection]);
+
+  const focusEntry = clusterFocusId ? clusters[clusterFocusId] : null;
+  const focusCodes = clusterFocusId ? (clusterToCodes[clusterFocusId] ?? []) : [];
+  const focusColor = clusterFocusId ? (clusterColor.get(clusterFocusId) ?? "#7cf0d0") : "#7cf0d0";
+
+  const overviewMode =
+    !isSmallCodebook &&
+    isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length) &&
+    expandedClusterIds.size === 0;
+
+  const sharedProps = {
+    sortedClusterIds,
+    clusterToCodes,
+    clusterColor,
+    clusters,
+    highlighted,
+    onSelectCode: handleSelectCode,
+    onClearSelection,
+    onMoveCode,
+    onExpandedClustersChange: syncExpanded,
+    expandedClusterIds,
+    isSmallCodebook,
+    totalClusterCount,
+    isDark,
+  };
+
+  return (
+    <div
+      className={`codebook-3d-canvas-wrap glass-panel ${showFocusChrome && dimension === "3d" ? "codebook-3d-canvas-wrap--focus" : ""}`}
+    >
+      <div className="codebook-3d-canvas-head">
+        <div className="codebook-graph-head-main">
+          <h4>Cluster map</h4>
+          <div className="codebook-graph-dimension-toggle" role="tablist" aria-label="Graph dimension">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dimension === "2d"}
+              className={`codebook-graph-dimension-btn ${dimension === "2d" ? "codebook-graph-dimension-btn--active" : ""}`}
+              onClick={() => setDimension("2d")}
+            >
+              2D
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dimension === "3d"}
+              className={`codebook-graph-dimension-btn ${dimension === "3d" ? "codebook-graph-dimension-btn--active" : ""}`}
+              onClick={() => setDimension("3d")}
+            >
+              3D
+            </button>
+          </div>
+        </div>
+        {showDashboard && dimension === "3d" ? (
+          <span className="library-panel-sub">
+            Cluster focus — click empty space to return to full map · double-click to move codes between clusters
+          </span>
+        ) : overviewMode ? (
+          <span className="library-panel-sub">
+            {sortedClusterIds.length} clusters · click a cluster to expand codes · scroll or use controls to zoom
+          </span>
+        ) : expandedClusterIds.size > 0 && !isSmallCodebook ? (
+          <div className="codebook-3d-canvas-head-row">
+            <button type="button" className="library-mini-btn codebook-3d-back-btn" onClick={() => handleToggleCluster("")}>
+              ← Overview
+            </button>
+            <span className="library-panel-sub">
+              {expandedClusterIds.size} cluster{expandedClusterIds.size === 1 ? "" : "s"} expanded · click another
+              cluster to add more · drag codes between clusters · click again to collapse
+            </span>
+          </div>
+        ) : (
+          <span className="library-panel-sub">
+            {dimension === "3d"
+              ? "Scroll to zoom · drag to orbit · click a code to focus its cluster · double-click a code to move it"
+              : "Drag to pan · scroll to zoom · click a code pill · drag onto another island to move it"}
+          </span>
+        )}
+      </div>
+
+      {dimension === "3d" ? (
+        <div
+          className={showFocusChrome ? "codebook-3d-focus-split" : undefined}
+          data-focus-open={showDashboard ? "true" : undefined}
+        >
+          <div className="codebook-3d-focus-visual">
+            <CodebookCluster3D
+              {...sharedProps}
+              focusClusterId={clusterFocusId}
+              onExitFocus={exitClusterFocus}
+              onFocusTransitionPhase={handleFocusTransitionPhase}
+              onFocusCluster={handleFocusCluster}
+              hideChrome
+            />
+          </div>
+          {showDashboard && focusEntry && clusterFocusId && (
+            <ClusterFocusDashboard
+              clusterId={clusterFocusId}
+              entry={focusEntry}
+              codes={focusCodes}
+              color={focusColor}
+              highlighted={highlighted}
+              onSelectCode={handleFocusCluster}
+              onBack={exitClusterFocus}
+            />
+          )}
+        </div>
+      ) : (
+        <CodebookCluster2D {...sharedProps} hideChrome />
+      )}
+
+      {highlighted && (
+        <div className="codebook-3d-selection-bar">
+          <span
+            className="codebook-3d-selection-pill"
+            style={{
+              ["--cluster-color" as string]: clusterColor.get(highlighted.clusterId) ?? "#7cf0d0",
+            }}
+          >
+            {highlighted.code}
+          </span>
+          <span className="library-panel-sub">
+            Selected — drag onto another cluster in the map or on the board below to move
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -167,16 +167,93 @@ Use `npm run dev:local` to start with local mode guaranteed.
 
 ---
 
+## Distribution for pipeline repos (recommended)
+
+You should **not** copy-paste the whole frontend into the pipeline repo. Use one of these patterns so
+changes stay in **this repository** only.
+
+### How it works
+
+```
+┌─────────────────────────┐         GitHub Release          ┌──────────────────────────┐
+│  Graph_builder (here)   │  ──►  viewer-dist.zip (v0.2.0)  │  Pipeline repo           │
+│  npm run package:viewer │                                 │  .viewer-version → 0.2.0 │
+└─────────────────────────┘                                 │  tools/viewer_launcher.py│
+                                                              │  (copy once, ~150 lines) │
+                                                              └────────────┬─────────────┘
+                                                                           │
+                     pipeline run → export viewer-data/                    │
+                     python tools/viewer_launcher.py --data-dir viewer-data
+                                                                           ▼
+                                                              Browser opens — no npm for researchers
+```
+
+1. **You** develop UI here, tag `v0.2.0`, CI attaches `viewer-dist.zip` to the release.
+2. **Pipeline repo** pins `.viewer-version` and keeps one launcher script (`tools/viewer_launcher.py`).
+3. **Researchers** run the pipeline, then one command — launcher downloads the zip (cached), syncs data, opens the app.
+
+### Frontend maintainer (this repo)
+
+```bash
+# After changes, bump version in package.json, then:
+git tag v0.2.0 && git push origin v0.2.0
+# GitHub Action builds viewer-dist.zip and attaches it to the release.
+
+# Or manually:
+npm run package:viewer
+# → dist-viewer/viewer-dist.zip
+```
+
+### Pipeline maintainer (your backend repo)
+
+Copy **once**:
+
+- `tools/viewer_launcher.py` (from this repo)
+- `.viewer-version` with e.g. `0.2.0`
+
+Add a pipeline step that exports outputs into the viewer folder layout (see below), then:
+
+```bash
+python tools/viewer_launcher.py --data-dir ./viewer-data
+```
+
+Bump `.viewer-version` when you want researchers to get a new UI — no need to merge frontend code.
+
+### Alternative: git submodule (for devs, not researchers)
+
+```bash
+# In pipeline repo
+git submodule add https://github.com/nimamot/Agentic_Ta_viz.git viewer
+cd viewer && npm install && npm run dev:local
+```
+
+Good for pipeline developers; researchers should still use `viewer_launcher.py` + releases.
+
+### Alternative: npm git dependency
+
+In pipeline `package.json` (optional, still needs Node):
+
+```json
+"dependencies": {
+  "thematic-viewer": "github:nimamot/Agentic_Ta_viz#v0.2.0"
+}
+```
+
+Releases + launcher is simpler for non-frontend researchers.
+
+---
+
 ## Copying the module to your backend repo
 
-The file-based layer is self-contained in:
+The **file-based data layer** (for custom integrations) lives in:
 
 ```
 src/lib/local/          ← loaders, submit, file conventions
 src/lib/dataSource.ts   ← switches between local and Supabase
 ```
 
-Wire it by calling the same fetch functions (`fetchResearchProjects`, `fetchCodebookReview`, `submitCodebookReview`) — they delegate automatically when `VITE_DATA_SOURCE=local`.
+That is only needed if you embed the loaders into a **different** React app. For the standard viewer,
+use **releases + viewer_launcher.py** instead of copying `src/`.
 
 ---
 

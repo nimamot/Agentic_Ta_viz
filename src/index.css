@@ -4261,11 +4261,12 @@ h3.research-bm-kicker--section {
 
 .codebook-island-map {
   background:
-    radial-gradient(circle at 50% 50%, rgba(124, 240, 208, 0.03) 0%, transparent 55%),
-    repeating-radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.06) 0 1px, transparent 1px 28px);
+    radial-gradient(ellipse 80% 70% at 50% 45%, rgba(124, 240, 208, 0.06) 0%, transparent 62%),
+    linear-gradient(180deg, rgba(12, 16, 26, 0.35) 0%, rgba(6, 8, 14, 0.15) 100%);
   border-radius: 0 0 12px 12px;
   cursor: grab;
   touch-action: none;
+  overflow: hidden;
 }
 
 .codebook-island-map:active {
@@ -4273,11 +4274,11 @@ h3.research-bm-kicker--section {
 }
 
 .codebook-island-map--dark {
-  background-color: rgba(8, 11, 18, 0.55);
+  background-color: rgba(6, 9, 16, 0.88);
 }
 
 .codebook-island-map--light {
-  background-color: rgba(248, 250, 252, 0.75);
+  background-color: rgba(241, 245, 249, 0.9);
 }
 
 .codebook-island-svg {
@@ -4287,9 +4288,21 @@ h3.research-bm-kicker--section {
   user-select: none;
 }
 
+.codebook-island-bg-grid {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.codebook-island-bridge {
+  stroke-width: 1.2;
+  stroke-opacity: 0.1;
+  stroke-dasharray: 4 8;
+  vector-effect: non-scaling-stroke;
+}
+
 .codebook-island-contour {
   stroke-width: 1;
-  stroke-opacity: 0.14;
+  stroke-opacity: 0.2;
   vector-effect: non-scaling-stroke;
 }
 
@@ -4297,79 +4310,150 @@ h3.research-bm-kicker--section {
   cursor: pointer;
 }
 
+.codebook-island-aura {
+  stroke-opacity: 0.28;
+  pointer-events: none;
+  transition: stroke-width 0.25s ease, stroke-opacity 0.25s ease;
+}
+
 .codebook-island-fill {
-  fill-opacity: 0.14;
+  pointer-events: all;
+  transition: opacity 0.25s ease;
 }
 
 .codebook-island-stroke {
-  stroke-width: 2.4;
+  stroke-width: 2.2;
   stroke-opacity: 0.95;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition: stroke-width 0.25s ease, stroke-opacity 0.25s ease;
+}
+
+.codebook-island--active .codebook-island-aura {
+  stroke-opacity: 0.42;
+}
+
+.codebook-island--active .codebook-island-stroke {
+  stroke-width: 2.8;
+  stroke-opacity: 1;
 }
 
 .codebook-island--dimmed {
-  opacity: 0.42;
+  opacity: 0.38;
 }
 
 .codebook-island--drop-target .codebook-island-stroke {
   stroke-opacity: 1;
-  stroke-width: 3;
+  stroke-width: 3.2;
   stroke: #ffffff;
 }
 
 .codebook-island--drop-target .codebook-island-fill {
-  fill-opacity: 0.22;
+  opacity: 1.15;
+}
+
+.codebook-island--drop-target .codebook-island-aura {
+  stroke: #ffffff;
+  stroke-opacity: 0.35;
 }
 
 .codebook-island-overview-hint {
   font-size: 11px;
-  font-weight: 600;
-  opacity: 0.85;
+  font-weight: 700;
   pointer-events: none;
 }
 
-.codebook-island-label-text {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+.codebook-island-label-connector {
+  stroke-width: 1.5;
+  stroke-opacity: 0.28;
+  stroke-dasharray: 5 7;
+  vector-effect: non-scaling-stroke;
 }
 
-.codebook-island-count-text {
-  font-size: 10px;
+.codebook-island-label-bg {
+  pointer-events: none;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));
+}
+
+.codebook-island-label-accent {
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+.codebook-island-label-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.codebook-island-label-title {
+  font-size: 14px;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.codebook-island-label-meta {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.82;
 }
 
 .codebook-island-label--dimmed {
   opacity: 0.45;
 }
 
+.codebook-island-label--active .codebook-island-label-bg {
+  stroke-opacity: 0.85;
+  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45));
+}
+
 .codebook-island-code {
   cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.codebook-island-code-shadow {
+  pointer-events: none;
 }
 
 .codebook-island-code-pill {
-  fill-opacity: 0.92;
-  stroke: rgba(255, 255, 255, 0.35);
-  stroke-width: 1;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+  transition: stroke-width 0.15s ease, filter 0.15s ease;
+}
+
+.codebook-island-code:hover .codebook-island-code-pill,
+.codebook-island-code--active .codebook-island-code-pill {
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .codebook-island-code-label {
   font-size: 8.5px;
-  font-weight: 700;
-  fill: #0a0c12;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   pointer-events: none;
+  paint-order: stroke fill;
+  stroke: rgba(8, 11, 18, 0.9);
+  stroke-width: 2.5px;
 }
 
-.codebook-island-code--active .codebook-island-code-pill {
-  stroke: #ffffff;
-  stroke-width: 2;
+.codebook-island-code--dimmed {
+  opacity: 0.45;
 }
 
 .codebook-island-code--dragging .codebook-island-code-pill {
-  stroke: #ffffff;
-  stroke-width: 2;
-  opacity: 0.9;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 10px currentColor);
 }
 
 .codebook-island-hint {
@@ -4378,13 +4462,15 @@ h3.research-bm-kicker--section {
   bottom: 0.85rem;
   display: flex;
   gap: 0.65rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: 8px;
-  background: rgba(10, 12, 18, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 0.4rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(8, 11, 18, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(8px);
   font-size: 0.68rem;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(226, 232, 240, 0.8);
   pointer-events: none;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
 }
 
 .codebook-island-hint span::before {
@@ -4481,6 +4567,28 @@ h3.research-bm-kicker--section {
   line-height: 1.3;
 }
 
+.codebook-3d-label--focus {
+  max-width: min(20rem, 68vw);
+  padding: 0.38rem 0.72rem;
+  background: rgba(0, 0, 0, 0.86);
+  border-color: color-mix(in srgb, var(--cluster-color) 62%, transparent);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+.codebook-3d-label--focus .codebook-3d-label-name {
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  max-width: min(20rem, 68vw);
+}
+
+.codebook-3d-label--focus .codebook-3d-label-meta {
+  font-size: 10px;
+  margin-top: 0.18rem;
+}
+
 .codebook-3d-label--dim {
   opacity: 0.28;
 }
@@ -4525,6 +4633,297 @@ h3.research-bm-kicker--section {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.5),
     0 4px 20px color-mix(in srgb, var(--cluster-color) 35%, transparent);
+}
+
+.codebook-3d-move-hint {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cluster-color) 90%, #fff);
+  background: rgba(8, 11, 18, 0.88);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 55%, transparent);
+  white-space: nowrap;
+}
+
+.codebook-3d-drag-ghost-label {
+  display: block;
+  max-width: min(12rem, 42vw);
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1.5px solid color-mix(in srgb, var(--cluster-color) 75%, #fff);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--cluster-color) 45%, transparent);
+}
+
+.codebook-3d-move-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 0.85rem;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(8, 11, 18, 0.9);
+  border: 1px solid rgba(124, 240, 208, 0.35);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  text-align: center;
+  max-width: min(28rem, 92%);
+}
+
+.codebook-3d-move-banner-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent, #7cf0d0);
+}
+
+.codebook-3d-move-banner--flight {
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+.codebook-3d-move-banner--flight .codebook-3d-move-banner-title {
+  color: #c4b5fd;
+}
+
+.codebook-3d-move-banner-sub {
+  font-size: 0.68rem;
+  color: rgba(226, 232, 240, 0.82);
+  line-height: 1.35;
+}
+
+/* ── 3D cluster focus split (map + dashboard) ── */
+.codebook-3d-canvas-wrap--focus {
+  max-height: min(62vh, 600px);
+}
+
+.codebook-3d-focus-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: min(52vh, 520px);
+  max-height: min(56vh, 560px);
+  transition: grid-template-columns 0.22s ease-out;
+}
+
+.codebook-3d-focus-split[data-focus-open="true"] {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+}
+
+.codebook-3d-focus-visual {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.codebook-3d-focus-split[data-focus-open="true"] .codebook-3d-focus-visual {
+  border-right: 1px solid var(--border);
+}
+
+.codebook-3d-focus-visual .codebook-3d-canvas-host {
+  height: 100%;
+  min-height: min(52vh, 520px);
+  max-height: none;
+}
+
+.codebook-3d-focus-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+  padding: 0.75rem 0.85rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--cluster-color) 6%, var(--surface));
+  animation: codebook-focus-dashboard-in 0.24s ease-out;
+}
+
+@keyframes codebook-focus-dashboard-in {
+  from {
+    opacity: 0;
+    transform: translateX(12%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.codebook-3d-focus-split[data-focus-open="true"] .codebook-3d-focus-dashboard {
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+
+.codebook-3d-focus-transition-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 45%,
+    color-mix(in srgb, #7cf0d0 35%, transparent),
+    transparent 68%
+  );
+  mix-blend-mode: screen;
+}
+
+.codebook-3d-focus-dashboard-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.codebook-3d-focus-back {
+  align-self: flex-start;
+}
+
+.codebook-3d-focus-dashboard-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--cluster-color) 80%, var(--text));
+  line-height: 1.25;
+}
+
+.codebook-3d-focus-dashboard-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.codebook-3d-focus-dashboard-desc {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.codebook-3d-focus-dashboard-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.codebook-3d-focus-stat {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+}
+
+.codebook-3d-focus-stat--warn {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.codebook-3d-focus-codes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--border);
+}
+
+.codebook-3d-focus-codes-head h4 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.codebook-3d-focus-code-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 0.15rem;
+}
+
+.codebook-3d-focus-code-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.codebook-3d-focus-code-item:hover {
+  border-color: color-mix(in srgb, var(--cluster-color) 45%, var(--border));
+  background: color-mix(in srgb, var(--cluster-color) 8%, var(--surface));
+}
+
+.codebook-3d-focus-code-item--active {
+  border-color: color-mix(in srgb, var(--cluster-color) 70%, #fff);
+  background: color-mix(in srgb, var(--cluster-color) 14%, var(--surface));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cluster-color) 25%, transparent);
+}
+
+.codebook-3d-focus-code-index {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--cluster-color) 75%, var(--text-muted));
+  font-variant-numeric: tabular-nums;
+}
+
+.codebook-3d-focus-code-text {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .codebook-3d-focus-split {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .codebook-3d-focus-visual {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .codebook-3d-focus-visual .codebook-3d-canvas-host {
+    min-height: min(38vh, 360px);
+  }
+
+  .codebook-3d-focus-dashboard {
+    max-height: 280px;
+  }
 }
 
 .codebook-board-section {

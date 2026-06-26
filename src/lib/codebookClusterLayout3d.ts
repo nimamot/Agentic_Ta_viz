@@ -51,6 +51,35 @@ export function isLargeCodebookDataset(clusterCount: number, _totalCodes?: numbe
   return clusterCount >= SMALL_CODEBOOK_MAX_CLUSTERS;
 }
 
+/** Visible hub sphere radius in the 3D scene. */
+export function hubVisualRadius(codeCount: number, interactive = true): number {
+  if (!interactive) return 0.1;
+  return Math.min(1.2, 0.42 + Math.sqrt(codeCount) * 0.06);
+}
+
+/** World-space radius within which a dragged code snaps to this cluster. */
+export function hubDropRadius(codeCount: number): number {
+  return Math.min(4.2, 1.5 + Math.sqrt(codeCount) * 0.28);
+}
+
+/** Generous cluster catch zone — covers the code cloud plus margin for hover/drop. */
+export function clusterDropRadius(codeCount: number): number {
+  const cloud = codeCloudRadius(codeCount, true);
+  return Math.min(10, Math.max(cloud + 2.4, 4 + Math.sqrt(codeCount) * 0.65));
+}
+
+/** Where a newly moved code will appear in an expanded cluster. */
+export function estimateAppendCodePosition(
+  hubCenter: [number, number, number],
+  codeCountAfterAdd: number,
+  expandedClusterCount: number
+): [number, number, number] {
+  if (codeCountAfterAdd <= 0) return hubCenter;
+  const cloudR = codeCloudRadius(codeCountAfterAdd, expandedClusterCount > 0);
+  const offset = codeOffset(codeCountAfterAdd - 1, codeCountAfterAdd, cloudR);
+  return add(hubCenter, offset);
+}
+
 function clusterCentroid(index: number, total: number, radius: number): [number, number, number] {
   if (total <= 1) return [0, 0, 0];
   const phi = Math.acos(1 - (2 * (index + 0.5)) / total);
@@ -200,5 +229,55 @@ export function buildCodebook3DLayout(
     layoutRadius,
     suggestedCameraDistance: cameraDistance,
     isLargeDataset: large,
+  };
+}
+
+const FOCUS_CLOUD_SCALE = 2.55;
+
+/** Single-cluster layout centered at origin — roomy spacing for the focus split view. */
+export function buildFocusedCluster3DLayout(
+  clusterId: string,
+  clusterToCodes: Record<string, string[]>,
+  clusterColor: Map<string, string>,
+  clusters: Record<string, ClusterEntry>
+): Codebook3DLayout {
+  const codes = clusterToCodes[clusterId] ?? [];
+  const color = clusterColor.get(clusterId) ?? "#7cf0d0";
+  const entry = clusters[clusterId];
+  const center: [number, number, number] = [0, 0, 0];
+  const baseCloud = codeCloudRadius(codes.length, true);
+  const cloudR = Math.min(14, baseCloud * FOCUS_CLOUD_SCALE);
+  const nodes: CodeNode3D[] = [];
+
+  codes.forEach((code, ki) => {
+    const offset = codeOffset(ki, codes.length, cloudR);
+    nodes.push({
+      code,
+      clusterId,
+      position: add(center, offset),
+      color,
+    });
+  });
+
+  const hub: ClusterHub3D = {
+    clusterId,
+    label: entry?.label || `Cluster ${clusterId}`,
+    position: center,
+    color,
+    confidence: entry?.confidence ?? 0,
+    codeCount: codes.length,
+  };
+
+  const cameraDistance = Math.max(12, Math.min(28, cloudR * 2.15 + 6));
+
+  return {
+    nodes,
+    hubs: [hub],
+    edges: buildIntraClusterEdges(nodes),
+    clusterCount: 1,
+    totalCodes: codes.length,
+    layoutRadius: cloudR,
+    suggestedCameraDistance: cameraDistance,
+    isLargeDataset: false,
   };
 }
