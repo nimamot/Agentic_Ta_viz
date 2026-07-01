@@ -2,16 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
 import {
   buildCodebook2DLayout,
+  isDenseCodebookLayout,
   nearestDropClusterId,
+  type Codebook2DCluster,
   type Codebook2DCodeNode,
-  type Codebook2DIsland,
 } from "../lib/codebookClusterLayout2d";
 import type { ClusterEntry } from "../lib/codebookReview";
 import type { HighlightedCode } from "./codebookClusterTypes";
 
-const ZOOM_FACTOR = 1.35;
-const MIN_SCALE = 0.15;
+const ZOOM_FACTOR = 1.22;
+const MIN_SCALE = 0.1;
 const MAX_SCALE = 4;
+const VIEW_LERP = 0.2;
+const VIEW_SNAP_EPS = 0.15;
+const VIEW_SCALE_SNAP_EPS = 0.003;
+const CLICK_DRAG_THRESHOLD_PX = 6;
+const WHEEL_ZOOM_SENSITIVITY = 0.0016;
 
 interface CodebookCluster2DProps {
   sortedClusterIds: string[];
@@ -38,15 +44,38 @@ interface ViewTransform {
 
 interface DragState {
   kind: "pan" | "code";
-  codeId?: string;
   clusterId?: string;
   code?: string;
   startX: number;
   startY: number;
   originX: number;
   originY: number;
-  nodeStartX?: number;
-  nodeStartY?: number;
+  moved?: boolean;
+}
+
+function clampScale(scale: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+}
+
+/** Keep the world point under a screen anchor fixed while scaling. */
+function zoomViewAtAnchor(
+  view: ViewTransform,
+  anchorHostX: number,
+  anchorHostY: number,
+  hostW: number,
+  hostH: number,
+  factor: number
+): ViewTransform {
+  const cx = hostW / 2;
+  const cy = hostH / 2;
+  const worldX = (anchorHostX - cx - view.x) / view.scale;
+  const worldY = (anchorHostY - cy - view.y) / view.scale;
+  const scale = clampScale(view.scale * factor);
+  return {
+    scale,
+    x: anchorHostX - cx - worldX * scale,
+    y: anchorHostY - cy - worldY * scale,
+  };
 }
 
 function clientToWorld(
@@ -66,130 +95,93 @@ function clientToWorld(
 function fitView(bounds: { minX: number; minY: number; maxX: number; maxY: number }, w: number, h: number): ViewTransform {
   const bw = bounds.maxX - bounds.minX;
   const bh = bounds.maxY - bounds.minY;
-  const pad = 20;
+  const pad = 28;
   const raw = Math.min((w - pad * 2) / bw, (h - pad * 2) / bh, MAX_SCALE);
-  const scale = Math.min(raw * 1.35, MAX_SCALE);
+  const scale = Math.min(raw * 1.25, MAX_SCALE);
   const cx = (bounds.minX + bounds.maxX) / 2;
   const cy = (bounds.minY + bounds.maxY) / 2;
   return { x: -cx * scale, y: -cy * scale, scale };
 }
 
-function shortCodeLabel(code: string): string {
-  const t = code.trim();
-  if (t.length <= 4) return t;
-  return "…";
-}
-
-const PILL_HW = 17;
-const PILL_HH = 13;
-
 function svgSafeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-function IslandLabel({ island, active }: { island: Codebook2DIsland; active: boolean }) {
-  const { labelBoxX, labelBoxY, labelBoxW, labelBoxH, color } = island;
+function ClusterLabels({
+  clusters,
+  view,
+  hostSize,
+  hoveredClusterId,
+  highlighted,
+}: {
+  clusters: Codebook2DCluster[];
+  view: ViewTransform;
+  hostSize: { w: number; h: number };
+  hoveredClusterId: string | null;
+  highlighted: HighlightedCode | null;
+}) {
+  const cx = hostSize.w / 2 + view.x;
+  const cy = hostSize.h / 2 + view.y;
+
   return (
-    <g className={`codebook-island-label ${island.dimmed ? "codebook-island-label--dimmed" : ""} ${active ? "codebook-island-label--active" : ""}`}>
-      <title>{island.fullLabel}</title>
-      <line
-        x1={island.labelLineX}
-        y1={island.labelLineY}
-        x2={island.labelConnectX}
-        y2={island.labelConnectY}
-        className="codebook-island-label-connector"
-        stroke={color}
-      />
-      <rect
-        x={labelBoxX}
-        y={labelBoxY}
-        width={labelBoxW}
-        height={labelBoxH}
-        rx={14}
-        className="codebook-island-label-bg"
-        fill="rgba(8,11,18,0.88)"
-        stroke={color}
-        strokeOpacity={active ? 0.75 : 0.45}
-      />
-      <rect
-        x={labelBoxX}
-        y={labelBoxY + 10}
-        width={4}
-        height={labelBoxH - 20}
-        rx={2}
-        fill={color}
-        className="codebook-island-label-accent"
-      />
-      <foreignObject x={labelBoxX + 14} y={labelBoxY + 10} width={labelBoxW - 22} height={labelBoxH - 18}>
-        <div className="codebook-island-label-card">
-          <div className="codebook-island-label-title" style={{ color }}>
-            {island.fullLabel}
+    <>
+      {clusters.map((cluster) => {
+        const active =
+          hoveredClusterId === cluster.clusterId ||
+          cluster.dropTarget ||
+          highlighted?.clusterId === cluster.clusterId;
+        return (
+          <div
+            key={`lbl-${cluster.clusterId}`}
+            className={`codebook-2d-map-label ${cluster.dimmed ? "codebook-2d-map-label--dimmed" : ""} ${active ? "codebook-2d-map-label--active" : ""} ${cluster.overviewOnly ? "codebook-2d-map-label--overview" : ""}`}
+            style={{
+              left: cx + cluster.x * view.scale,
+              top: cy + cluster.labelAnchorY * view.scale,
+              ["--cluster-color" as string]: cluster.color,
+            }}
+          >
+            <span className="codebook-2d-map-label-title">{cluster.fullLabel}</span>
+            <span className="codebook-2d-map-label-count">{cluster.codeCount}</span>
           </div>
-          <div className="codebook-island-label-meta" style={{ color }}>
-            {island.codeCount} code{island.codeCount === 1 ? "" : "s"}
-          </div>
-        </div>
-      </foreignObject>
-    </g>
+        );
+      })}
+    </>
   );
 }
 
-function CodePill({
-  code,
-  island,
+function CodeDot({
+  node,
+  color,
   hovered,
-  pillFillId,
 }: {
-  code: Codebook2DCodeNode;
-  island: Codebook2DIsland;
+  node: Codebook2DCodeNode;
+  color: string;
   hovered: boolean;
-  pillFillId: string;
 }) {
-  const label = code.shortLabel;
-  const scale = hovered || code.highlighted ? 1.14 : 1;
+  const active = node.highlighted || hovered;
+  const r = active ? node.nodeR * 1.35 : node.nodeR;
   return (
     <g
-      transform={`translate(${code.x} ${code.y}) scale(${scale}) translate(${-code.x} ${-code.y})`}
-      className={`codebook-island-code ${code.highlighted ? "codebook-island-code--active" : ""} ${code.dimmed ? "codebook-island-code--dimmed" : ""}`}
-      data-code-id={code.id}
-      data-cluster-id={code.clusterId}
-      data-code={code.code}
-      opacity={code.opacity}
+      className={`codebook-2d-node ${node.highlighted ? "codebook-2d-node--active" : ""} ${node.dimmed ? "codebook-2d-node--dimmed" : ""}`}
+      data-code-id={node.id}
+      data-cluster-id={node.clusterId}
+      data-code={node.code}
+      opacity={node.opacity}
     >
-      <title>{code.title}</title>
-      <rect
-        x={code.x - PILL_HW}
-        y={code.y - PILL_HH}
-        width={PILL_HW * 2}
-        height={PILL_HH * 2}
-        rx={PILL_HH}
-        className="codebook-island-code-shadow"
-        fill="rgba(0,0,0,0.45)"
-        transform={`translate(0 2)`}
+      <title>{node.code}</title>
+      {active && (
+        <circle cx={node.x} cy={node.y} r={r + 5} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.55} />
+      )}
+      <circle
+        cx={node.x}
+        cy={node.y}
+        r={r}
+        className="codebook-2d-node-core"
+        fill={color}
+        fillOpacity={active ? 0.95 : 0.72}
+        stroke={active ? "#fff" : "rgba(255,255,255,0.35)"}
+        strokeWidth={active ? 2 : 1}
       />
-      <rect
-        x={code.x - PILL_HW}
-        y={code.y - PILL_HH}
-        width={PILL_HW * 2}
-        height={PILL_HH * 2}
-        rx={PILL_HH}
-        className="codebook-island-code-pill"
-        fill={`url(#${pillFillId})`}
-        stroke={island.color}
-        strokeWidth={code.highlighted || hovered ? 2 : 1.4}
-      />
-      <rect
-        x={code.x - PILL_HW + 2}
-        y={code.y - PILL_HH + 2}
-        width={PILL_HW * 2 - 4}
-        height={5}
-        rx={3}
-        fill="rgba(255,255,255,0.18)"
-        pointerEvents="none"
-      />
-      <text x={code.x} y={code.y + 4} textAnchor="middle" className="codebook-island-code-label" fill={island.color}>
-        {label}
-      </text>
     </g>
   );
 }
@@ -221,12 +213,69 @@ export function CodebookCluster2D({
   const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
 
   const hostRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const viewRef = useRef(view);
+  const viewTargetRef = useRef(view);
+  const viewAnimRef = useRef<number | null>(null);
   const layoutRef = useRef<ReturnType<typeof buildCodebook2DLayout> | null>(null);
   const layoutFpRef = useRef("");
+  const dragGrabOffsetRef = useRef({ x: 0, y: 0 });
+  const panClickSuppressedRef = useRef(false);
   viewRef.current = view;
+  viewTargetRef.current = view;
+
+  const stopViewAnimation = useCallback(() => {
+    if (viewAnimRef.current != null) {
+      cancelAnimationFrame(viewAnimRef.current);
+      viewAnimRef.current = null;
+    }
+  }, []);
+
+  const startViewAnimation = useCallback(() => {
+    if (viewAnimRef.current != null) return;
+    const tick = () => {
+      const cur = viewRef.current;
+      const tgt = viewTargetRef.current;
+      const next: ViewTransform = {
+        x: cur.x + (tgt.x - cur.x) * VIEW_LERP,
+        y: cur.y + (tgt.y - cur.y) * VIEW_LERP,
+        scale: cur.scale + (tgt.scale - cur.scale) * VIEW_LERP,
+      };
+      const done =
+        Math.hypot(next.x - tgt.x, next.y - tgt.y) < VIEW_SNAP_EPS &&
+        Math.abs(next.scale - tgt.scale) < VIEW_SCALE_SNAP_EPS;
+      if (done) {
+        viewRef.current = tgt;
+        setView(tgt);
+        viewAnimRef.current = null;
+        return;
+      }
+      viewRef.current = next;
+      setView(next);
+      viewAnimRef.current = requestAnimationFrame(tick);
+    };
+    viewAnimRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const setViewImmediate = useCallback(
+    (next: ViewTransform) => {
+      stopViewAnimation();
+      viewRef.current = next;
+      viewTargetRef.current = next;
+      setView(next);
+    },
+    [stopViewAnimation]
+  );
+
+  const setViewAnimated = useCallback(
+    (next: ViewTransform) => {
+      viewTargetRef.current = next;
+      startViewAnimation();
+    },
+    [startViewAnimation]
+  );
+
+  useEffect(() => () => stopViewAnimation(), [stopViewAnimation]);
 
   const setExpandedClusterIds = useCallback(
     (updater: Set<string> | ((prev: Set<string>) => Set<string>)) => {
@@ -237,7 +286,13 @@ export function CodebookCluster2D({
     [expandedClusterIds, expandedClusterIdsProp, onExpandedClustersChange]
   );
 
-  const isLargeDataset = !isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length);
+  const denseLayout = useMemo(
+    () => isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
+    [sortedClusterIds, clusterToCodes]
+  );
+  const isLargeDataset =
+    (!isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length)) || denseLayout;
+  const forceShowAllCodes = isSmallCodebook && !denseLayout;
   const overviewMode = isLargeDataset && expandedClusterIds.size === 0;
 
   const layout = useMemo(
@@ -245,7 +300,7 @@ export function CodebookCluster2D({
       buildCodebook2DLayout(sortedClusterIds, clusterToCodes, clusterColor, clusters, {
         overviewMode,
         expandedClusterIds,
-        forceShowAllCodes: isSmallCodebook,
+        forceShowAllCodes,
         highlighted,
         dropTargetClusterId,
         draggingCodeKey,
@@ -257,13 +312,15 @@ export function CodebookCluster2D({
       clusters,
       overviewMode,
       expandedClusterIds,
-      isSmallCodebook,
+      forceShowAllCodes,
       highlighted,
       dropTargetClusterId,
       draggingCodeKey,
     ]
   );
   layoutRef.current = layout;
+
+  const allCodes = useMemo(() => layout.clusters.flatMap((c) => c.codes), [layout.clusters]);
 
   const handleToggleCluster = useCallback(
     (clusterId: string) => {
@@ -313,33 +370,61 @@ export function CodebookCluster2D({
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const fp = `${overviewMode}|${layout.islands.map((i) => i.clusterId).join(",")}`;
+    const fp = `${overviewMode}|${[...expandedClusterIds].sort().join(",")}|${layout.clusters.map((c) => `${c.clusterId}:${c.overviewOnly}`).join(",")}`;
     if (fp === layoutFpRef.current) return;
     layoutFpRef.current = fp;
     const { width, height } = host.getBoundingClientRect();
-    if (width > 0 && height > 0) {
-      setView(fitView(layout.bounds, width, height));
-    }
-  }, [layout, overviewMode]);
+    if (width > 0 && height > 0) setViewAnimated(fitView(layout.bounds, width, height));
+  }, [layout, overviewMode, expandedClusterIds, setViewAnimated]);
 
   const applyFit = useCallback(() => {
     const host = hostRef.current;
     if (!host || !layoutRef.current) return;
     const { width, height } = host.getBoundingClientRect();
-    setView(fitView(layoutRef.current.bounds, width, height));
-  }, []);
+    setViewAnimated(fitView(layoutRef.current.bounds, width, height));
+  }, [setViewAnimated]);
 
-  const zoomBy = useCallback((factor: number) => {
-    setView((v) => ({ ...v, scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor)) }));
-  }, []);
+  const zoomAtHostPoint = useCallback(
+    (hostX: number, hostY: number, factor: number) => {
+      const host = hostRef.current;
+      if (!host) return;
+      const { width, height } = host.getBoundingClientRect();
+      const next = zoomViewAtAnchor(viewTargetRef.current, hostX, hostY, width, height, factor);
+      setViewAnimated(next);
+    },
+    [setViewAnimated]
+  );
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
-    setView((v) => ({ ...v, scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor)) }));
-  }, []);
+  const zoomBy = useCallback(
+    (factor: number) => {
+      const host = hostRef.current;
+      if (!host) return;
+      const { width, height } = host.getBoundingClientRect();
+      zoomAtHostPoint(width / 2, height / 2, factor);
+    },
+    [zoomAtHostPoint]
+  );
 
-  const dragGrabOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = host.getBoundingClientRect();
+      const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_SENSITIVITY);
+      const next = zoomViewAtAnchor(
+        viewTargetRef.current,
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        rect.width,
+        rect.height,
+        factor
+      );
+      setViewAnimated(next);
+    };
+    host.addEventListener("wheel", onWheel, { passive: false });
+    return () => host.removeEventListener("wheel", onWheel);
+  }, [setViewAnimated]);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -354,7 +439,7 @@ export function CodebookCluster2D({
         const clusterId = codeEl.dataset.clusterId!;
         const code = codeEl.dataset.code!;
         const world = clientToWorld(e.clientX, e.clientY, rect, viewRef.current);
-        const node = layoutRef.current?.islands.flatMap((i) => i.codes).find((c) => c.id === codeId);
+        const node = allCodes.find((c) => c.id === codeId);
         if (!node) return;
         onSelectCode(code, clusterId);
         if (!onMoveCode) return;
@@ -362,33 +447,30 @@ export function CodebookCluster2D({
         dragGrabOffsetRef.current = { x: world.x - node.x, y: world.y - node.y };
         dragRef.current = {
           kind: "code",
-          codeId,
           clusterId,
           code,
           startX: e.clientX,
           startY: e.clientY,
           originX: viewRef.current.x,
           originY: viewRef.current.y,
-          nodeStartX: node.x,
-          nodeStartY: node.y,
         };
         setDraggingCodeKey(`${clusterId}:${code}`);
         setDragWorldPos({ x: node.x, y: node.y });
         return;
       }
 
-      if (target.closest(".codebook-island-code")) return;
-
       e.currentTarget.setPointerCapture(e.pointerId);
+      panClickSuppressedRef.current = false;
       dragRef.current = {
         kind: "pan",
         startX: e.clientX,
         startY: e.clientY,
         originX: viewRef.current.x,
         originY: viewRef.current.y,
+        moved: false,
       };
     },
-    [onMoveCode, onSelectCode]
+    [allCodes, onMoveCode, onSelectCode]
   );
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -397,11 +479,19 @@ export function CodebookCluster2D({
     if (!drag || !host) return;
 
     if (drag.kind === "pan") {
-      setView((v) => ({
-        ...v,
+      if (
+        !drag.moved &&
+        Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > CLICK_DRAG_THRESHOLD_PX
+      ) {
+        drag.moved = true;
+        panClickSuppressedRef.current = true;
+      }
+      const next = {
         x: drag.originX + (e.clientX - drag.startX),
         y: drag.originY + (e.clientY - drag.startY),
-      }));
+        scale: viewRef.current.scale,
+      };
+      setViewImmediate(next);
       return;
     }
 
@@ -411,16 +501,17 @@ export function CodebookCluster2D({
       const grab = dragGrabOffsetRef.current;
       const pos = { x: world.x - grab.x, y: world.y - grab.y };
       setDragWorldPos(pos);
-
-      const target = nearestDropClusterId(
-        pos,
-        layoutRef.current?.hubs ?? [],
-        drag.clusterId!,
-        layoutRef.current?.dropThreshold ?? 60
+      setDropTargetClusterId(
+        nearestDropClusterId(
+          pos,
+          layoutRef.current?.hubs ?? [],
+          drag.clusterId!,
+          layoutRef.current?.dropThreshold ?? 60,
+          layoutRef.current?.clusters
+        )
       );
-      setDropTargetClusterId(target);
     }
-  }, []);
+  }, [setViewImmediate]);
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
@@ -439,73 +530,67 @@ export function CodebookCluster2D({
             pos,
             layoutRef.current?.hubs ?? [],
             drag.clusterId,
-            layoutRef.current?.dropThreshold ?? 60
+            layoutRef.current?.dropThreshold ?? 60,
+            layoutRef.current?.clusters
           );
-          if (target && onMoveCode) {
-            onMoveCode(drag.code, drag.clusterId, target);
-          }
+          if (target && onMoveCode) onMoveCode(drag.code, drag.clusterId, target);
         }
         setDropTargetClusterId(null);
         setDraggingCodeKey(null);
         setDragWorldPos(null);
-        return;
       }
     },
     [onMoveCode]
   );
 
-  const onIslandClick = useCallback(
-    (clusterId: string, overviewOnly: boolean, target: Element) => {
-      if (target.closest(".codebook-island-code")) return;
-      if (overviewOnly && (overviewMode || isLargeDataset)) {
-        handleToggleCluster(clusterId);
-        return;
+  const handleMapBackgroundClick = useCallback(() => {
+    if (panClickSuppressedRef.current) {
+      panClickSuppressedRef.current = false;
+      return;
+    }
+    if (highlighted) onClearSelection();
+    if (expandedClusterIds.size > 0) handleToggleCluster("");
+  }, [highlighted, expandedClusterIds.size, handleToggleCluster, onClearSelection]);
+
+  const handleTerritoryClick = useCallback(
+    (cluster: Codebook2DCluster, e: React.MouseEvent) => {
+      if ((e.target as Element).closest("[data-code-id]")) return;
+      if (highlighted && highlighted.clusterId !== cluster.clusterId) {
+        onClearSelection();
       }
-      if (!overviewOnly && isLargeDataset) {
-        handleToggleCluster(clusterId);
+      if (cluster.overviewOnly && (isLargeDataset || overviewMode)) {
+        handleToggleCluster(cluster.clusterId);
       }
     },
-    [handleToggleCluster, isLargeDataset, overviewMode]
+    [highlighted, isLargeDataset, overviewMode, handleToggleCluster, onClearSelection]
   );
-
-  const onBackgroundClick = useCallback(() => {
-    if (expandedClusterIds.size > 0) handleToggleCluster("");
-  }, [expandedClusterIds.size, handleToggleCluster]);
 
   const draggingNode = useMemo(() => {
     if (!draggingCodeKey || !dragWorldPos) return null;
     const sep = draggingCodeKey.indexOf(":");
     const clusterId = draggingCodeKey.slice(0, sep);
-    const codeName = draggingCodeKey.slice(sep + 1);
-    const island = layout.islands.find((i) => i.clusterId === clusterId);
-    const code = island?.codes.find((c) => c.code === codeName);
-    return {
-      shortLabel: code?.shortLabel ?? shortCodeLabel(codeName),
-      color: island?.color ?? "#7cf0d0",
-    };
-  }, [draggingCodeKey, dragWorldPos, layout.islands]);
+    const cluster = layout.clusters.find((c) => c.clusterId === clusterId);
+    const code = cluster?.codes.find((c) => c.code === draggingCodeKey.slice(sep + 1));
+    return { color: cluster?.color ?? "#7cf0d0", nodeR: code?.nodeR ?? 6 };
+  }, [draggingCodeKey, dragWorldPos, layout.clusters]);
 
   const hoveredCodePanel = useMemo(() => {
     if (!hoveredCodeId || draggingCodeKey) return null;
-    for (const island of layout.islands) {
-      const node = island.codes.find((c) => c.id === hoveredCodeId);
-      if (node) return { node, color: island.color };
-    }
-    return null;
-  }, [hoveredCodeId, draggingCodeKey, layout.islands]);
+    const node = allCodes.find((c) => c.id === hoveredCodeId);
+    if (!node) return null;
+    const cluster = layout.clusters.find((c) => c.clusterId === node.clusterId);
+    return { node, color: cluster?.color ?? "#7cf0d0" };
+  }, [hoveredCodeId, draggingCodeKey, allCodes, layout.clusters]);
 
   const hoveredCodePanelPos = useMemo(() => {
     if (!hoveredCodePanel) return null;
     const { node } = hoveredCodePanel;
     const cx = hostSize.w / 2 + view.x;
     const cy = hostSize.h / 2 + view.y;
-    return {
-      left: cx + node.x * view.scale,
-      top: cy + node.y * view.scale,
-    };
+    return { left: cx + node.x * view.scale, top: cy + node.y * view.scale };
   }, [hoveredCodePanel, hostSize.w, hostSize.h, view.x, view.y, view.scale]);
 
-  if (layout.islands.length === 0) {
+  if (layout.clusters.length === 0) {
     return (
       <div className="codebook-graph-empty glass-panel">
         <p className="library-empty-body">No codes to visualize yet.</p>
@@ -516,8 +601,7 @@ export function CodebookCluster2D({
   const map = (
     <div
       ref={hostRef}
-      className={`codebook-graph-map-host codebook-island-map ${isDark ? "codebook-island-map--dark" : "codebook-island-map--light"}`}
-      onWheel={onWheel}
+      className={`codebook-graph-map-host codebook-2d-map ${isDark ? "codebook-2d-map--dark" : "codebook-2d-map--light"}`}
     >
       {hoveredCodePanel && hoveredCodePanelPos && (
         <div
@@ -531,192 +615,166 @@ export function CodebookCluster2D({
           {hoveredCodePanel.node.code}
         </div>
       )}
+
+      <ClusterLabels
+        clusters={layout.clusters}
+        view={view}
+        hostSize={hostSize}
+        hoveredClusterId={hoveredClusterId}
+        highlighted={highlighted}
+      />
+
       <svg
-        ref={svgRef}
-        className="codebook-island-svg"
+        className="codebook-2d-svg"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onClick={(e) => {
-          if (e.target === e.currentTarget) onBackgroundClick();
+          if (e.target === e.currentTarget) handleMapBackgroundClick();
         }}
       >
         <defs>
-          <pattern id="island-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1.5" cy="1.5" r="1" fill="rgba(148,163,184,0.14)" />
+          <pattern id="codebook-2d-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="0.8" fill="rgba(148,163,184,0.1)" />
           </pattern>
-
-          {layout.islands.map((island) => {
-            const sid = svgSafeId(island.clusterId);
+          {layout.clusters.map((cluster) => {
+            const sid = svgSafeId(cluster.clusterId);
             return (
-              <g key={`defs-${island.clusterId}`}>
-                <radialGradient id={`island-fill-${sid}`} cx="50%" cy="42%" r="68%">
-                  <stop offset="0%" stopColor={island.color} stopOpacity={0.34} />
-                  <stop offset="55%" stopColor={island.color} stopOpacity={0.14} />
-                  <stop offset="100%" stopColor={island.color} stopOpacity={0.03} />
-                </radialGradient>
-                <linearGradient id={`pill-fill-${sid}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(18,22,32,0.95)" />
-                  <stop offset="100%" stopColor="rgba(8,10,16,0.98)" />
-                </linearGradient>
-                <clipPath id={`island-clip-${sid}`}>
-                  <path d={island.boundaryPath} />
-                </clipPath>
-                <filter id={`island-glow-${sid}`} x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <filter id={`island-aura-${sid}`} x="-120%" y="-120%" width="340%" height="340%">
-                  <feGaussianBlur stdDeviation="14" />
-                </filter>
-              </g>
+              <radialGradient key={sid} id={`territory-${sid}`} cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={cluster.color} stopOpacity={0.22} />
+                <stop offset="72%" stopColor={cluster.color} stopOpacity={0.08} />
+                <stop offset="100%" stopColor={cluster.color} stopOpacity={0.02} />
+              </radialGradient>
             );
           })}
         </defs>
 
-        <g transform={`translate(${hostSize.w / 2 + view.x}, ${hostSize.h / 2 + view.y}) scale(${view.scale})`}>
+        <g className="codebook-2d-world" transform={`translate(${hostSize.w / 2 + view.x}, ${hostSize.h / 2 + view.y}) scale(${view.scale})`}>
           <rect
-            x={layout.bounds.minX - 120}
-            y={layout.bounds.minY - 120}
-            width={layout.bounds.maxX - layout.bounds.minX + 240}
-            height={layout.bounds.maxY - layout.bounds.minY + 240}
-            fill="url(#island-dot-grid)"
-            className="codebook-island-bg-grid"
+            x={layout.bounds.minX - 60}
+            y={layout.bounds.minY - 60}
+            width={layout.bounds.maxX - layout.bounds.minX + 120}
+            height={layout.bounds.maxY - layout.bounds.minY + 120}
+            fill="url(#codebook-2d-dots)"
+            className="codebook-2d-bg"
+            onClick={handleMapBackgroundClick}
           />
 
-          <g className="codebook-island-bridges">
-            {layout.bridgePaths.map((bridge) => (
-              <path key={bridge.id} d={bridge.d} className="codebook-island-bridge" stroke={bridge.color} fill="none" />
-            ))}
-          </g>
-
-          <g className="codebook-island-topo">
-            {layout.islands.flatMap((island) =>
-              island.contourPaths.map((path, i) => (
-                <path
-                  key={`${island.clusterId}-contour-${i}`}
-                  d={path}
-                  className="codebook-island-contour"
-                  stroke={island.color}
-                  fill="none"
-                />
-              ))
-            )}
-          </g>
-
-          {layout.islands.map((island) => {
-            const sid = svgSafeId(island.clusterId);
-            const active = hoveredClusterId === island.clusterId || island.dropTarget || highlighted?.clusterId === island.clusterId;
+          {layout.clusters.map((cluster) => {
+            const sid = svgSafeId(cluster.clusterId);
+            const active =
+              hoveredClusterId === cluster.clusterId ||
+              cluster.dropTarget ||
+              highlighted?.clusterId === cluster.clusterId;
             return (
-            <g
-              key={island.clusterId}
-              className={`codebook-island ${island.overviewOnly ? "codebook-island--overview" : ""} ${island.dimmed ? "codebook-island--dimmed" : ""} ${island.dropTarget ? "codebook-island--drop-target" : ""} ${active ? "codebook-island--active" : ""}`}
-              onMouseEnter={() => setHoveredClusterId(island.clusterId)}
-              onMouseLeave={() => setHoveredClusterId(null)}
-              onClick={(e) => onIslandClick(island.clusterId, island.overviewOnly, e.target as Element)}
-            >
-              <path
-                d={island.boundaryPath}
-                className="codebook-island-aura"
-                fill="none"
-                stroke={island.color}
-                strokeWidth={active ? 16 : 10}
-                filter={`url(#island-aura-${sid})`}
-              />
-              <path
-                d={island.boundaryPath}
-                className="codebook-island-fill"
-                fill={`url(#island-fill-${sid})`}
-              />
-              <path
-                d={island.boundaryPath}
-                className="codebook-island-stroke"
-                fill="none"
-                stroke={island.color}
-                filter={`url(#island-glow-${sid})`}
-              />
-
-              {island.overviewOnly && (
-                <g className="codebook-island-overview">
-                  <circle cx={island.x} cy={island.y} r={14} fill={island.color} fillOpacity={0.35} />
-                  <text x={island.x} y={island.y + 4} textAnchor="middle" className="codebook-island-overview-hint" fill="#f8fafc">
-                    {island.codeCount}
-                  </text>
-                </g>
-              )}
-
-              <g clipPath={`url(#island-clip-${sid})`}>
-                {island.codes.map((code) => (
-                  <g
-                    key={code.id}
-                    onMouseEnter={() => setHoveredCodeId(code.id)}
-                    onMouseLeave={() => setHoveredCodeId(null)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCode(code.code, code.clusterId);
-                    }}
-                  >
-                    <CodePill
-                      code={code}
-                      island={island}
-                      hovered={hoveredCodeId === code.id}
-                      pillFillId={`pill-fill-${sid}`}
-                    />
+              <g
+                key={cluster.clusterId}
+                className={`codebook-2d-territory ${cluster.overviewOnly ? "codebook-2d-territory--overview" : ""} ${cluster.dimmed ? "codebook-2d-territory--dimmed" : ""} ${cluster.dropTarget ? "codebook-2d-territory--drop" : ""} ${active ? "codebook-2d-territory--active" : ""}`}
+                onMouseEnter={() => setHoveredClusterId(cluster.clusterId)}
+                onMouseLeave={() => setHoveredClusterId(null)}
+                onClick={(e) => handleTerritoryClick(cluster, e)}
+              >
+                <circle
+                  cx={cluster.x}
+                  cy={cluster.y}
+                  r={cluster.radius}
+                  fill={`url(#territory-${sid})`}
+                  className="codebook-2d-territory-fill"
+                />
+                <circle
+                  cx={cluster.x}
+                  cy={cluster.y}
+                  r={cluster.radius}
+                  fill="none"
+                  stroke={cluster.dropTarget ? "#fff" : cluster.color}
+                  strokeWidth={cluster.dropTarget ? 2.5 : active ? 2 : 1.2}
+                  strokeOpacity={cluster.dropTarget ? 0.95 : active ? 0.85 : 0.45}
+                  className="codebook-2d-territory-ring"
+                />
+                {cluster.overviewOnly && (
+                  <g className="codebook-2d-territory-overview" pointerEvents="none">
+                    <text
+                      x={cluster.x}
+                      y={cluster.y + 6}
+                      textAnchor="middle"
+                      className="codebook-2d-territory-count"
+                      fill="#f8fafc"
+                    >
+                      {cluster.codeCount}
+                    </text>
                   </g>
-                ))}
+                )}
               </g>
-            </g>
-          );
+            );
           })}
 
-          <g className="codebook-island-labels">
-            {layout.islands.map((island) => {
-              const active =
-                hoveredClusterId === island.clusterId ||
-                island.dropTarget ||
-                highlighted?.clusterId === island.clusterId;
-              return <IslandLabel key={`label-${island.clusterId}`} island={island} active={active} />;
+          <g className="codebook-2d-edges" pointerEvents="none">
+            {layout.edges.map(([a, b], i) => {
+              const na = allCodes[a];
+              const nb = allCodes[b];
+              if (!na || !nb || na.clusterId !== nb.clusterId) return null;
+              const cluster = layout.clusters.find((c) => c.clusterId === na.clusterId);
+              return (
+                <line
+                  key={`e-${i}`}
+                  x1={na.x}
+                  y1={na.y}
+                  x2={nb.x}
+                  y2={nb.y}
+                  stroke={cluster?.color ?? "#7cf0d0"}
+                  strokeOpacity={0.18}
+                  strokeWidth={1}
+                />
+              );
             })}
           </g>
 
+          {layout.clusters.map((cluster) =>
+            cluster.codes.map((node) => (
+              <g
+                key={node.id}
+                onMouseEnter={() => setHoveredCodeId(node.id)}
+                onMouseLeave={() => setHoveredCodeId(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectCode(node.code, node.clusterId);
+                }}
+              >
+                <CodeDot node={node} color={cluster.color} hovered={hoveredCodeId === node.id} />
+              </g>
+            ))
+          )}
+
           {draggingNode && dragWorldPos && (
-            <g className="codebook-island-code codebook-island-code--dragging" style={{ pointerEvents: "none" }}>
-              <rect
-                x={dragWorldPos.x - PILL_HW}
-                y={dragWorldPos.y - PILL_HH + 2}
-                width={PILL_HW * 2}
-                height={PILL_HH * 2}
-                rx={PILL_HH}
-                className="codebook-island-code-shadow"
-                fill="rgba(0,0,0,0.5)"
-              />
-              <rect
-                x={dragWorldPos.x - PILL_HW}
-                y={dragWorldPos.y - PILL_HH}
-                width={PILL_HW * 2}
-                height={PILL_HH * 2}
-                rx={PILL_HH}
-                className="codebook-island-code-pill"
-                fill="rgba(12,14,22,0.95)"
+            <g className="codebook-2d-node codebook-2d-node--dragging" style={{ pointerEvents: "none" }}>
+              <circle
+                cx={dragWorldPos.x}
+                cy={dragWorldPos.y}
+                r={draggingNode.nodeR + 4}
+                fill="none"
                 stroke={draggingNode.color}
                 strokeWidth={2}
+                strokeOpacity={0.6}
               />
-              <text x={dragWorldPos.x} y={dragWorldPos.y + 4} textAnchor="middle" className="codebook-island-code-label" fill={draggingNode.color}>
-                {draggingNode.shortLabel}
-              </text>
+              <circle
+                cx={dragWorldPos.x}
+                cy={dragWorldPos.y}
+                r={draggingNode.nodeR}
+                fill={draggingNode.color}
+                stroke="#fff"
+                strokeWidth={2}
+              />
             </g>
           )}
         </g>
       </svg>
 
-      <div className="codebook-island-hint">
-        <span>Drag to move</span>
+      <div className="codebook-2d-hint">
+        <span>Drag to pan</span>
         <span>Scroll to zoom</span>
-        <span>Hover a pill for the full code</span>
+        {isLargeDataset && <span>Click a cluster to reveal its codes</span>}
+        <span>Hover a dot for the full code</span>
       </div>
 
       <div className="graph-controls">
@@ -758,14 +816,12 @@ export function CodebookCluster2D({
         <div className="codebook-3d-selection-bar">
           <span
             className="codebook-3d-selection-pill"
-            style={{
-              ["--cluster-color" as string]: clusterColor.get(highlighted.clusterId) ?? "#7cf0d0",
-            }}
+            style={{ ["--cluster-color" as string]: clusterColor.get(highlighted.clusterId) ?? "#7cf0d0" }}
           >
             {highlighted.code}
           </span>
           <span className="library-panel-sub">
-            Selected — drag onto another cluster in the map or on the board below to move
+            Selected — drag onto another cluster or use the board below to move
           </span>
         </div>
       )}

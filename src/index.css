@@ -4243,10 +4243,190 @@ h3.research-bm-kicker--section {
 .codebook-graph-map-host {
   position: relative;
   width: 100%;
-  height: min(42vh, 460px);
-  min-height: min(36vh, 380px);
-  max-height: min(42vh, 460px);
+  height: min(52vh, 520px);
+  min-height: min(48vh, 480px);
+  max-height: min(56vh, 560px);
   overflow: hidden;
+}
+
+/* ── 2D cluster map (spatial territories + dot clouds) ── */
+
+.codebook-2d-map {
+  background: radial-gradient(ellipse 90% 80% at 50% 40%, rgba(30, 41, 59, 0.35) 0%, rgba(6, 9, 16, 0.98) 70%);
+  border-radius: 0 0 12px 12px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.codebook-2d-map:active {
+  cursor: grabbing;
+}
+
+.codebook-2d-map--light {
+  background: radial-gradient(ellipse 90% 80% at 50% 40%, rgba(226, 232, 240, 0.5) 0%, rgba(248, 250, 252, 0.98) 70%);
+}
+
+.codebook-2d-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+}
+
+.codebook-2d-world {
+  will-change: transform;
+}
+
+.codebook-2d-bg {
+  cursor: inherit;
+}
+
+.codebook-2d-territory {
+  transition: opacity 0.2s ease;
+}
+
+.codebook-2d-territory--overview {
+  cursor: pointer;
+}
+
+.codebook-2d-territory--dimmed {
+  opacity: 0.35;
+}
+
+.codebook-2d-territory--drop .codebook-2d-territory-ring {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.45));
+}
+
+.codebook-2d-territory-fill {
+  pointer-events: all;
+}
+
+.codebook-2d-territory-ring {
+  pointer-events: none;
+  transition: stroke-width 0.15s ease, stroke-opacity 0.15s ease;
+}
+
+.codebook-2d-territory-count {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.codebook-2d-edges {
+  pointer-events: none;
+}
+
+.codebook-2d-node {
+  cursor: pointer;
+}
+
+.codebook-2d-node-core {
+  transition: r 0.12s ease, fill-opacity 0.12s ease;
+}
+
+.codebook-2d-node:hover .codebook-2d-node-core {
+  fill-opacity: 1;
+}
+
+.codebook-2d-node--dimmed {
+  opacity: 0.4;
+}
+
+.codebook-2d-node--dragging {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+}
+
+.codebook-2d-map-label {
+  position: absolute;
+  z-index: 14;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: min(14rem, 34vw);
+  padding: 0.28rem 0.55rem;
+  border-radius: 6px;
+  background: rgba(6, 10, 18, 0.88);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 50%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.codebook-2d-map-label--dimmed {
+  opacity: 0.38;
+}
+
+.codebook-2d-map-label--active {
+  border-color: color-mix(in srgb, var(--cluster-color) 75%, #fff);
+}
+
+.codebook-2d-map-label-title {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #f1f5f9;
+  word-break: break-word;
+}
+
+.codebook-2d-map-label-count {
+  flex-shrink: 0;
+  min-width: 1.35rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cluster-color) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 45%, transparent);
+  font-size: 8px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--cluster-color) 85%, #fff);
+  text-align: center;
+}
+
+.codebook-2d-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  max-width: min(26rem, 72%);
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(8, 12, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  font-weight: 550;
+  color: rgba(203, 213, 225, 0.88);
+  pointer-events: none;
+}
+
+.codebook-2d-hint span::before {
+  content: "·";
+  margin-right: 0.45rem;
+  opacity: 0.45;
+}
+
+.codebook-2d-hint span:first-child::before {
+  content: none;
+  margin: 0;
+}
+
+.codebook-2d-map--light .codebook-2d-hint {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: rgba(51, 65, 85, 0.92);
+}
+
+.codebook-2d-map--light .codebook-2d-map-label {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: color-mix(in srgb, var(--cluster-color) 40%, rgba(15, 23, 42, 0.12));
+}
+
+.codebook-2d-map--light .codebook-2d-map-label-title {
+  color: #0f172a;
 }
 
 .codebook-2d-canvas {
@@ -4302,8 +4482,60 @@ h3.research-bm-kicker--section {
 
 .codebook-island-contour {
   stroke-width: 1;
-  stroke-opacity: 0.2;
+  stroke-opacity: 0.12;
   vector-effect: non-scaling-stroke;
+}
+
+.codebook-2d-cluster-label {
+  position: absolute;
+  z-index: 14;
+  transform: translate(-50%, calc(-100% - 8px));
+  max-width: min(11rem, 30vw);
+  padding: 0.32rem 0.58rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 55%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  text-align: center;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.codebook-2d-cluster-label--dimmed {
+  opacity: 0.38;
+}
+
+.codebook-2d-cluster-label--active {
+  border-color: color-mix(in srgb, var(--cluster-color) 78%, #fff);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cluster-color) 28%, transparent),
+    0 4px 18px color-mix(in srgb, var(--cluster-color) 25%, transparent);
+}
+
+.codebook-2d-cluster-label-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.28;
+  color: #fff;
+  word-break: break-word;
+}
+
+.codebook-2d-cluster-label-meta {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--cluster-color) 72%, #ccc);
+}
+
+.codebook-2d-cluster-label--overview .codebook-2d-cluster-label-meta {
+  opacity: 0.85;
+}
+
+.codebook-island-topo {
+  pointer-events: none;
 }
 
 .codebook-island--overview {
@@ -4311,7 +4543,7 @@ h3.research-bm-kicker--section {
 }
 
 .codebook-island-aura {
-  stroke-opacity: 0.28;
+  stroke-opacity: 0.18;
   pointer-events: none;
   transition: stroke-width 0.25s ease, stroke-opacity 0.25s ease;
 }
@@ -4330,7 +4562,7 @@ h3.research-bm-kicker--section {
 }
 
 .codebook-island--active .codebook-island-aura {
-  stroke-opacity: 0.42;
+  stroke-opacity: 0.32;
 }
 
 .codebook-island--active .codebook-island-stroke {
@@ -4438,9 +4670,10 @@ h3.research-bm-kicker--section {
 }
 
 .codebook-island-code-label {
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
   pointer-events: none;
   paint-order: stroke fill;
   stroke: rgba(8, 11, 18, 0.9);

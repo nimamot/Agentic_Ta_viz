@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClusterFocusDashboard, FocusClusterScreenLabel } from "./ClusterFocusDashboard";
 import { CodebookCluster2D } from "./CodebookCluster2D";
 import { CodebookCluster3D } from "./CodebookCluster3D";
 import type { HighlightedCode } from "./codebookClusterTypes";
 import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
+import { isDenseCodebookLayout } from "../lib/codebookClusterLayout2d";
 import type { ClusterEntry } from "../lib/codebookReview";
 
 export type CodebookGraphDimension = "2d" | "3d";
@@ -160,10 +161,14 @@ export function CodebookClusterGraph({
     ? (clusterColor.get(screenLabelClusterId) ?? "#7cf0d0")
     : "#7cf0d0";
 
-  const overviewMode =
-    !isSmallCodebook &&
-    isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length) &&
-    expandedClusterIds.size === 0;
+  const denseLayout = useMemo(
+    () => isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
+    [sortedClusterIds, clusterToCodes]
+  );
+  const usesExpandCollapse =
+    denseLayout || (!isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length));
+
+  const overviewMode = usesExpandCollapse && expandedClusterIds.size === 0;
 
   const sharedProps = {
     sortedClusterIds,
@@ -217,7 +222,7 @@ export function CodebookClusterGraph({
           <span className="library-panel-sub">
             {sortedClusterIds.length} clusters · click a cluster to expand codes · scroll or use controls to zoom
           </span>
-        ) : expandedClusterIds.size > 0 && !isSmallCodebook ? (
+        ) : expandedClusterIds.size > 0 && usesExpandCollapse ? (
           <div className="codebook-3d-canvas-head-row">
             <button type="button" className="library-mini-btn codebook-3d-back-btn" onClick={() => handleToggleCluster("")}>
               ← Overview
@@ -231,7 +236,7 @@ export function CodebookClusterGraph({
           <span className="library-panel-sub">
             {dimension === "3d"
               ? "Scroll to zoom · drag to orbit · click a code to focus its cluster · double-click a code to move it"
-              : "Drag to pan · scroll to zoom · click a code pill · drag onto another island to move it"}
+              : "Drag to pan · scroll to zoom · click a cluster to expand · hover dots for code text"}
           </span>
         )}
       </div>
