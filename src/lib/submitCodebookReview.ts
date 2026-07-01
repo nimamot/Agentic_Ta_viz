@@ -12,16 +12,23 @@ export interface SubmitCodebookResult {
   conflict?: boolean;
   alreadySubmitted?: boolean;
   error?: string;
+  /** Local mode: written to public/data/ via dev API */
+  savedToDisk?: boolean;
+}
+
+export interface SubmitCodebookOptions {
+  slug?: string;
 }
 
 export async function submitCodebookReview(
   reviewId: string,
   codebookV2: CodebookPayload | null,
   loadedUpdatedAt: string | null | undefined,
-  status: SubmitStatus
+  status: SubmitStatus,
+  options?: SubmitCodebookOptions
 ): Promise<SubmitCodebookResult> {
   if (isLocalMode()) {
-    return submitLocalCodebookReview(reviewId, codebookV2, loadedUpdatedAt, status);
+    return submitLocalCodebookReview(reviewId, codebookV2, loadedUpdatedAt, status, options);
   }
 
   const sb = getSupabase();

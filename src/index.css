@@ -4567,6 +4567,34 @@ h3.research-bm-kicker--section {
   line-height: 1.3;
 }
 
+.codebook-3d-label--map {
+  max-width: min(10.5rem, 28vw);
+  padding: 0.3rem 0.58rem;
+  background: rgba(0, 0, 0, 0.84);
+  border-color: color-mix(in srgb, var(--cluster-color) 55%, transparent);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.42);
+}
+
+.codebook-3d-label--map .codebook-3d-label-name {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.28;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  text-overflow: ellipsis;
+  max-width: min(10.5rem, 28vw);
+}
+
+.codebook-3d-label--map-active {
+  border-color: color-mix(in srgb, var(--cluster-color) 78%, #fff);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cluster-color) 30%, transparent),
+    0 4px 18px color-mix(in srgb, var(--cluster-color) 32%, transparent);
+}
+
 .codebook-3d-label--focus {
   max-width: min(20rem, 68vw);
   padding: 0.38rem 0.72rem;
@@ -4633,6 +4661,33 @@ h3.research-bm-kicker--section {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.5),
     0 4px 20px color-mix(in srgb, var(--cluster-color) 35%, transparent);
+}
+
+.codebook-node-hover-panel {
+  display: block;
+  width: max-content;
+  max-width: min(18rem, 72vw);
+  padding: 0.42rem 0.68rem;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #fff;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid color-mix(in srgb, var(--cluster-color) 62%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 6px 22px color-mix(in srgb, var(--cluster-color) 28%, transparent);
+}
+
+.codebook-node-hover-panel--2d {
+  position: absolute;
+  z-index: 20;
+  transform: translate(-50%, calc(-100% - 12px));
 }
 
 .codebook-3d-move-hint {
@@ -4730,6 +4785,21 @@ h3.research-bm-kicker--section {
   position: relative;
   min-height: 0;
   overflow: hidden;
+}
+
+.codebook-3d-focus-screen-label {
+  position: absolute;
+  top: 0.65rem;
+  left: 50%;
+  z-index: 12;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease-out;
+}
+
+.codebook-3d-focus-screen-label--visible {
+  opacity: 1;
 }
 
 .codebook-3d-focus-split[data-focus-open="true"] .codebook-3d-focus-visual {
@@ -4866,10 +4936,34 @@ h3.research-bm-kicker--section {
   padding-right: 0.15rem;
 }
 
+.codebook-3d-focus-code-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  position: relative;
+}
+
+.codebook-3d-focus-code-row--removing {
+  pointer-events: none;
+}
+
+.codebook-3d-focus-code-row--removing .codebook-3d-focus-code-item,
+.codebook-3d-focus-code-row--removing .codebook-focus-code-menu-trigger {
+  opacity: 0;
+  transform: scale(0.94) translateX(6px);
+  transition: opacity 0.28s ease-out, transform 0.28s ease-out;
+}
+
+.codebook-3d-focus-code-row:hover .codebook-focus-code-menu-trigger {
+  opacity: 1;
+}
+
 .codebook-3d-focus-code-item {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
   width: 100%;
   padding: 0.45rem 0.55rem;
   border-radius: 10px;
@@ -4879,6 +4973,115 @@ h3.research-bm-kicker--section {
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.codebook-focus-code-menu-trigger {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.codebook-focus-code-menu-trigger:hover,
+.codebook-focus-code-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+  color: var(--text);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--cluster-color) 8%, var(--surface));
+}
+
+.codebook-focus-code-menu-popover {
+  position: fixed;
+  z-index: 12000;
+  min-width: 8.5rem;
+  padding: 0.28rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, #000);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.codebook-focus-code-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.codebook-focus-code-menu-item:hover {
+  background: color-mix(in srgb, var(--cluster-color) 10%, var(--surface));
+}
+
+.codebook-focus-code-menu-chevron {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.codebook-focus-code-submenu {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 0.35rem);
+  min-width: 11rem;
+  max-width: min(16rem, 52vw);
+  max-height: min(16rem, 42vh);
+  overflow-y: auto;
+  padding: 0.28rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, #000);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.codebook-focus-code-submenu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.42rem 0.55rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.codebook-focus-code-submenu-item:hover {
+  background: color-mix(in srgb, var(--target-color) 14%, var(--surface));
+}
+
+.codebook-focus-code-submenu-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.codebook-focus-code-submenu-meta {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .codebook-3d-focus-code-item:hover {

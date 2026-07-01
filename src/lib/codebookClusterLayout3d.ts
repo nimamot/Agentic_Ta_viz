@@ -281,3 +281,31 @@ export function buildFocusedCluster3DLayout(
     isLargeDataset: false,
   };
 }
+
+/** Screen-space anchor above a cluster — clears nodes/hub without covering the cloud. */
+export function clusterLabelAnchor(
+  hub: ClusterHub3D,
+  nodes: CodeNode3D[],
+  options?: { nodeRadius?: number; pad?: number }
+): [number, number, number] {
+  const nodeR = options?.nodeRadius ?? 0.28;
+  const pad = options?.pad ?? 2.35;
+  const clusterNodes = nodes.filter((n) => n.clusterId === hub.clusterId);
+  if (clusterNodes.length === 0) {
+    const r = hubVisualRadius(hub.codeCount, true);
+    return [hub.position[0], hub.position[1] + r + pad + 0.85, hub.position[2]];
+  }
+  let maxY = hub.position[1];
+  for (const n of clusterNodes) {
+    maxY = Math.max(maxY, n.position[1] + nodeR);
+  }
+  return [hub.position[0], maxY + pad, hub.position[2]];
+}
+
+export function buildClusterLabelAnchors(layout: Codebook3DLayout): Map<string, [number, number, number]> {
+  const map = new Map<string, [number, number, number]>();
+  for (const hub of layout.hubs) {
+    map.set(hub.clusterId, clusterLabelAnchor(hub, layout.nodes));
+  }
+  return map;
+}

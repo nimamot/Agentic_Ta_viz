@@ -135,14 +135,16 @@ Then add `"my-study"` to both arrays in `public/data/manifest.json`, create `met
 
 ## Codebook review: approve & export
 
-In local mode there is **no sign-in**. When you click **Approve & export**:
+In local mode there is **no sign-in**. Run with `npm run dev:local` (or set `VITE_DATA_SOURCE=local` in `.env.local`) so the app uses files under `public/data/` instead of Supabase.
 
-1. The browser downloads `<review-id>-codebook_v2.json`.
-2. The review is removed from the pending queue (stored in your browser’s local storage).
+When you click **Approve & export**:
 
-Place the downloaded file back into your pipeline’s output directory so the next pipeline stage can pick it up.
+1. **Dev server** (`npm run dev:local`): writes `codebook_v2.json` into `public/data/codebook-reviews/<slug>/` and updates `meta.json` status to `approved`. The review leaves the pending queue.
+2. **Static build / viewer zip** (no dev API): downloads `<review-id>-codebook_v2.json` and tracks the submission in browser local storage.
 
-To **re-open a submitted review**, clear the browser’s site data for this app, or use a private/incognito window.
+Supabase sign-in and database submit remain available when `VITE_DATA_SOURCE=supabase` — that path is unchanged.
+
+To **re-open a submitted review** after a browser-only export, clear site data or use a private window. After a dev-server write, set `meta.json` `status` back to `pending_review` if you need to review again.
 
 ---
 

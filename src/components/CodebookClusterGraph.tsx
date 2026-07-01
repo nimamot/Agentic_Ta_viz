@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { ClusterFocusDashboard } from "./ClusterFocusDashboard";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ClusterFocusDashboard, FocusClusterScreenLabel } from "./ClusterFocusDashboard";
 import { CodebookCluster2D } from "./CodebookCluster2D";
 import { CodebookCluster3D } from "./CodebookCluster3D";
 import type { HighlightedCode } from "./codebookClusterTypes";
@@ -7,6 +7,8 @@ import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
 import type { ClusterEntry } from "../lib/codebookReview";
 
 export type CodebookGraphDimension = "2d" | "3d";
+
+const FOCUS_CODE_REMOVE_MS = 280;
 
 interface CodebookClusterGraphProps {
   sortedClusterIds: string[];
@@ -41,6 +43,9 @@ export function CodebookClusterGraph({
   const [expandedClusterIds, setExpandedClusterIds] = useState<Set<string>>(new Set());
   const [clusterFocusId, setClusterFocusId] = useState<string | null>(null);
   const [focusTransitioning, setFocusTransitioning] = useState(false);
+  const [lingerFocusClusterId, setLingerFocusClusterId] = useState<string | null>(null);
+  const [focusRemovingCode, setFocusRemovingCode] = useState<string | null>(null);
+  const focusRemoveTimer = useRef<number | null>(null);
 
   const showFocusChrome = clusterFocusId != null || focusTransitioning;
   const showDashboard = clusterFocusId != null;
@@ -76,18 +81,33 @@ export function CodebookClusterGraph({
     setExpandedClusterIds(new Set());
     setClusterFocusId(null);
     setFocusTransitioning(false);
+    setLingerFocusClusterId(null);
+    setFocusRemovingCode(null);
+    if (focusRemoveTimer.current) {
+      window.clearTimeout(focusRemoveTimer.current);
+      focusRemoveTimer.current = null;
+    }
   }, [sortedClusterIds.join("|"), isSmallCodebook]);
 
   useEffect(() => {
     if (dimension !== "3d") {
       setClusterFocusId(null);
       setFocusTransitioning(false);
+      setLingerFocusClusterId(null);
     }
   }, [dimension]);
 
   const handleFocusTransitionPhase = useCallback((phase: "idle" | "running") => {
     setFocusTransitioning(phase === "running");
   }, []);
+
+  useEffect(() => {
+    if (clusterFocusId) {
+      setLingerFocusClusterId(clusterFocusId);
+      return;
+    }
+    if (!focusTransitioning) setLingerFocusClusterId(null);
+  }, [clusterFocusId, focusTransitioning]);
 
   const handleSelectCode = useCallback(
     (code: string, clusterId: string) => {
@@ -109,9 +129,36 @@ export function CodebookClusterGraph({
     onClearSelection();
   }, [onClearSelection]);
 
+  useEffect(() => {
+    return () => {
+      if (focusRemoveTimer.current) window.clearTimeout(focusRemoveTimer.current);
+    };
+  }, []);
+
+  const handleRequestMoveCode = useCallback(
+    (code: string, fromClusterId: string, toClusterId: string) => {
+      if (!onMoveCode || fromClusterId === toClusterId) return;
+      if (focusRemoveTimer.current) window.clearTimeout(focusRemoveTimer.current);
+      setFocusRemovingCode(code);
+      focusRemoveTimer.current = window.setTimeout(() => {
+        onMoveCode(code, fromClusterId, toClusterId);
+        onClearSelection();
+        setFocusRemovingCode(null);
+        focusRemoveTimer.current = null;
+      }, FOCUS_CODE_REMOVE_MS);
+    },
+    [onMoveCode, onClearSelection]
+  );
+
   const focusEntry = clusterFocusId ? clusters[clusterFocusId] : null;
   const focusCodes = clusterFocusId ? (clusterToCodes[clusterFocusId] ?? []) : [];
   const focusColor = clusterFocusId ? (clusterColor.get(clusterFocusId) ?? "#7cf0d0") : "#7cf0d0";
+  const screenLabelClusterId = lingerFocusClusterId ?? clusterFocusId;
+  const screenLabelEntry = screenLabelClusterId ? clusters[screenLabelClusterId] : null;
+  const screenLabelCodes = screenLabelClusterId ? (clusterToCodes[screenLabelClusterId] ?? []) : [];
+  const screenLabelColor = screenLabelClusterId
+    ? (clusterColor.get(screenLabelClusterId) ?? "#7cf0d0")
+    : "#7cf0d0";
 
   const overviewMode =
     !isSmallCodebook &&
@@ -195,12 +242,22 @@ export function CodebookClusterGraph({
           data-focus-open={showDashboard ? "true" : undefined}
         >
           <div className="codebook-3d-focus-visual">
+            {screenLabelEntry && screenLabelClusterId && (
+              <FocusClusterScreenLabel
+                clusterId={screenLabelClusterId}
+                entry={screenLabelEntry}
+                codeCount={screenLabelCodes.length}
+                color={screenLabelColor}
+                visible={showFocusChrome}
+              />
+            )}
             <CodebookCluster3D
               {...sharedProps}
               focusClusterId={clusterFocusId}
               onExitFocus={exitClusterFocus}
               onFocusTransitionPhase={handleFocusTransitionPhase}
               onFocusCluster={handleFocusCluster}
+              focusRemovingCode={focusRemovingCode}
               hideChrome
             />
           </div>
@@ -211,7 +268,12 @@ export function CodebookClusterGraph({
               codes={focusCodes}
               color={focusColor}
               highlighted={highlighted}
+              sortedClusterIds={sortedClusterIds}
+              clusters={clusters}
+              clusterColor={clusterColor}
               onSelectCode={handleFocusCluster}
+              onRequestMoveCode={onMoveCode ? handleRequestMoveCode : undefined}
+              removingCode={focusRemovingCode}
               onBack={exitClusterFocus}
             />
           )}

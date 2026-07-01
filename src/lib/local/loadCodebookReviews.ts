@@ -24,14 +24,21 @@ export interface PendingLocalReviewListItem {
 function resolveReviewMeta(folder: string, meta: LocalReviewMeta | null): LocalReviewMeta {
   const slug = meta?.slug?.trim() || folder;
   const id = meta?.id?.trim() || slug;
+  const status = meta?.status?.trim() || "pending_review";
   return {
     id,
     slug,
     research_question: meta?.research_question ?? null,
     created_at: meta?.created_at ?? new Date(0).toISOString(),
     updated_at: meta?.updated_at ?? meta?.created_at ?? new Date(0).toISOString(),
-    status: meta?.status ?? "pending_review",
+    status,
+    approved_at: meta?.approved_at,
+    cancelled_at: meta?.cancelled_at,
   };
+}
+
+function isPendingReviewStatus(status: string | undefined): boolean {
+  return !status || status === "pending_review";
 }
 
 async function loadReviewRow(folder: string): Promise<CodebookReviewRow> {
@@ -57,7 +64,7 @@ async function loadReviewRow(folder: string): Promise<CodebookReviewRow> {
     id: resolved.id,
     slug: resolved.slug,
     research_question: resolved.research_question,
-    status: "pending_review",
+    status: isPendingReviewStatus(resolved.status) ? "pending_review" : resolved.status!,
     codebook_v1,
     clustered_codes,
     codebook_confidence,
@@ -97,6 +104,12 @@ export async function fetchAllPendingLocalCodebookReviews(): Promise<PendingLoca
 
   for (const folder of folders) {
     try {
+      const dir = reviewDir(folder);
+      const meta =
+        (await fetchFirstJson<LocalReviewMeta>(dir, ["meta.json"], `Review ${folder} meta`)) ?? {};
+      const resolved = resolveReviewMeta(folder, meta);
+      if (!isPendingReviewStatus(resolved.status)) continue;
+
       const row = await loadReviewRow(folder);
       if (!isReviewStillPending(row.id)) continue;
       items.push(toListItem(row));
@@ -119,6 +132,12 @@ export async function fetchPendingLocalCodebookReviewById(
   const manifest = await fetchLocalManifest();
   for (const folder of manifest.codebook_reviews ?? []) {
     try {
+      const dir = reviewDir(folder);
+      const meta =
+        (await fetchFirstJson<LocalReviewMeta>(dir, ["meta.json"], `Review ${folder} meta`)) ?? {};
+      const resolved = resolveReviewMeta(folder, meta);
+      if (!isPendingReviewStatus(resolved.status)) return null;
+
       const row = await loadReviewRow(folder);
       if (row.id !== id) continue;
       if (!isReviewStillPending(row.id)) return null;

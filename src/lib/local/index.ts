@@ -13,4 +13,5 @@ export {
   type PendingLocalReviewListItem,
 } from "./loadCodebookReviews";
 export { submitLocalCodebookReview } from "./submitCodebookReview";
+export { persistReviewToDisk } from "./persistReviewToDisk";
 export type { LocalManifest, LocalProjectMeta, LocalReviewMeta } from "./types";

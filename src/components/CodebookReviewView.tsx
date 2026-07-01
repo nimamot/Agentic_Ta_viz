@@ -478,12 +478,15 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
         working.review.id,
         codebookToSubmit,
         working.review.updated_at,
-        "approved"
+        "approved",
+        { slug: working.review.slug }
       );
       if (result.ok) {
         setSubmitMessage(
           localMode
-            ? "Approved. Your codebook_v2.json file was downloaded — place it back in your pipeline output folder."
+            ? result.savedToDisk
+              ? `Approved. Saved codebook_v2.json to public/data/codebook-reviews/${working.review.slug}/`
+              : "Approved. Your codebook_v2.json file was downloaded — place it back in your pipeline output folder."
             : "Approved and submitted. The pipeline can continue refinement."
         );
         closeReview();
@@ -509,7 +512,13 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
     setSubmitting(true);
     setSubmitMessage(null);
     try {
-      const result = await submitCodebookReview(working.review.id, null, working.review.updated_at, "cancelled");
+      const result = await submitCodebookReview(
+        working.review.id,
+        null,
+        working.review.updated_at,
+        "cancelled",
+        { slug: working.review.slug }
+      );
       if (result.ok) {
         setSubmitMessage("Review cancelled.");
         closeReview();
@@ -1036,7 +1045,9 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                   disabled={!validation.ok || submitting || !canSubmit}
                   title={
                     !canSubmit
-                      ? "Sign in to submit"
+                      ? localMode
+                        ? undefined
+                        : "Sign in to submit"
                       : !validation.ok
                         ? "Fix validation errors below before submitting"
                         : undefined
@@ -1064,7 +1075,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 >
                   Reset edits
                 </button>
-                {!canSubmit && (
+                {!canSubmit && !localMode && (
                   <span className="library-panel-sub">Sign in to submit or cancel.</span>
                 )}
                 {canSubmit && !validation.ok && (

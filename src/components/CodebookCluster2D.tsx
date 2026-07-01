@@ -485,6 +485,26 @@ export function CodebookCluster2D({
     };
   }, [draggingCodeKey, dragWorldPos, layout.islands]);
 
+  const hoveredCodePanel = useMemo(() => {
+    if (!hoveredCodeId || draggingCodeKey) return null;
+    for (const island of layout.islands) {
+      const node = island.codes.find((c) => c.id === hoveredCodeId);
+      if (node) return { node, color: island.color };
+    }
+    return null;
+  }, [hoveredCodeId, draggingCodeKey, layout.islands]);
+
+  const hoveredCodePanelPos = useMemo(() => {
+    if (!hoveredCodePanel) return null;
+    const { node } = hoveredCodePanel;
+    const cx = hostSize.w / 2 + view.x;
+    const cy = hostSize.h / 2 + view.y;
+    return {
+      left: cx + node.x * view.scale,
+      top: cy + node.y * view.scale,
+    };
+  }, [hoveredCodePanel, hostSize.w, hostSize.h, view.x, view.y, view.scale]);
+
   if (layout.islands.length === 0) {
     return (
       <div className="codebook-graph-empty glass-panel">
@@ -499,6 +519,18 @@ export function CodebookCluster2D({
       className={`codebook-graph-map-host codebook-island-map ${isDark ? "codebook-island-map--dark" : "codebook-island-map--light"}`}
       onWheel={onWheel}
     >
+      {hoveredCodePanel && hoveredCodePanelPos && (
+        <div
+          className="codebook-node-hover-panel codebook-node-hover-panel--2d"
+          style={{
+            left: hoveredCodePanelPos.left,
+            top: hoveredCodePanelPos.top,
+            ["--cluster-color" as string]: hoveredCodePanel.color,
+          }}
+        >
+          {hoveredCodePanel.node.code}
+        </div>
+      )}
       <svg
         ref={svgRef}
         className="codebook-island-svg"

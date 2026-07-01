@@ -19,6 +19,8 @@ export interface LocalReviewMeta {
   created_at?: string;
   updated_at?: string | null;
   status?: string;
+  approved_at?: string;
+  cancelled_at?: string;
 }
 
 export interface LocalSubmissionRecord {

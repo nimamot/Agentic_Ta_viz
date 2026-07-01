@@ -15,6 +15,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import {
   buildCodebook3DLayout,
+  buildClusterLabelAnchors,
   buildFocusedCluster3DLayout,
   clusterDropRadius,
   estimateAppendCodePosition,
@@ -23,7 +24,6 @@ import {
   type CodeNode3D,
   type ClusterHub3D,
 } from "../lib/codebookClusterLayout3d";
-import { focusLayerOpacity } from "../lib/codebookClusterFocusTransition";
 import {
   FocusBlendDriver,
   FocusBlendRefContext,
@@ -151,6 +151,7 @@ interface CodebookCluster3DProps {
   onFocusTransitionPhase?: (phase: FocusTransitionPhase) => void;
   /** Single-click on a code node — opens cluster focus in the graph wrapper. */
   onFocusCluster?: (code: string, clusterId: string) => void;
+  focusRemovingCode?: string | null;
 }
 
 function hexToThree(hex: string): THREE.Color {
@@ -179,6 +180,7 @@ function CodeSphere({
   layerOpacity = 1,
   transitionLayer,
   canMove,
+  exiting = false,
   onSelect,
 }: {
   node: CodeNode3D;
@@ -191,6 +193,7 @@ function CodeSphere({
   layerOpacity?: number;
   transitionLayer?: "overview" | "focus";
   canMove: boolean;
+  exiting?: boolean;
   onSelect: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -200,6 +203,7 @@ function CodeSphere({
   const ringRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const hoveredRef = useRef(false);
+  const [hoverOpen, setHoverOpen] = useState(false);
   const selectTimerRef = useRef<number | null>(null);
   const suppressSelectRef = useRef(false);
   const blendRef = useFocusBlendRef();
@@ -218,6 +222,8 @@ function CodeSphere({
   const isSource = inMoveMode && codeDragVisual.sourceClusterId === node.clusterId;
   const canDropHere = inMoveMode && !isSource && !!canMove;
   const nodeRadius = enlarged ? 0.44 : 0.28;
+  const showHoverPanel =
+    (hoverOpen || highlighted) && !inMoveMode && !exiting && !hiddenByDrag;
 
   useLayoutEffect(() => {
     disableRaycast(glowRef.current);
@@ -229,6 +235,19 @@ function CodeSphere({
     const mesh = meshRef.current;
     const mat = materialRef.current;
     if (!mesh || !mat) return;
+
+    if (exiting) {
+      mesh.scale.lerp(new THREE.Vector3(0.05, 0.05, 0.05), delta * 14);
+      mat.opacity = THREE.MathUtils.lerp(mat.opacity, 0, delta * 12);
+      mat.emissiveIntensity = THREE.MathUtils.lerp(mat.emissiveIntensity, 0, delta * 12);
+      const glow = glowRef.current;
+      if (glow) {
+        const glowMat = glow.material as THREE.MeshBasicMaterial;
+        glowMat.opacity = THREE.MathUtils.lerp(glowMat.opacity, 0, delta * 12);
+      }
+      invalidate();
+      return;
+    }
 
     const pulse = highlighted
       ? 1.55 + Math.sin(state.clock.elapsedTime * 5) * 0.1
@@ -335,12 +354,16 @@ function CodeSphere({
         onPointerOver={(e) => {
           e.stopPropagation();
           hoveredRef.current = true;
+          setHoverOpen(true);
           if (canDropHere) setHoverDropCluster(node.clusterId);
           if (!dragging.current && !codeDragVisual.ghost) setMode("node");
+          invalidate();
         }}
         onPointerOut={() => {
           hoveredRef.current = false;
+          setHoverOpen(false);
           if (!dragging.current && !codeDragVisual.ghost) setMode("orbit");
+          invalidate();
         }}
       >
         <sphereGeometry args={[nodeRadius, 32, 32]} />
@@ -400,19 +423,18 @@ function CodeSphere({
         </mesh>
       )}
 
-      {highlighted && !inMoveMode && (
+      {showHoverPanel && (
         <Html
           transform={false}
           center
-          position={[0, enlarged ? 1.35 : 1.05, 0]}
+          position={[0, enlarged ? 1.5 : 1.12, 0]}
           zIndexRange={[200, 100]}
           wrapperClass="codebook-3d-html-wrap"
           style={{ pointerEvents: "none" }}
         >
           <div
-            className="codebook-3d-code-label"
+            className="codebook-node-hover-panel"
             style={{ ["--cluster-color" as string]: node.color }}
-            title={node.code}
           >
             {node.code}
           </div>
@@ -422,49 +444,48 @@ function CodeSphere({
   );
 }
 
-function FocusClusterLabel({ layout }: { layout: Codebook3DLayout }) {
-  const hub = layout.hubs[0];
-  const blendRef = useFocusBlendRef();
+function MapClusterLabel({
+  hub,
+  anchor,
+  emphasized,
+}: {
+  hub: ClusterHub3D;
+  anchor: [number, number, number];
+  emphasized: boolean;
+}) {
+  const { camera } = useThree();
   const invalidate = useThree((s) => s.invalidate);
-  const labelRef = useRef<HTMLDivElement>(null);
-  const labelY = useMemo(() => {
-    const nodeR = 0.44;
-    let extent = layout.layoutRadius;
-    for (const node of layout.nodes) {
-      extent = Math.max(extent, node.position[1] + nodeR);
-    }
-    return extent + 3.2;
-  }, [layout.layoutRadius, layout.nodes]);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const ndc = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(() => {
-    const el = labelRef.current;
+    const el = shellRef.current;
     if (!el) return;
-    const opacity = focusLayerOpacity(blendRef.current);
-    el.style.opacity = String(opacity);
-    el.style.visibility = opacity > 0.45 ? "visible" : "hidden";
+    ndc.set(anchor[0], anchor[1], anchor[2]).project(camera);
+    const behind = ndc.z > 1;
+    const offscreen =
+      ndc.x < -1.12 || ndc.x > 1.12 || ndc.y < -1.12 || ndc.y > 1.12;
+    const visible = !behind && !offscreen;
+    el.style.visibility = visible ? "visible" : "hidden";
+    el.style.opacity = visible ? (emphasized ? "1" : "0.9") : "0";
     invalidate();
   });
-
-  if (!hub) return null;
 
   return (
     <Html
       transform={false}
-      position={[0, labelY, 0]}
+      position={anchor}
       center
-      zIndexRange={[60, 30]}
+      zIndexRange={[48, 0]}
       wrapperClass="codebook-3d-html-wrap"
       style={{ pointerEvents: "none" }}
     >
       <div
-        ref={labelRef}
-        className="codebook-3d-label codebook-3d-label--cluster codebook-3d-label--focus"
+        ref={shellRef}
+        className={`codebook-3d-label codebook-3d-label--cluster codebook-3d-label--map ${emphasized ? "codebook-3d-label--map-active" : ""}`}
         style={{ ["--cluster-color" as string]: hub.color }}
       >
-        <span className="codebook-3d-label-name">{hub.label}</span>
-        <span className="codebook-3d-label-meta">
-          #{hub.clusterId} · {hub.confidence}/5 · {hub.codeCount} codes
-        </span>
+        <span className="codebook-3d-label-name">{hub.label || `Cluster ${hub.clusterId}`}</span>
       </div>
     </Html>
   );
@@ -514,74 +535,6 @@ function ClusterLabel({
 }
 
 const INITIAL_CAMERA_DISTANCE = 32;
-/** Below this ratio of base camera distance, overview labels appear near the orbit target. */
-const ZOOM_LABEL_THRESHOLD = 0.82;
-
-const _hubPos = new THREE.Vector3();
-const _orbitTarget = new THREE.Vector3();
-const _ndc = new THREE.Vector3();
-
-/** Tracks which cluster hubs are near the orbit focus while zoomed in (overview mode). */
-function ZoomLabelProbe({
-  hubs,
-  layoutRadius,
-  baseCameraDistance,
-  enabled,
-  onVisibleHubsChange,
-}: {
-  hubs: ClusterHub3D[];
-  layoutRadius: number;
-  baseCameraDistance: number;
-  enabled: boolean;
-  onVisibleHubsChange: (ids: Set<string>) => void;
-}) {
-  const { camera } = useThree();
-  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
-  const lastKey = useRef("");
-
-  useFrame(() => {
-    if (!enabled) {
-      if (lastKey.current !== "off") {
-        lastKey.current = "off";
-        onVisibleHubsChange(new Set());
-      }
-      return;
-    }
-
-    const target = controls?.target ?? _orbitTarget.set(0, 0, 0);
-    const camDist = camera.position.distanceTo(target);
-    const zoomRatio = camDist / baseCameraDistance;
-
-    if (zoomRatio > ZOOM_LABEL_THRESHOLD) {
-      if (lastKey.current !== "far") {
-        lastKey.current = "far";
-        onVisibleHubsChange(new Set());
-      }
-      return;
-    }
-
-    const revealRadius = layoutRadius * Math.max(0.22, zoomRatio * 0.95);
-    const visible = new Set<string>();
-
-    for (const hub of hubs) {
-      _hubPos.set(hub.position[0], hub.position[1], hub.position[2]);
-      if (_hubPos.distanceTo(target) > revealRadius) continue;
-
-      _ndc.copy(_hubPos).project(camera);
-      if (_ndc.x < -1.05 || _ndc.x > 1.05 || _ndc.y < -1.05 || _ndc.y > 1.05 || _ndc.z > 1) continue;
-
-      visible.add(hub.clusterId);
-    }
-
-    const key = [...visible].sort().join(",");
-    if (key !== lastKey.current) {
-      lastKey.current = key;
-      onVisibleHubsChange(visible);
-    }
-  });
-
-  return null;
-}
 
 function SceneControls({
   zoomEnabled,
@@ -1254,6 +1207,7 @@ function Scene({
   onExitFocus,
   onPhaseChange,
   onFocusCluster,
+  focusRemovingCode = null,
   isDark,
   zoomEnabled,
 }: {
@@ -1284,6 +1238,7 @@ function Scene({
   onExitFocus?: () => void;
   onPhaseChange?: (phase: FocusTransitionPhase) => void;
   onFocusCluster?: (code: string, clusterId: string) => void;
+  focusRemovingCode?: string | null;
   isDark: boolean;
   zoomEnabled: boolean;
 }) {
@@ -1298,23 +1253,19 @@ function Scene({
   const inFocusTransition = lingerFocusId != null;
   const hubInteractionsEnabled = !flightActive && !inFocusTransition;
   const canMoveNodes = !flightActive && !!onMoveCode;
-  const overviewMode =
-    !inFocusTransition &&
-    overviewLayout.isLargeDataset &&
-    !forceShowAllCodes &&
-    expandedClusterIds.size === 0;
   const fogFar = Math.max(58, overviewLayout.layoutRadius * 2.8);
   const focusFogFar = focusLayout ? Math.max(28, focusLayout.layoutRadius * 3.2) : fogFar;
-  const [zoomLabelHubIds, setZoomLabelHubIds] = useState<Set<string>>(() => new Set());
+  const mapLabelAnchors = useMemo(
+    () => buildClusterLabelAnchors(overviewLayout),
+    [overviewLayout]
+  );
+  const showMapClusterLabels =
+    focusClusterId == null && !inFocusTransition;
   const focusHubOverviewPos = useMemo((): [number, number, number] | null => {
     if (!lingerFocusId) return null;
     const hub = overviewLayout.hubs.find((h) => h.clusterId === lingerFocusId);
     return hub?.position ?? null;
   }, [lingerFocusId, overviewLayout.hubs]);
-
-  useEffect(() => {
-    if (!overviewMode) setZoomLabelHubIds(new Set());
-  }, [overviewMode]);
 
   const renderLayer = (
     layout: Codebook3DLayout,
@@ -1395,13 +1346,20 @@ function Scene({
               highlighted?.code === node.code && highlighted.clusterId === node.clusterId;
             const fadeOthers =
               options.dimExceptClusterId != null && node.clusterId !== options.dimExceptClusterId;
+            const selectionAppliesToLayer =
+              !hasCodeFocus ||
+              !options.isFocusLayer ||
+              !lingerFocusId ||
+              highlighted!.clusterId === lingerFocusId;
             const dimmed =
               fadeOthers ||
               (isCodeDragging
                 ? node.clusterId !== moveSourceClusterId &&
                   node.clusterId !== hoverDropClusterId &&
                   !isHighlighted
-                : hasCodeFocus && node.clusterId !== highlightCluster && !isHighlighted);
+                : selectionAppliesToLayer &&
+                  node.clusterId !== highlightCluster &&
+                  !isHighlighted);
             const hiddenByDrag =
               codeDragVisual.sourceKey === nodeKey ||
               (moveFlight != null &&
@@ -1410,6 +1368,11 @@ function Scene({
             const landingFlash =
               landedCode?.code === node.code && landedCode.clusterId === node.clusterId;
             const nodeLayerOpacity = fadeOthers && inFocusTransition ? 0.08 : 1;
+            const exiting =
+              options.isFocusLayer &&
+              focusRemovingCode != null &&
+              node.code === focusRemovingCode &&
+              node.clusterId === lingerFocusId;
             return (
               <CodeSphere
                 key={`${layerKey}-${nodeKey}`}
@@ -1423,6 +1386,7 @@ function Scene({
                 layerOpacity={nodeLayerOpacity}
                 transitionLayer={options.transitionLayer}
                 canMove={canMoveNodes}
+                exiting={exiting}
                 onSelect={() => {
                   const focus = onFocusCluster ?? onSelectCode;
                   focus(node.code, node.clusterId);
@@ -1433,26 +1397,43 @@ function Scene({
 
         {!options.isFocusLayer &&
           hubs.map((hub) => {
+            if (lingerFocusId && hub.clusterId === lingerFocusId) return null;
             const isHovered = hoveredHubId === hub.clusterId;
-            const zoomFocused = zoomLabelHubIds.has(hub.clusterId);
             const isMoveSourceHub = isCodeDragging && moveSourceClusterId === hub.clusterId;
             const isDropTargetHub = isCodeDragging && hoverDropClusterId === hub.clusterId;
             const hubDimmed = inFocusTransition && hub.clusterId !== lingerFocusId;
             const isExpanded = expandedClusterIds.has(hub.clusterId);
-            const showLabel = overviewMode
-              ? isHovered || zoomFocused
-              : isMoveSourceHub ||
-                isDropTargetHub ||
-                isHovered ||
-                (hasCodeFocus && highlightCluster === hub.clusterId);
+            const emphasized =
+              isHovered ||
+              isMoveSourceHub ||
+              isDropTargetHub ||
+              (hasCodeFocus && highlightCluster === hub.clusterId);
+
+            if (showMapClusterLabels && !hubDimmed) {
+              const anchor = mapLabelAnchors.get(hub.clusterId) ?? hub.position;
+              return (
+                <MapClusterLabel
+                  key={`${layerKey}-maplbl-${hub.clusterId}`}
+                  hub={hub}
+                  anchor={anchor}
+                  emphasized={emphasized}
+                />
+              );
+            }
+
+            const showLabel =
+              isMoveSourceHub ||
+              isDropTargetHub ||
+              isHovered ||
+              (hasCodeFocus && highlightCluster === hub.clusterId);
             if (hubDimmed) return null;
             return (
               <ClusterLabel
                 key={`${layerKey}-lbl-${hub.clusterId}`}
                 hub={hub}
-                dimmed={overviewMode ? !isHovered && !zoomFocused : !showLabel}
+                dimmed={!showLabel}
                 hidden={!showLabel}
-                showMeta={overviewMode || isExpanded || isMoveSourceHub || isDropTargetHub}
+                showMeta={isExpanded || isMoveSourceHub || isDropTargetHub}
               />
             );
           })}
@@ -1484,15 +1465,6 @@ function Scene({
         onBeginFlight={onBeginFlight}
         flightActive={flightActive}
       />
-      {overviewMode && (
-        <ZoomLabelProbe
-          hubs={overviewLayout.hubs}
-          layoutRadius={overviewLayout.layoutRadius}
-          baseCameraDistance={overviewLayout.suggestedCameraDistance}
-          enabled={overviewMode}
-          onVisibleHubsChange={setZoomLabelHubIds}
-        />
-      )}
       <BackgroundDeselect
         highlighted={highlighted}
         expandedClusterIds={expandedClusterIds}
@@ -1531,7 +1503,6 @@ function Scene({
             hubRaycastDisabled: true,
             transitionLayer: "focus",
           })}
-          <FocusClusterLabel layout={focusLayout} />
         </group>
       )}
 
@@ -1585,6 +1556,7 @@ export function CodebookCluster3D({
   onExitFocus,
   onFocusTransitionPhase,
   onFocusCluster,
+  focusRemovingCode = null,
 }: CodebookCluster3DProps) {
   const [internalExpanded, setInternalExpanded] = useState<Set<string>>(new Set());
   const expandedClusterIds = expandedClusterIdsProp ?? internalExpanded;
@@ -1880,6 +1852,7 @@ export function CodebookCluster3D({
               onExitFocus={onExitFocus}
               onPhaseChange={handlePhaseChange}
               onFocusCluster={onFocusCluster}
+              focusRemovingCode={focusRemovingCode}
               isDark={isDark}
               zoomEnabled={zoomEnabled}
             />
