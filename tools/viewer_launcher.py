@@ -94,6 +94,25 @@ def extract_viewer(zip_path: Path, target: Path) -> None:
         raise SystemExit("Invalid viewer-dist.zip: missing dist/index.html")
 
 
+LOCAL_VIEWER_BOOTSTRAP = '<script>window.__GRAPH_BUILDER_VIEWER__={dataSource:"local"}</script>'
+
+
+def patch_index_for_pipeline_mode(dist_dir: Path) -> None:
+    """Force local file mode — pipeline zips must not require Supabase env vars."""
+    index = dist_dir / "index.html"
+    if not index.is_file():
+        return
+    text = index.read_text(encoding="utf-8")
+    if "__GRAPH_BUILDER_VIEWER__" in text:
+        return
+    if "<head>" in text:
+        text = text.replace("<head>", f"<head>\n    {LOCAL_VIEWER_BOOTSTRAP}", 1)
+    else:
+        text = LOCAL_VIEWER_BOOTSTRAP + "\n" + text
+    index.write_text(text, encoding="utf-8")
+    print("Patched index.html for local pipeline mode")
+
+
 def sync_data(data_src: Path, serve_root: Path) -> None:
     data_dst = serve_root / "data"
     if data_dst.exists():
@@ -173,6 +192,7 @@ def main() -> None:
     viewer_root = ensure_viewer(args.repo, version)
     dist_dir = viewer_root / "dist"
     serve_root = dist_dir.parent
+    patch_index_for_pipeline_mode(dist_dir)
     sync_data(args.data_dir.resolve(), serve_root)
     serve(dist_dir, args.port)
 
