@@ -816,7 +816,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
 
             <div className="codebook-dual-view">
               <CodebookClusterGraph
-                key={`${working.review.id}-${showingAllClusters ? "all" : `below-${confidenceFilterBelow}`}-${fullDetailView ? "full" : "overview"}`}
+                key={working.review.id}
                 sortedClusterIds={visibleClusterIds}
                 clusterToCodes={working.codebook.cluster_to_codes}
                 clusterColor={clusterColor}

@@ -287,12 +287,13 @@ export function CodebookCluster2D({
   );
 
   const denseLayout = useMemo(
-    () => isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
-    [sortedClusterIds, clusterToCodes]
+    () => !isSmallCodebook && isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
+    [isSmallCodebook, sortedClusterIds, clusterToCodes]
   );
   const isLargeDataset =
-    (!isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length)) || denseLayout;
-  const forceShowAllCodes = isSmallCodebook && !denseLayout;
+    !isSmallCodebook &&
+    (isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length) || denseLayout);
+  const forceShowAllCodes = isSmallCodebook;
   const overviewMode = isLargeDataset && expandedClusterIds.size === 0;
 
   const layout = useMemo(

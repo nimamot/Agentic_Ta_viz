@@ -171,11 +171,12 @@ export function CodebookClusterGraph({
     : "#7cf0d0";
 
   const denseLayout = useMemo(
-    () => isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
-    [sortedClusterIds, clusterToCodes]
+    () => !isSmallCodebook && isDenseCodebookLayout(sortedClusterIds, clusterToCodes),
+    [isSmallCodebook, sortedClusterIds, clusterToCodes]
   );
   const usesExpandCollapse =
-    denseLayout || (!isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length));
+    !isSmallCodebook &&
+    (denseLayout || isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length));
 
   const overviewMode = usesExpandCollapse && expandedClusterIds.size === 0;
 
