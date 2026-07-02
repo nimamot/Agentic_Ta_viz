@@ -189,6 +189,7 @@ function CodeSphere({
   onSelect,
   byOpenCode = {},
   hasGlobalSelection = false,
+  allowEvidencePanel = false,
 }: {
   node: CodeNode3D;
   highlighted: boolean;
@@ -204,6 +205,7 @@ function CodeSphere({
   onSelect: () => void;
   byOpenCode?: Record<string, CodeEvidenceEntry>;
   hasGlobalSelection?: boolean;
+  allowEvidencePanel?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -232,6 +234,7 @@ function CodeSphere({
   const canDropHere = inMoveMode && !isSource && !!canMove;
   const nodeRadius = enlarged ? 0.44 : 0.28;
   const showHoverPanel =
+    allowEvidencePanel &&
     !inMoveMode &&
     !exiting &&
     !hiddenByDrag &&
@@ -1462,6 +1465,7 @@ function Scene({
                 }}
                 byOpenCode={byOpenCode}
                 hasGlobalSelection={hasCodeFocus}
+                allowEvidencePanel={options.isFocusLayer}
               />
             );
           })}
