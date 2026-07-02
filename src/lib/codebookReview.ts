@@ -1,3 +1,5 @@
+import { parseCodeEvidence, type CodeEvidenceEntry } from "./codeEvidence";
+
 export type ClusterSource = "llm" | "llm+edited" | "human";
 export type ClusterStatus = "keep" | "drop";
 
@@ -51,6 +53,7 @@ export interface CodebookReviewRow {
   codebook_v1: unknown;
   clustered_codes: unknown;
   codebook_confidence: unknown;
+  code_evidence?: unknown;
   created_at: string;
   updated_at?: string | null;
 }
@@ -59,6 +62,7 @@ export interface WorkingCodebookState {
   review: CodebookReviewRow;
   codebook: CodebookPayload;
   confidence: Record<string, CodebookConfidenceEntry>;
+  codeEvidence: Record<string, CodeEvidenceEntry>;
   /** How many duplicate code assignments were dropped when loading (kept lowest-confidence cluster). */
   dedupedCodeCount?: number;
 }
@@ -103,6 +107,7 @@ export function parseCodebookReviewRow(row: Record<string, unknown>): CodebookRe
     codebook_v1: unwrapJsonField(row.codebook_v1) ?? row.codebook_v1,
     clustered_codes: unwrapJsonField(row.clustered_codes) ?? row.clustered_codes,
     codebook_confidence: unwrapJsonField(row.codebook_confidence) ?? row.codebook_confidence,
+    code_evidence: unwrapJsonField(row.code_evidence) ?? row.code_evidence,
     created_at: String(row.created_at ?? ""),
     updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
   };
@@ -194,9 +199,12 @@ export function buildWorkingCodebook(review: CodebookReviewRow): WorkingCodebook
     clusters
   );
 
+  const evidencePayload = parseCodeEvidence(review.code_evidence);
+
   return {
     review,
     confidence,
+    codeEvidence: evidencePayload?.by_open_code ?? {},
     dedupedCodeCount: dedupedCodeCount > 0 ? dedupedCodeCount : undefined,
     codebook: {
       version: typeof v1?.version === "number" ? v1.version : 1,

@@ -12,6 +12,7 @@ import type { LocalManifest, LocalReviewMeta } from "./types";
 const CODEBOOK_V1_FILES = ["codebook.json", "codebook_v1.json"];
 const CLUSTERED_CODES_FILES = ["gt_clustered_codes.json", "clustered_codes.json"];
 const CONFIDENCE_FILES = ["codebook_confidence.json"];
+const EVIDENCE_FILES = ["code_evidence.json"];
 
 export interface PendingLocalReviewListItem {
   id: string;
@@ -59,6 +60,8 @@ async function loadReviewRow(folder: string): Promise<CodebookReviewRow> {
   );
   const codebook_confidence =
     (await fetchFirstJson<unknown>(dir, CONFIDENCE_FILES, `Review ${folder} confidence`)) ?? null;
+  const code_evidence =
+    (await fetchFirstJson<unknown>(dir, EVIDENCE_FILES, `Review ${folder} evidence`)) ?? null;
 
   return parseCodebookReviewRow({
     id: resolved.id,
@@ -68,6 +71,7 @@ async function loadReviewRow(folder: string): Promise<CodebookReviewRow> {
     codebook_v1,
     clustered_codes,
     codebook_confidence,
+    code_evidence,
     created_at: resolved.created_at,
     updated_at: resolved.updated_at,
   });

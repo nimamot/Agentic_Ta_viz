@@ -4170,7 +4170,7 @@ h3.research-bm-kicker--section {
   overflow: hidden;
   border-radius: 16px;
   overscroll-behavior: contain;
-  max-height: min(52vh, 540px);
+  max-height: min(72vh, 720px);
 }
 
 .codebook-3d-canvas-host {
@@ -4178,9 +4178,9 @@ h3.research-bm-kicker--section {
   flex-shrink: 0;
   position: relative;
   width: 100%;
-  height: min(42vh, 460px);
-  min-height: min(36vh, 380px);
-  max-height: min(42vh, 460px);
+  height: min(50vh, 540px);
+  min-height: min(44vh, 460px);
+  max-height: min(50vh, 540px);
   overflow: hidden;
 }
 
@@ -4243,9 +4243,9 @@ h3.research-bm-kicker--section {
 .codebook-graph-map-host {
   position: relative;
   width: 100%;
-  height: min(52vh, 520px);
-  min-height: min(48vh, 480px);
-  max-height: min(56vh, 560px);
+  height: min(50vh, 540px);
+  min-height: min(46vh, 500px);
+  max-height: min(50vh, 540px);
   overflow: hidden;
 }
 
@@ -4254,12 +4254,7 @@ h3.research-bm-kicker--section {
 .codebook-2d-map {
   background: radial-gradient(ellipse 90% 80% at 50% 40%, rgba(30, 41, 59, 0.35) 0%, rgba(6, 9, 16, 0.98) 70%);
   border-radius: 0 0 12px 12px;
-  cursor: grab;
   touch-action: none;
-}
-
-.codebook-2d-map:active {
-  cursor: grabbing;
 }
 
 .codebook-2d-map--light {
@@ -4907,8 +4902,8 @@ h3.research-bm-kicker--section {
 .codebook-node-hover-panel {
   display: block;
   width: max-content;
-  max-width: min(18rem, 72vw);
-  padding: 0.42rem 0.68rem;
+  max-width: min(22rem, 80vw);
+  padding: 0.5rem 0.72rem;
   border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
@@ -4923,6 +4918,63 @@ h3.research-bm-kicker--section {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.45),
     0 6px 22px color-mix(in srgb, var(--cluster-color) 28%, transparent);
+}
+
+.code-evidence-hover-code {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cluster-color) 75%, #fff);
+  margin-bottom: 0.35rem;
+}
+
+.code-evidence-hover-quote {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.45;
+  color: #f4f6fb;
+}
+
+.code-evidence-hover-source {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 0.28rem;
+}
+
+.code-evidence-hover-note {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 0.3rem;
+}
+
+.code-evidence-hover-stats {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.code-evidence-hover-more {
+  margin-top: 0.28rem;
+  font-size: 9px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cluster-color) 70%, #fff);
+}
+
+.code-evidence-hover-empty {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.65);
+  font-style: italic;
 }
 
 .codebook-node-hover-panel--2d {
@@ -5007,14 +5059,14 @@ h3.research-bm-kicker--section {
 
 /* ── 3D cluster focus split (map + dashboard) ── */
 .codebook-3d-canvas-wrap--focus {
-  max-height: min(62vh, 600px);
+  max-height: min(76vh, 760px);
 }
 
 .codebook-3d-focus-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: min(52vh, 520px);
-  max-height: min(56vh, 560px);
+  min-height: min(54vh, 560px);
+  max-height: min(70vh, 700px);
   transition: grid-template-columns 0.22s ease-out;
 }
 
@@ -5049,7 +5101,7 @@ h3.research-bm-kicker--section {
 
 .codebook-3d-focus-visual .codebook-3d-canvas-host {
   height: 100%;
-  min-height: min(52vh, 520px);
+  min-height: min(54vh, 560px);
   max-height: none;
 }
 
@@ -6322,13 +6374,19 @@ h3.research-bm-kicker--section {
 
 @media (max-width: 768px) {
   .codebook-3d-canvas-wrap {
-    max-height: min(44vh, 400px);
+    max-height: min(58vh, 520px);
   }
 
   .codebook-3d-canvas-host {
-    height: min(36vh, 340px);
-    min-height: min(32vh, 300px);
-    max-height: min(36vh, 340px);
+    height: min(44vh, 400px);
+    min-height: min(40vh, 360px);
+    max-height: min(44vh, 400px);
+  }
+
+  .codebook-graph-map-host {
+    height: min(44vh, 400px);
+    min-height: min(40vh, 360px);
+    max-height: min(44vh, 400px);
   }
 
   .codebook-board {

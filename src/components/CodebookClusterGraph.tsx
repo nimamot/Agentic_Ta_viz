@@ -6,6 +6,7 @@ import type { HighlightedCode } from "./codebookClusterTypes";
 import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
 import { isDenseCodebookLayout } from "../lib/codebookClusterLayout2d";
 import type { ClusterEntry } from "../lib/codebookReview";
+import type { CodeEvidenceEntry } from "../lib/codeEvidence";
 
 export type CodebookGraphDimension = "2d" | "3d";
 
@@ -24,6 +25,7 @@ interface CodebookClusterGraphProps {
   isSmallCodebook?: boolean;
   totalClusterCount?: number;
   isDark: boolean;
+  byOpenCode?: Record<string, CodeEvidenceEntry>;
 }
 
 export function CodebookClusterGraph({
@@ -39,6 +41,7 @@ export function CodebookClusterGraph({
   isSmallCodebook = false,
   totalClusterCount,
   isDark,
+  byOpenCode = {},
 }: CodebookClusterGraphProps) {
   const [dimension, setDimension] = useState<CodebookGraphDimension>("3d");
   const [expandedClusterIds, setExpandedClusterIds] = useState<Set<string>>(new Set());
@@ -199,6 +202,7 @@ export function CodebookClusterGraph({
     isSmallCodebook,
     totalClusterCount,
     isDark,
+    byOpenCode,
   };
 
   return (
@@ -251,7 +255,7 @@ export function CodebookClusterGraph({
           <span className="library-panel-sub">
             {dimension === "3d"
               ? "Scroll to zoom · drag to orbit · click a code to focus its cluster · double-click a code to move it"
-              : "Drag to pan · scroll to zoom · click a cluster to expand · hover dots for code text"}
+              : "Drag to pan · scroll to zoom · click a cluster to expand · hover dots for grounded quotes"}
           </span>
         )}
       </div>

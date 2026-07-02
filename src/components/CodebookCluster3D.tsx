@@ -35,6 +35,8 @@ import {
 } from "../lib/codebookFocusBlendRuntime";
 import { codebook3dCursors, type Codebook3DCursorMode } from "../lib/codebook3dCursors";
 import type { ClusterEntry } from "../lib/codebookReview";
+import type { CodeEvidenceEntry } from "../lib/codeEvidence";
+import { CodeEvidenceHoverPanel } from "./CodeEvidenceHoverPanel";
 
 interface CodeDragPending {
   code: string;
@@ -154,6 +156,7 @@ interface CodebookCluster3DProps {
   /** Click a cluster hub/label in overview — opens focus without selecting a code. */
   onEnterClusterFocus?: (clusterId: string) => void;
   focusRemovingCode?: string | null;
+  byOpenCode?: Record<string, CodeEvidenceEntry>;
 }
 
 function hexToThree(hex: string): THREE.Color {
@@ -184,6 +187,7 @@ function CodeSphere({
   canMove,
   exiting = false,
   onSelect,
+  byOpenCode = {},
 }: {
   node: CodeNode3D;
   highlighted: boolean;
@@ -197,6 +201,7 @@ function CodeSphere({
   canMove: boolean;
   exiting?: boolean;
   onSelect: () => void;
+  byOpenCode?: Record<string, CodeEvidenceEntry>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -434,12 +439,11 @@ function CodeSphere({
           wrapperClass="codebook-3d-html-wrap"
           style={{ pointerEvents: "none" }}
         >
-          <div
-            className="codebook-node-hover-panel"
-            style={{ ["--cluster-color" as string]: node.color }}
-          >
-            {node.code}
-          </div>
+          <CodeEvidenceHoverPanel
+            codeLabel={node.code}
+            byOpenCode={byOpenCode}
+            clusterColor={node.color}
+          />
         </Html>
       )}
     </group>
@@ -1235,6 +1239,7 @@ function Scene({
   focusRemovingCode = null,
   isDark,
   zoomEnabled,
+  byOpenCode = {},
 }: {
   overviewLayout: Codebook3DLayout;
   focusLayout: Codebook3DLayout | null;
@@ -1267,6 +1272,7 @@ function Scene({
   focusRemovingCode?: string | null;
   isDark: boolean;
   zoomEnabled: boolean;
+  byOpenCode?: Record<string, CodeEvidenceEntry>;
 }) {
   const overviewGroupRef = useRef<THREE.Group>(null);
   const focusGroupRef = useRef<THREE.Group>(null);
@@ -1292,6 +1298,33 @@ function Scene({
     const hub = overviewLayout.hubs.find((h) => h.clusterId === lingerFocusId);
     return hub?.position ?? null;
   }, [lingerFocusId, overviewLayout.hubs]);
+
+  const clusterTransferLine = useMemo(() => {
+    if (
+      !isCodeDragging ||
+      !moveSourceClusterId ||
+      !hoverDropClusterId ||
+      hoverDropClusterId === moveSourceClusterId ||
+      flightActive ||
+      !codeDragVisual.ghost
+    ) {
+      return null;
+    }
+    const fromHub = overviewLayout.hubs.find((h) => h.clusterId === moveSourceClusterId);
+    const toHub = overviewLayout.hubs.find((h) => h.clusterId === hoverDropClusterId);
+    if (!fromHub || !toHub) return null;
+    return {
+      points: [fromHub.position, toHub.position] as [[number, number, number], [number, number, number]],
+      color: codeDragVisual.ghost.color,
+    };
+  }, [
+    isCodeDragging,
+    moveSourceClusterId,
+    hoverDropClusterId,
+    flightActive,
+    codeDragVisual.ghost,
+    overviewLayout.hubs,
+  ]);
 
   const renderLayer = (
     layout: Codebook3DLayout,
@@ -1420,6 +1453,7 @@ function Scene({
                   const focus = onFocusCluster ?? onSelectCode;
                   focus(node.code, node.clusterId);
                 }}
+                byOpenCode={byOpenCode}
               />
             );
           })}
@@ -1549,6 +1583,21 @@ function Scene({
         />
       )}
 
+      {clusterTransferLine && (
+        <Line
+          points={clusterTransferLine.points}
+          color={clusterTransferLine.color}
+          transparent
+          opacity={0.5}
+          lineWidth={2.25}
+          depthTest={false}
+          renderOrder={998}
+          dashed
+          dashScale={1}
+          gapSize={0.35}
+        />
+      )}
+
       {moveFlight && (
         <MoveFlightGhost flight={moveFlight} onComplete={() => onFlightComplete(moveFlight)} />
       )}
@@ -1592,6 +1641,7 @@ export function CodebookCluster3D({
   onFocusCluster,
   onEnterClusterFocus,
   focusRemovingCode = null,
+  byOpenCode = {},
 }: CodebookCluster3DProps) {
   const [internalExpanded, setInternalExpanded] = useState<Set<string>>(new Set());
   const expandedClusterIds = expandedClusterIdsProp ?? internalExpanded;
@@ -1891,6 +1941,7 @@ export function CodebookCluster3D({
               focusRemovingCode={focusRemovingCode}
               isDark={isDark}
               zoomEnabled={zoomEnabled}
+              byOpenCode={byOpenCode}
             />
           </FocusBlendRefContext.Provider>
         </Canvas>

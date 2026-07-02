@@ -829,6 +829,7 @@ export function CodebookReviewView({ reviewId, onReviewIdChange, isDark }: Codeb
                 isSmallCodebook={fullDetailView}
                 totalClusterCount={sortedClusterIds.length}
                 isDark={isDark}
+                byOpenCode={working.codeEvidence}
               />
 
             <div className="codebook-board-section">

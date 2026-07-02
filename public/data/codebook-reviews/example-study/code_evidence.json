@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "slug": "example-study",
+  "research_question": "What factors contribute to school burnout among students?",
+  "generated_at": "2026-07-02T18:00:00Z",
+  "by_open_code": {
+    "Exam stress": {
+      "quote_count": 2,
+      "review_count": 2,
+      "primary": {
+        "snippet_id": "SNIP-0101",
+        "review_id": 12,
+        "source_id": "syn_0112",
+        "quote": "Every time a test is announced I feel my chest tighten and I can't focus on anything else.",
+        "note": "Physical anxiety response tied directly to exam scheduling."
+      },
+      "snippets": [
+        {
+          "snippet_id": "SNIP-0101",
+          "review_id": 12,
+          "source_id": "syn_0112",
+          "quote": "Every time a test is announced I feel my chest tighten and I can't focus on anything else.",
+          "note": "Physical anxiety response tied directly to exam scheduling."
+        },
+        {
+          "snippet_id": "SNIP-0102",
+          "review_id": 34,
+          "source_id": "syn_0234",
+          "quote": "I study for hours but blank out the moment the exam paper lands on my desk.",
+          "note": "Performance anxiety despite preparation."
+        }
+      ]
+    },
+    "Heavy homework load": {
+      "quote_count": 1,
+      "review_count": 1,
+      "primary": {
+        "snippet_id": "SNIP-0201",
+        "review_id": 7,
+        "source_id": "syn_0077",
+        "quote": "I have three essays due Friday and math problems every night — there's no time to breathe.",
+        "note": "Volume and deadline stacking as burnout driver."
+      },
+      "snippets": [
+        {
+          "snippet_id": "SNIP-0201",
+          "review_id": 7,
+          "source_id": "syn_0077",
+          "quote": "I have three essays due Friday and math problems every night — there's no time to breathe.",
+          "note": "Volume and deadline stacking as burnout driver."
+        }
+      ]
+    },
+    "Social isolation": {
+      "quote_count": 1,
+      "review_count": 1,
+      "primary": {
+        "snippet_id": "SNIP-0301",
+        "review_id": 19,
+        "source_id": null,
+        "quote": "I eat lunch alone every day because I don't feel like anyone would want me at their table.",
+        "note": ""
+      },
+      "snippets": [
+        {
+          "snippet_id": "SNIP-0301",
+          "review_id": 19,
+          "source_id": null,
+          "quote": "I eat lunch alone every day because I don't feel like anyone would want me at their table.",
+          "note": ""
+        }
+      ]
+    },
+    "Sleep deprivation": {
+      "quote_count": 0,
+      "review_count": 0,
+      "primary": null,
+      "snippets": []
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isLargeCodebookDataset } from "../lib/codebookClusterLayout3d";
+import { codebook3dCursors, type Codebook3DCursorMode } from "../lib/codebook3dCursors";
 import {
   buildCodebook2DLayout,
   isDenseCodebookLayout,
@@ -8,7 +9,9 @@ import {
   type Codebook2DCodeNode,
 } from "../lib/codebookClusterLayout2d";
 import type { ClusterEntry } from "../lib/codebookReview";
+import type { CodeEvidenceEntry } from "../lib/codeEvidence";
 import type { HighlightedCode } from "./codebookClusterTypes";
+import { CodeEvidenceHoverPanel } from "./CodeEvidenceHoverPanel";
 
 const ZOOM_FACTOR = 1.22;
 const MIN_SCALE = 0.1;
@@ -34,6 +37,7 @@ interface CodebookCluster2DProps {
   totalClusterCount?: number;
   isDark: boolean;
   hideChrome?: boolean;
+  byOpenCode?: Record<string, CodeEvidenceEntry>;
 }
 
 interface ViewTransform {
@@ -201,6 +205,7 @@ export function CodebookCluster2D({
   totalClusterCount,
   isDark,
   hideChrome = false,
+  byOpenCode = {},
 }: CodebookCluster2DProps) {
   const [internalExpanded, setInternalExpanded] = useState<Set<string>>(new Set());
   const expandedClusterIds = expandedClusterIdsProp ?? internalExpanded;
@@ -211,6 +216,13 @@ export function CodebookCluster2D({
   const [hostSize, setHostSize] = useState({ w: 800, h: 400 });
   const [hoveredCodeId, setHoveredCodeId] = useState<string | null>(null);
   const [hoveredClusterId, setHoveredClusterId] = useState<string | null>(null);
+  const [cursorMode, setCursorMode] = useState<Codebook3DCursorMode>("orbit");
+  const [dragOriginWorldPos, setDragOriginWorldPos] = useState<{ x: number; y: number } | null>(
+    null
+  );
+
+  const cursors = useMemo(() => codebook3dCursors(isDark), [isDark]);
+  const activeCursor = cursors[cursorMode];
 
   const hostRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -456,7 +468,9 @@ export function CodebookCluster2D({
           originY: viewRef.current.y,
         };
         setDraggingCodeKey(`${clusterId}:${code}`);
+        setDragOriginWorldPos({ x: node.x, y: node.y });
         setDragWorldPos({ x: node.x, y: node.y });
+        setCursorMode("grabbing");
         return;
       }
 
@@ -470,6 +484,7 @@ export function CodebookCluster2D({
         originY: viewRef.current.y,
         moved: false,
       };
+      setCursorMode("grabbing");
     },
     [allCodes, onMoveCode, onSelectCode]
   );
@@ -539,9 +554,13 @@ export function CodebookCluster2D({
         setDropTargetClusterId(null);
         setDraggingCodeKey(null);
         setDragWorldPos(null);
+        setDragOriginWorldPos(null);
+        setCursorMode(hoveredCodeId ? "node" : "orbit");
+      } else {
+        setCursorMode(hoveredCodeId ? "node" : "orbit");
       }
     },
-    [onMoveCode]
+    [hoveredCodeId, onMoveCode]
   );
 
   const handleMapBackgroundClick = useCallback(() => {
@@ -572,8 +591,18 @@ export function CodebookCluster2D({
     const clusterId = draggingCodeKey.slice(0, sep);
     const cluster = layout.clusters.find((c) => c.clusterId === clusterId);
     const code = cluster?.codes.find((c) => c.code === draggingCodeKey.slice(sep + 1));
-    return { color: cluster?.color ?? "#7cf0d0", nodeR: code?.nodeR ?? 6 };
+    return { color: cluster?.color ?? "#7cf0d0", nodeR: code?.nodeR ?? 6, clusterId };
   }, [draggingCodeKey, dragWorldPos, layout.clusters]);
+
+  const dragClusterLine = useMemo(() => {
+    if (!draggingNode || !dropTargetClusterId || dropTargetClusterId === draggingNode.clusterId) {
+      return null;
+    }
+    const fromHub = layout.hubs.find((h) => h.clusterId === draggingNode.clusterId);
+    const toHub = layout.hubs.find((h) => h.clusterId === dropTargetClusterId);
+    if (!fromHub || !toHub) return null;
+    return { fromHub, toHub, color: draggingNode.color };
+  }, [draggingNode, dropTargetClusterId, layout.hubs]);
 
   const hoveredCodePanel = useMemo(() => {
     if (!hoveredCodeId || draggingCodeKey) return null;
@@ -603,18 +632,19 @@ export function CodebookCluster2D({
     <div
       ref={hostRef}
       className={`codebook-graph-map-host codebook-2d-map ${isDark ? "codebook-2d-map--dark" : "codebook-2d-map--light"}`}
+      style={{ cursor: activeCursor }}
     >
       {hoveredCodePanel && hoveredCodePanelPos && (
-        <div
+        <CodeEvidenceHoverPanel
+          codeLabel={hoveredCodePanel.node.code}
+          byOpenCode={byOpenCode}
+          clusterColor={hoveredCodePanel.color}
           className="codebook-node-hover-panel codebook-node-hover-panel--2d"
           style={{
             left: hoveredCodePanelPos.left,
             top: hoveredCodePanelPos.top,
-            ["--cluster-color" as string]: hoveredCodePanel.color,
           }}
-        >
-          {hoveredCodePanel.node.code}
-        </div>
+        />
       )}
 
       <ClusterLabels
@@ -735,8 +765,14 @@ export function CodebookCluster2D({
             cluster.codes.map((node) => (
               <g
                 key={node.id}
-                onMouseEnter={() => setHoveredCodeId(node.id)}
-                onMouseLeave={() => setHoveredCodeId(null)}
+                onMouseEnter={() => {
+                  setHoveredCodeId(node.id);
+                  if (!draggingCodeKey) setCursorMode("node");
+                }}
+                onMouseLeave={() => {
+                  setHoveredCodeId(null);
+                  if (!draggingCodeKey) setCursorMode("orbit");
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectCode(node.code, node.clusterId);
@@ -745,6 +781,57 @@ export function CodebookCluster2D({
                 <CodeDot node={node} color={cluster.color} hovered={hoveredCodeId === node.id} />
               </g>
             ))
+          )}
+
+          {dragClusterLine && (
+            <g className="codebook-2d-drag-cluster-line" pointerEvents="none">
+              <line
+                x1={dragClusterLine.fromHub.x}
+                y1={dragClusterLine.fromHub.y}
+                x2={dragClusterLine.toHub.x}
+                y2={dragClusterLine.toHub.y}
+                stroke={dragClusterLine.color}
+                strokeWidth={3}
+                strokeOpacity={0.45}
+                strokeLinecap="round"
+              />
+              <line
+                x1={dragClusterLine.fromHub.x}
+                y1={dragClusterLine.fromHub.y}
+                x2={dragClusterLine.toHub.x}
+                y2={dragClusterLine.toHub.y}
+                stroke={dragClusterLine.color}
+                strokeWidth={1.25}
+                strokeOpacity={0.9}
+                strokeLinecap="round"
+                strokeDasharray="7 5"
+              />
+            </g>
+          )}
+
+          {draggingNode && dragWorldPos && dragOriginWorldPos && (
+            <g className="codebook-2d-drag-trail" pointerEvents="none">
+              <line
+                x1={dragOriginWorldPos.x}
+                y1={dragOriginWorldPos.y}
+                x2={dragWorldPos.x}
+                y2={dragWorldPos.y}
+                stroke={draggingNode.color}
+                strokeWidth={3}
+                strokeOpacity={0.35}
+                strokeLinecap="round"
+              />
+              <line
+                x1={dragOriginWorldPos.x}
+                y1={dragOriginWorldPos.y}
+                x2={dragWorldPos.x}
+                y2={dragWorldPos.y}
+                stroke={draggingNode.color}
+                strokeWidth={1.5}
+                strokeOpacity={0.75}
+                strokeLinecap="round"
+              />
+            </g>
           )}
 
           {draggingNode && dragWorldPos && (
@@ -775,7 +862,7 @@ export function CodebookCluster2D({
         <span>Drag to pan</span>
         <span>Scroll to zoom</span>
         {isLargeDataset && <span>Click a cluster to reveal its codes</span>}
-        <span>Hover a dot for the full code</span>
+        <span>Hover a dot for grounded quotes</span>
       </div>
 
       <div className="graph-controls">
