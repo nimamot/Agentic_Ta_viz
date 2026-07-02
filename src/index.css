@@ -4828,6 +4828,14 @@ h3.research-bm-kicker--section {
     0 4px 18px color-mix(in srgb, var(--cluster-color) 32%, transparent);
 }
 
+.codebook-3d-label--map-clickable {
+  cursor: pointer;
+}
+
+.codebook-3d-label--map-clickable:hover {
+  border-color: color-mix(in srgb, var(--cluster-color) 70%, #fff);
+}
+
 .codebook-3d-label--focus {
   max-width: min(20rem, 68vw);
   padding: 0.38rem 0.72rem;

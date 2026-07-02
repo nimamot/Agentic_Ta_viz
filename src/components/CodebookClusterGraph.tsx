@@ -125,6 +125,15 @@ export function CodebookClusterGraph({
     [dimension, onSelectCode]
   );
 
+  const enterClusterFocus = useCallback(
+    (clusterId: string) => {
+      if (dimension !== "3d") return;
+      setClusterFocusId(clusterId);
+      syncExpanded([]);
+    },
+    [dimension, syncExpanded]
+  );
+
   const exitClusterFocus = useCallback(() => {
     setClusterFocusId(null);
     onClearSelection();
@@ -169,6 +178,11 @@ export function CodebookClusterGraph({
     denseLayout || (!isSmallCodebook && isLargeCodebookDataset(totalClusterCount ?? sortedClusterIds.length));
 
   const overviewMode = usesExpandCollapse && expandedClusterIds.size === 0;
+
+  useEffect(() => {
+    if (dimension !== "3d" || !usesExpandCollapse || !highlighted) return;
+    setClusterFocusId(highlighted.clusterId);
+  }, [dimension, usesExpandCollapse, highlighted]);
 
   const sharedProps = {
     sortedClusterIds,
@@ -220,7 +234,7 @@ export function CodebookClusterGraph({
           </span>
         ) : overviewMode ? (
           <span className="library-panel-sub">
-            {sortedClusterIds.length} clusters · click a cluster to expand codes · scroll or use controls to zoom
+            {sortedClusterIds.length} clusters · click a cluster or label to focus · scroll to zoom
           </span>
         ) : expandedClusterIds.size > 0 && usesExpandCollapse ? (
           <div className="codebook-3d-canvas-head-row">
@@ -262,6 +276,7 @@ export function CodebookClusterGraph({
               onExitFocus={exitClusterFocus}
               onFocusTransitionPhase={handleFocusTransitionPhase}
               onFocusCluster={handleFocusCluster}
+              onEnterClusterFocus={enterClusterFocus}
               focusRemovingCode={focusRemovingCode}
               hideChrome
             />

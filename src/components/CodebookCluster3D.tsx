@@ -151,6 +151,8 @@ interface CodebookCluster3DProps {
   onFocusTransitionPhase?: (phase: FocusTransitionPhase) => void;
   /** Single-click on a code node — opens cluster focus in the graph wrapper. */
   onFocusCluster?: (code: string, clusterId: string) => void;
+  /** Click a cluster hub/label in overview — opens focus without selecting a code. */
+  onEnterClusterFocus?: (clusterId: string) => void;
   focusRemovingCode?: string | null;
 }
 
@@ -448,10 +450,12 @@ function MapClusterLabel({
   hub,
   anchor,
   emphasized,
+  onSelect,
 }: {
   hub: ClusterHub3D;
   anchor: [number, number, number];
   emphasized: boolean;
+  onSelect?: () => void;
 }) {
   const { camera } = useThree();
   const invalidate = useThree((s) => s.invalidate);
@@ -478,12 +482,32 @@ function MapClusterLabel({
       center
       zIndexRange={[48, 0]}
       wrapperClass="codebook-3d-html-wrap"
-      style={{ pointerEvents: "none" }}
+      style={{ pointerEvents: onSelect ? "auto" : "none" }}
     >
       <div
         ref={shellRef}
-        className={`codebook-3d-label codebook-3d-label--cluster codebook-3d-label--map ${emphasized ? "codebook-3d-label--map-active" : ""}`}
+        className={`codebook-3d-label codebook-3d-label--cluster codebook-3d-label--map ${emphasized ? "codebook-3d-label--map-active" : ""} ${onSelect ? "codebook-3d-label--map-clickable" : ""}`}
         style={{ ["--cluster-color" as string]: hub.color }}
+        role={onSelect ? "button" : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        onClick={
+          onSelect
+            ? (e) => {
+                e.stopPropagation();
+                onSelect();
+              }
+            : undefined
+        }
+        onKeyDown={
+          onSelect
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect();
+                }
+              }
+            : undefined
+        }
       >
         <span className="codebook-3d-label-name">{hub.label || `Cluster ${hub.clusterId}`}</span>
       </div>
@@ -1207,6 +1231,7 @@ function Scene({
   onExitFocus,
   onPhaseChange,
   onFocusCluster,
+  onEnterClusterFocus,
   focusRemovingCode = null,
   isDark,
   zoomEnabled,
@@ -1238,6 +1263,7 @@ function Scene({
   onExitFocus?: () => void;
   onPhaseChange?: (phase: FocusTransitionPhase) => void;
   onFocusCluster?: (code: string, clusterId: string) => void;
+  onEnterClusterFocus?: (clusterId: string) => void;
   focusRemovingCode?: string | null;
   isDark: boolean;
   zoomEnabled: boolean;
@@ -1312,8 +1338,8 @@ function Scene({
         {hubs.map((hub) => {
           if (options.isFocusLayer) return null;
           const isExpanded = expandedClusterIds.has(hub.clusterId);
-          const showPickable =
-            !forceShowAllCodes && (layerOverviewMode || (isLargeDataset && !isExpanded));
+          const useFocusOnHub = isLargeDataset && !!onEnterClusterFocus;
+          const showPickable = !forceShowAllCodes && isLargeDataset;
           const isMoveSource = isCodeDragging && moveSourceClusterId === hub.clusterId;
           const isDropTarget = isCodeDragging && hoverDropClusterId === hub.clusterId;
           const hubDimmed =
@@ -1323,13 +1349,16 @@ function Scene({
               <ClusterHub
                 hub={hub}
                 active={!hubDimmed && (isExpanded || (hasCodeFocus && highlightCluster === hub.clusterId) || isMoveSource)}
-                pickable={hubInteractionsEnabled && (showPickable || (isLargeDataset && isExpanded))}
+                pickable={hubInteractionsEnabled && showPickable}
                 isDropTarget={isDropTarget}
                 isMoveSource={isMoveSource}
                 showDropPreview={isCodeDragging && !isMoveSource}
                 acceptCodeDrop={isCodeDragging}
                 hubRaycastDisabled={options.hubRaycastDisabled}
-                onFocus={() => onToggleCluster(hub.clusterId)}
+                onFocus={() => {
+                  if (useFocusOnHub) onEnterClusterFocus!(hub.clusterId);
+                  else onToggleCluster(hub.clusterId);
+                }}
                 onHoverChange={(hovered) => onHoverHub(hovered ? hub.clusterId : null)}
               />
             </group>
@@ -1417,6 +1446,11 @@ function Scene({
                   hub={hub}
                   anchor={anchor}
                   emphasized={emphasized}
+                  onSelect={
+                    isLargeDataset && onEnterClusterFocus
+                      ? () => onEnterClusterFocus(hub.clusterId)
+                      : undefined
+                  }
                 />
               );
             }
@@ -1556,6 +1590,7 @@ export function CodebookCluster3D({
   onExitFocus,
   onFocusTransitionPhase,
   onFocusCluster,
+  onEnterClusterFocus,
   focusRemovingCode = null,
 }: CodebookCluster3DProps) {
   const [internalExpanded, setInternalExpanded] = useState<Set<string>>(new Set());
@@ -1716,12 +1751,12 @@ export function CodebookCluster3D({
   );
 
   useEffect(() => {
-    if (isSmallCodebook || !overviewLayout.isLargeDataset || !highlighted) return;
+    if (isSmallCodebook || !overviewLayout.isLargeDataset || !highlighted || focusClusterId) return;
     setExpandedClusterIds((prev) => {
       if (prev.has(highlighted.clusterId)) return prev;
       return new Set(prev).add(highlighted.clusterId);
     });
-  }, [isSmallCodebook, overviewLayout.isLargeDataset, highlighted, setExpandedClusterIds]);
+  }, [isSmallCodebook, overviewLayout.isLargeDataset, highlighted, focusClusterId, setExpandedClusterIds]);
 
   useEffect(() => {
     if (!expandedClusterIdsProp) {
@@ -1852,6 +1887,7 @@ export function CodebookCluster3D({
               onExitFocus={onExitFocus}
               onPhaseChange={handlePhaseChange}
               onFocusCluster={onFocusCluster}
+              onEnterClusterFocus={onEnterClusterFocus}
               focusRemovingCode={focusRemovingCode}
               isDark={isDark}
               zoomEnabled={zoomEnabled}
@@ -1870,7 +1906,7 @@ export function CodebookCluster3D({
         <h4>3D cluster map</h4>
         {overviewMode ? (
           <span className="library-panel-sub">
-            {overviewLayout.clusterCount} clusters · hover to preview · scroll to zoom in for labels · click to expand codes
+            {overviewLayout.clusterCount} clusters · click a cluster or label to focus · scroll to zoom
           </span>
         ) : expandedClusterIds.size > 0 && !isSmallCodebook ? (
           <div className="codebook-3d-canvas-head-row">
