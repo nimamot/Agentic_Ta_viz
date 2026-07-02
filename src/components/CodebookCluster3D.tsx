@@ -188,6 +188,7 @@ function CodeSphere({
   exiting = false,
   onSelect,
   byOpenCode = {},
+  hasGlobalSelection = false,
 }: {
   node: CodeNode3D;
   highlighted: boolean;
@@ -202,6 +203,7 @@ function CodeSphere({
   exiting?: boolean;
   onSelect: () => void;
   byOpenCode?: Record<string, CodeEvidenceEntry>;
+  hasGlobalSelection?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -230,7 +232,10 @@ function CodeSphere({
   const canDropHere = inMoveMode && !isSource && !!canMove;
   const nodeRadius = enlarged ? 0.44 : 0.28;
   const showHoverPanel =
-    (hoverOpen || highlighted) && !inMoveMode && !exiting && !hiddenByDrag;
+    !inMoveMode &&
+    !exiting &&
+    !hiddenByDrag &&
+    (highlighted || (hoverOpen && !hasGlobalSelection));
 
   useLayoutEffect(() => {
     disableRaycast(glowRef.current);
@@ -1291,8 +1296,10 @@ function Scene({
     () => buildClusterLabelAnchors(overviewLayout),
     [overviewLayout]
   );
+  const codesVisibleInOverview =
+    forceShowAllCodes || expandedClusterIds.size > 0 || !overviewLayout.isLargeDataset;
   const showMapClusterLabels =
-    focusClusterId == null && !inFocusTransition;
+    focusClusterId == null && !inFocusTransition && !codesVisibleInOverview;
   const focusHubOverviewPos = useMemo((): [number, number, number] | null => {
     if (!lingerFocusId) return null;
     const hub = overviewLayout.hubs.find((h) => h.clusterId === lingerFocusId);
@@ -1454,6 +1461,7 @@ function Scene({
                   focus(node.code, node.clusterId);
                 }}
                 byOpenCode={byOpenCode}
+                hasGlobalSelection={hasCodeFocus}
               />
             );
           })}

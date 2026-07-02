@@ -608,9 +608,15 @@ export function CodebookCluster2D({
     if (!hoveredCodeId || draggingCodeKey) return null;
     const node = allCodes.find((c) => c.id === hoveredCodeId);
     if (!node) return null;
+    if (
+      highlighted &&
+      (highlighted.code !== node.code || highlighted.clusterId !== node.clusterId)
+    ) {
+      return null;
+    }
     const cluster = layout.clusters.find((c) => c.clusterId === node.clusterId);
     return { node, color: cluster?.color ?? "#7cf0d0" };
-  }, [hoveredCodeId, draggingCodeKey, allCodes, layout.clusters]);
+  }, [hoveredCodeId, draggingCodeKey, highlighted, allCodes, layout.clusters]);
 
   const hoveredCodePanelPos = useMemo(() => {
     if (!hoveredCodePanel) return null;
